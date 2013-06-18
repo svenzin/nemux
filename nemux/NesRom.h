@@ -15,6 +15,7 @@
 
 typedef char Byte;
 
+#include <sstream>
 template <std::size_t Size> class Section {
 public:
     std::array<Byte, Size> Data;
@@ -25,6 +26,11 @@ public:
     }
 
     virtual bool Initialize() { return true; }
+    virtual std::string ToString() const {
+        std::ostringstream value;
+        value << "Section[" << Size << "]" << std::endl;
+        return value.str();
+    }
 
     virtual ~Section() {}
 };
@@ -34,6 +40,7 @@ public:
     virtual ~SectionHeader();
 
     virtual bool Initialize();
+    virtual std::string ToString() const;
 
     std::array<Byte, 4> NES_Tag;
     size_t PRG_PagesCount;
@@ -56,7 +63,7 @@ class Section_CHR : public Section<8192> {};
 
 class NesRom {
 public:
-    explicit NesRom(const std::string name);
+    explicit NesRom(const std::string &name);
     bool Read(std::istream &input);
 
     std::string Name;

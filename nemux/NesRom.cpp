@@ -36,7 +36,7 @@ static const auto UNUSED               = 0x0F;
 //static const Byte VS_UNISYSTEM         = 0x01;
 }
 
-NesRom::NesRom(const string name)
+NesRom::NesRom(const string &name)
     : Name {name} {
 }
 
@@ -96,7 +96,7 @@ bool SectionHeader::Initialize() {
         MirroringMode::Horizontal : MirroringMode::Vertical;
 
     if (Bits::GetBits(flags7, Flags7::UNUSED) != 0) return false;
-    for (int i = 8; i < Data.size(); ++i) {
+    for (auto i = 8u; i < Data.size(); ++i) {
         if (Data[i] != 0) return false;
     }
 //    IsPC10 = Bits::GetBits(flags7, Flags7::PLAYCHOICE_10) != 0;
@@ -106,4 +106,25 @@ bool SectionHeader::Initialize() {
 //        RomVersion::Two : RomVersion::One;
 
     return true;
+}
+
+inline string MirroringModeString(const SectionHeader::MirroringMode m) {
+    switch (m) {
+        case SectionHeader::MirroringMode::Horizontal: return "Horizontal";
+        case SectionHeader::MirroringMode::Vertical:   return "Vertical";
+        default:                                       return "Unknown";
+    }
+}
+
+string SectionHeader::ToString() const {
+    ostringstream value;
+    value << "SectionHeader[" << Data.size() << "]" << endl
+          << "    PRG pages   " << PRG_PagesCount << endl
+          << "    CHR pages   " << CHR_PagesCount << endl
+          << "    Mapper      " << MapperId << endl
+          << "    Trainer     " << boolalpha << HasTrainer<< endl
+          << "    Battery     " << boolalpha << HasBattery << endl
+          << "    Four screen " << boolalpha << HasFourScreen << endl
+          << "    Mirroring   " << MirroringModeString(Mirroring) << endl;
+    return value.str();
 }
