@@ -8,6 +8,7 @@
 #ifndef CPU_H_
 #define CPU_H_
 
+#include "Types.h"
 #include "Mapper.h"
 
 #include <string>
@@ -15,10 +16,9 @@
 
 static const auto OPCODES_COUNT = 0x0100;
 
-typedef int Register_8;
-typedef int Register_16;
-typedef int Flag;
+typedef unsigned int Flag;
 enum class InstructionName {
+    ASL,
     BIT,
     CLC, CLD, CLI, CLV,
     DEC, DEX, DEY,
@@ -65,11 +65,11 @@ public:
 
     std::string Name;
 
-    Register_16 PC; // Program Counter
-    Register_8 SP; // Stack Pointer
-    Register_8 A;  // Accumulator
-    Register_8 X;  // Index Register X
-    Register_8 Y;  // Index Register Y
+    Word PC; // Program Counter
+    Byte SP; // Stack Pointer
+    Byte A;  // Accumulator
+    Byte X;  // Index Register X
+    Byte Y;  // Index Register Y
 
     Flag C; // Carry Flag
     Flag Z; // Zero Flag
@@ -81,7 +81,7 @@ public:
 
     int Ticks;
 
-    Address BuildAddress(const AddressingType & type) const;
+    Word BuildAddress(const AddressingType & type) const;
     void Execute(const Opcode &op);//, const std::vector<Byte> &data);
 
     Mapper Memory;

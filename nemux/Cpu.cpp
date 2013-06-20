@@ -22,6 +22,13 @@ using namespace std;
         Opcode(InstructionName::Unknown, AddressingType::Unknown, 0, 0)
     );
 
+    // Shift
+    m_opcodes[0x0A] = Opcode(InstructionName::ASL, AddressingType::Accumulator, 1, 2);
+    m_opcodes[0x06] = Opcode(InstructionName::ASL, AddressingType::ZeroPage,    2, 5);
+    m_opcodes[0x16] = Opcode(InstructionName::ASL, AddressingType::ZeroPageX,   2, 6);
+    m_opcodes[0x0E] = Opcode(InstructionName::ASL, AddressingType::Absolute,    3, 6);
+    m_opcodes[0x1E] = Opcode(InstructionName::ASL, AddressingType::AbsoluteX,   3, 7);
+
     // Bit mask
     m_opcodes[0x24] = Opcode(InstructionName::BIT, AddressingType::ZeroPage, 2, 3);
     m_opcodes[0x2C] = Opcode(InstructionName::BIT, AddressingType::Absolute, 3, 4);
@@ -49,24 +56,41 @@ using namespace std;
     m_opcodes[0xEA] = Opcode(InstructionName::NOP, AddressingType::Implicit, 1, 2);
 }
 
-Address Cpu::BuildAddress(const AddressingType & type) const {
+Word Cpu::BuildAddress(const AddressingType & type) const {
     switch (type) {
-        case AddressingType::Implicit:  return Address{0};
-        case AddressingType::ZeroPage:  return Address{Memory.GetByteAt(PC + 1)};
-        case AddressingType::ZeroPageX: return Address{Memory.GetByteAt(PC + 1) + X};
-        case AddressingType::Absolute:  return Address{Memory.GetWordAt(PC + 1)};
-        case AddressingType::AbsoluteX: return Address{Memory.GetWordAt(PC + 1) + X};
-        default: return Address{-1};
+        case AddressingType::Implicit:  return 0;
+        case AddressingType::ZeroPage:  return Memory.GetByteAt(PC + 1);
+        case AddressingType::ZeroPageX: return Memory.GetByteAt(PC + 1) + X;
+        case AddressingType::Absolute:  return Memory.GetWordAt(PC + 1);
+        case AddressingType::AbsoluteX: return Memory.GetWordAt(PC + 1) + X;
+        default: return -1;
     }
 }
 
 inline void Decrement(Byte & value, Flag & Z, Flag & N) {
-    value = ((value + 0x180 - 1) % 0x100) - 0x80;
+    value = (value - 1) & BYTE_MASK;//((value + 0x180 - 1) % 0x100) - 0x80;
     Z = (value == 0) ? 1 : 0;
-    N = (value < 0) ? 1 : 0;
+    N = ((value & BYTE_MASK_SIGN) == 0) ? 0 : 1;
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
+        case InstructionName::ASL: {
+            if (op.Addressing == AddressingType::Accumulator) {
+                C = ((A & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+                A <<= 1;
+                Z = (A == 0) ? 1 : 0;
+                N = ((A & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+            } else {
+                const auto addr = BuildAddress(op.Addressing);
+                auto M = Memory.GetByteAt(addr);
+                C = ((M & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+                M <<= 1;
+                Z = (M == 0) ? 1 : 0;
+                N = ((M & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+                Memory.SetByteAt(addr, M);
+            }
+            PC += op.Bytes; Ticks += op.Cycles; break;
+        }
         case InstructionName::BIT: {
             const auto mask = Memory.GetByteAt(BuildAddress(op.Addressing));
             Z = (mask & A) == 0 ? 1 : 0;

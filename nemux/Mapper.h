@@ -11,12 +11,9 @@
 #include <string>
 #include <vector>
 
+#include "Types.h"
+
 static const auto MEMORY_COUNT = 0x10000;
-
-typedef int Byte;
-typedef int Word;
-
-typedef int Address;
 
 class Mapper {
 public:
@@ -27,11 +24,11 @@ public:
 
     std::string Name;
 
-    Byte GetByteAt(const Address address) const;
-    void SetByteAt(const Address address, Byte value);
+    Byte GetByteAt(const Word address) const;
+    void SetByteAt(const Word address, Byte value);
 
-    Word GetWordAt(const Address address) const;
-    void SetWordAt(const Address address, Word value);
+    Word GetWordAt(const Word address) const;
+    void SetWordAt(const Word address, Word value);
 
 private:
     Buffer m_memory;
