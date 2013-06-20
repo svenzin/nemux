@@ -20,10 +20,8 @@ typedef int Register_16;
 typedef int Flag;
 enum class InstructionName {
     BIT,
-    CLC,
-    CLD,
-    CLI,
-    CLV,
+    CLC, CLD, CLI, CLV,
+    DEC, DEX, DEY,
     NOP,
     Unknown,
 };
