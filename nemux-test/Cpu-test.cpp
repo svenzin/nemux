@@ -31,6 +31,9 @@ public:
     CpuTest() : cpu("6502") {
         cpu.PC = BASE_PC;
         cpu.Ticks = BASE_TICKS;
+
+        Mapper map("Test", 0x400);
+        cpu.Memory = map;
     }
 
     Cpu cpu;
@@ -44,36 +47,48 @@ public:
         EXPECT_EQ(0, f);
     }
 
-    template<typename T> void Test_Decrement(T &target, Opcode op) {
-        target = 10;
+    template<typename Getter, typename Setter>
+    void Test_Decrement(Getter get, Setter set, Opcode op) {
+        const auto initialPC = cpu.PC;
+        const auto initialTicks = cpu.Ticks;
+
+        set(10);
+        cpu.PC = initialPC;
+        cpu.Ticks = initialTicks;
         cpu.Execute(op);
-        EXPECT_EQ(BASE_PC + 1 * op.Bytes, cpu.PC);
-        EXPECT_EQ(BASE_TICKS + 1 * op.Cycles, cpu.Ticks);
-        EXPECT_EQ(9, target);
+        EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+        EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+        EXPECT_EQ(9, get());
         EXPECT_EQ(0, cpu.Z);
         EXPECT_EQ(0, cpu.N);
 
-        target = 1;
+        set(1);
+        cpu.PC = initialPC;
+        cpu.Ticks = initialTicks;
         cpu.Execute(op);
-        EXPECT_EQ(BASE_PC + 2 * op.Bytes, cpu.PC);
-        EXPECT_EQ(BASE_TICKS + 2 * op.Cycles, cpu.Ticks);
-        EXPECT_EQ(0, target);
+        EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+        EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+        EXPECT_EQ(0, get());
         EXPECT_EQ(1, cpu.Z);
         EXPECT_EQ(0, cpu.N);
 
-        target = 0;
+        set(0);
+        cpu.PC = initialPC;
+        cpu.Ticks = initialTicks;
         cpu.Execute(op);
-        EXPECT_EQ(BASE_PC + 3 * op.Bytes, cpu.PC);
-        EXPECT_EQ(BASE_TICKS + 3 * op.Cycles, cpu.Ticks);
-        EXPECT_EQ(-1, target);
+        EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+        EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+        EXPECT_EQ(-1, get());
         EXPECT_EQ(0, cpu.Z);
         EXPECT_EQ(1, cpu.N);
 
-        target = -128;
+        set(-128);
+        cpu.PC = initialPC;
+        cpu.Ticks = initialTicks;
         cpu.Execute(op);
-        EXPECT_EQ(BASE_PC + 4 * op.Bytes, cpu.PC);
-        EXPECT_EQ(BASE_TICKS + 4 * op.Cycles, cpu.Ticks);
-        EXPECT_EQ(127, target);
+        EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+        EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+        EXPECT_EQ(127, get());
         EXPECT_EQ(0, cpu.Z);
         EXPECT_EQ(0, cpu.N);
     }
@@ -100,12 +115,10 @@ void FillMapper(Mapper & m, const Address & a, const vector<Byte> & data) {
 //}
 
 TEST_F(CpuTest, BIT_ZeroPage) {
-    Mapper map("Test", 0x400);
     for (auto i = 0; i < 0x100; ++i) {
-        map.SetByteAt(i, i);
-        map.SetByteAt(0x100 + i, i);
+        cpu.Memory.SetByteAt(i, i);
+        cpu.Memory.SetByteAt(0x100 + i, i);
     }
-    cpu.Memory = map;
 
     for (auto a = 0; a < 0x100; ++a) {
         for (auto m = 0; m < 0x100; ++m) {
@@ -128,12 +141,10 @@ TEST_F(CpuTest, BIT_ZeroPage) {
 }
 
 TEST_F(CpuTest, BIT_Absolute) {
-    Mapper map("Test", 0x400);
     for (auto i = 0; i < 0x100; ++i) {
-        map.SetByteAt(i, i);
-        map.SetByteAt(0x100 + i, i);
+        cpu.Memory.SetByteAt(i, i);
+        cpu.Memory.SetByteAt(0x100 + i, i);
     }
-    cpu.Memory = map;
 
     for (auto a = 0; a < 0x100; ++a) {
         for (auto m = 0; m < 0x100; ++m) {
@@ -170,12 +181,66 @@ TEST_F(CpuTest, CLV) {
     Test_ClearFlag(InstructionName::CLV, cpu.V);
 }
 
+TEST_F(CpuTest, DEC_ZeroPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+
+    Test_Decrement(
+        [&]              { return cpu.Memory.GetByteAt(0x20); },
+        [&] (Byte value) { cpu.Memory.SetByteAt(0x20, value); },
+        Opcode(InstructionName::DEC, AddressingType::ZeroPage, 2, 5)
+    );
+}
+
+TEST_F(CpuTest, DEC_ZeroPageX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+
+    Test_Decrement(
+        [&]              { return cpu.Memory.GetByteAt(0x28); },
+        [&] (Byte value) { cpu.Memory.SetByteAt(0x28, value); },
+        Opcode(InstructionName::DEC, AddressingType::ZeroPageX, 2, 6)
+    );
+}
+
+TEST_F(CpuTest, DEC_Absolute) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+
+    Test_Decrement(
+        [&]              { return cpu.Memory.GetByteAt(0x0120); },
+        [&] (Byte value) { cpu.Memory.SetByteAt(0x0120, value); },
+        Opcode(InstructionName::DEC, AddressingType::Absolute, 2, 6)
+    );
+}
+
+TEST_F(CpuTest, DEC_AbsoluteX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0x08;
+
+    Test_Decrement(
+        [&]              { return cpu.Memory.GetByteAt(0x0128); },
+        [&] (Byte value) { cpu.Memory.SetByteAt(0x0128, value); },
+        Opcode(InstructionName::DEC, AddressingType::AbsoluteX, 2, 7)
+    );
+}
+
 TEST_F(CpuTest, DEX) {
-    Test_Decrement(cpu.X, Opcode(InstructionName::DEX, AddressingType::Implicit, 1, 2));
+    Test_Decrement(
+        [&]              { return cpu.X; },
+        [&] (Byte value) { cpu.X = value; },
+        Opcode(InstructionName::DEX, AddressingType::Implicit, 1, 2)
+    );
 }
 
 TEST_F(CpuTest, DEY) {
-    Test_Decrement(cpu.Y, Opcode(InstructionName::DEY, AddressingType::Implicit, 1, 2));
+    Test_Decrement(
+        [&]              { return cpu.Y; },
+        [&] (Byte value) { cpu.Y = value; },
+        Opcode(InstructionName::DEY, AddressingType::Implicit, 1, 2)
+    );
 }
 
 TEST_F(CpuTest, NOP) {

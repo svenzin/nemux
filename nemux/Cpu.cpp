@@ -8,6 +8,7 @@
 
 #include <iomanip>
 #include <sstream>
+#include <iostream>
 
 using namespace std;
 
@@ -35,10 +36,10 @@ using namespace std;
     m_opcodes[0xB8] = Opcode(InstructionName::CLV, AddressingType::Implicit, 1, 2);
 
     // Decrement
-    m_opcodes[0xCA] = Opcode(InstructionName::DEC, AddressingType::ZeroPage,  2, 5);
-    m_opcodes[0xCA] = Opcode(InstructionName::DEC, AddressingType::ZeroPageX, 2, 6);
-    m_opcodes[0xCA] = Opcode(InstructionName::DEC, AddressingType::Absolute,  3, 6);
-    m_opcodes[0xCA] = Opcode(InstructionName::DEC, AddressingType::AbsoluteX, 3, 7);
+    m_opcodes[0xC6] = Opcode(InstructionName::DEC, AddressingType::ZeroPage,  2, 5);
+    m_opcodes[0xD6] = Opcode(InstructionName::DEC, AddressingType::ZeroPageX, 2, 6);
+    m_opcodes[0xCE] = Opcode(InstructionName::DEC, AddressingType::Absolute,  3, 6);
+    m_opcodes[0xDE] = Opcode(InstructionName::DEC, AddressingType::AbsoluteX, 3, 7);
 
     m_opcodes[0xCA] = Opcode(InstructionName::DEX, AddressingType::Implicit, 1, 2);
 
@@ -50,39 +51,59 @@ using namespace std;
 
 Address Cpu::BuildAddress(const AddressingType & type) const {
     switch (type) {
-        case AddressingType::Implicit: return Address{0};
-        case AddressingType::ZeroPage: return Address{Memory.GetByteAt(PC + 1)};
-        case AddressingType::Absolute: return Address{Memory.GetWordAt(PC + 1)};
+        case AddressingType::Implicit:  return Address{0};
+        case AddressingType::ZeroPage:  return Address{Memory.GetByteAt(PC + 1)};
+        case AddressingType::ZeroPageX: return Address{Memory.GetByteAt(PC + 1) + X};
+        case AddressingType::Absolute:  return Address{Memory.GetWordAt(PC + 1)};
+        case AddressingType::AbsoluteX: return Address{Memory.GetWordAt(PC + 1) + X};
         default: return Address{-1};
     }
 }
 
+inline void Decrement(Byte & value, Flag & Z, Flag & N) {
+    value = ((value + 0x180 - 1) % 0x100) - 0x80;
+    Z = (value == 0) ? 1 : 0;
+    N = (value < 0) ? 1 : 0;
+}
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
         case InstructionName::BIT: {
-            auto mask = Memory.GetByteAt(BuildAddress(op.Addressing));
+            const auto mask = Memory.GetByteAt(BuildAddress(op.Addressing));
             Z = (mask & A) == 0 ? 1 : 0;
             V = (mask & 0x40) == 0 ? 0 : 1;
             N = (mask & 0x80) == 0 ? 0 : 1;
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::CLC: { C = 0; PC += op.Bytes; Ticks += op.Cycles; break; }
-        case InstructionName::CLD: { D = 0; PC += op.Bytes; Ticks += op.Cycles; break; }
-        case InstructionName::CLI: { I = 0; PC += op.Bytes; Ticks += op.Cycles; break; }
-        case InstructionName::CLV: { V = 0; PC += op.Bytes; Ticks += op.Cycles; break; }
+        case InstructionName::CLC: {
+            C = 0;
+            PC += op.Bytes; Ticks += op.Cycles; break;
+        }
+        case InstructionName::CLD: {
+            D = 0;
+            PC += op.Bytes; Ticks += op.Cycles; break;
+        }
+        case InstructionName::CLI: {
+            I = 0;
+            PC += op.Bytes; Ticks += op.Cycles; break;
+        }
+        case InstructionName::CLV: {
+            V = 0;
+            PC += op.Bytes; Ticks += op.Cycles; break;
+        }
         case InstructionName::DEC: {
-            //auto address = BuildAddress(op.)
-            X = ((X + 0x180 - 1) % 0x100) - 0x80; Z = (X == 0) ? 1 : 0; N = (X < 0) ? 1 : 0; break; }
+            const auto addr = BuildAddress(op.Addressing);
+            auto M = Memory.GetByteAt(addr);
+            Decrement(M, Z, N);
+            Memory.SetByteAt(addr, M);
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
         case InstructionName::DEX: {
-            X = ((X + 0x180 - 1) % 0x100) - 0x80;
-            Z = (X == 0) ? 1 : 0;
-            N = (X < 0) ? 1 : 0;
+            Decrement(X, Z, N);
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
         case InstructionName::DEY: {
-            Y = ((Y + 0x180 - 1) % 0x100) - 0x80;
-            Z = (Y == 0) ? 1 : 0;
-            N = (Y < 0) ? 1 : 0;
+            Decrement(Y, Z, N);
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
         case InstructionName::NOP: { PC += op.Bytes; Ticks += op.Cycles; break; }
