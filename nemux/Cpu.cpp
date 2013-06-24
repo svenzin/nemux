@@ -29,7 +29,16 @@ using namespace std;
     m_opcodes[0x0E] = Opcode(InstructionName::ASL, AddressingType::Absolute,    3, 6);
     m_opcodes[0x1E] = Opcode(InstructionName::ASL, AddressingType::AbsoluteX,   3, 7);
 
-    // Bit mask
+    // Bit operations
+    m_opcodes[0x29] = Opcode(InstructionName::AND, AddressingType::Immediate, 2, 2);
+    m_opcodes[0x25] = Opcode(InstructionName::AND, AddressingType::ZeroPage,  2, 3);
+    m_opcodes[0x35] = Opcode(InstructionName::AND, AddressingType::ZeroPageX, 2, 4);
+    m_opcodes[0x2D] = Opcode(InstructionName::AND, AddressingType::Absolute,  3, 4);
+    m_opcodes[0x3D] = Opcode(InstructionName::AND, AddressingType::AbsoluteX, 3, 4, true);
+    m_opcodes[0x39] = Opcode(InstructionName::AND, AddressingType::AbsoluteY, 3, 4, true);
+    m_opcodes[0x21] = Opcode(InstructionName::AND, AddressingType::IndexedIndirect, 2, 6);
+    m_opcodes[0x31] = Opcode(InstructionName::AND, AddressingType::IndirectIndexed, 2, 5, true);
+
     m_opcodes[0x24] = Opcode(InstructionName::BIT, AddressingType::ZeroPage, 2, 3);
     m_opcodes[0x2C] = Opcode(InstructionName::BIT, AddressingType::Absolute, 3, 4);
 
@@ -59,10 +68,14 @@ using namespace std;
 Word Cpu::BuildAddress(const AddressingType & type) const {
     switch (type) {
         case AddressingType::Implicit:  return 0;
+        case AddressingType::Immediate: return PC + 1;
         case AddressingType::ZeroPage:  return Memory.GetByteAt(PC + 1);
         case AddressingType::ZeroPageX: return Memory.GetByteAt(PC + 1) + X;
         case AddressingType::Absolute:  return Memory.GetWordAt(PC + 1);
         case AddressingType::AbsoluteX: return Memory.GetWordAt(PC + 1) + X;
+        case AddressingType::AbsoluteY: return Memory.GetWordAt(PC + 1) + Y;
+        case AddressingType::IndexedIndirect: return Memory.GetWordAt(Memory.GetByteAt(PC + 1) + X);
+        case AddressingType::IndirectIndexed: return Memory.GetWordAt(Memory.GetWordAt(Memory.GetByteAt(PC + 1)) + Y);
         default: return -1;
     }
 }
@@ -90,6 +103,30 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
                 Memory.SetByteAt(addr, M);
             }
             PC += op.Bytes; Ticks += op.Cycles; break;
+        }
+        case InstructionName::AND: {
+            const auto addr = BuildAddress(op.Addressing);
+            const auto M = Memory.GetByteAt(addr);
+            A = A & M;
+            Z = A == 0 ? 1 : 0;
+            N = (A & 0x80) == 0 ? 0 : 1;
+            switch (op.Addressing) {
+                case AddressingType::AbsoluteX: {
+                    if (X > (addr & BYTE_MASK)) ++Ticks;
+                    break;
+                }
+                case AddressingType::AbsoluteY: {
+                    if (Y > (addr & BYTE_MASK)) ++Ticks;
+                    break;
+                }
+                case AddressingType::IndirectIndexed: {
+                    const auto base = Memory.GetWordAt(Memory.GetByteAt(PC + 1)) + Y;
+                    if (Y > (base & BYTE_MASK)) ++Ticks;
+                }
+                default: break;
+            }
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
         }
         case InstructionName::BIT: {
             const auto mask = Memory.GetByteAt(BuildAddress(op.Addressing));

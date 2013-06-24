@@ -19,7 +19,7 @@ static const auto OPCODES_COUNT = 0x0100;
 typedef unsigned int Flag;
 enum class InstructionName {
     ASL,
-    BIT,
+    AND, BIT,
     CLC, CLD, CLI, CLV,
     DEC, DEX, DEY,
     NOP,
@@ -49,14 +49,16 @@ enum class AddressingType {
 class Opcode {
 public:
     explicit Opcode(const InstructionName &name, const AddressingType &addr,
-                    const Opsize &bytes, const Optime &cycles)
-        : Instruction(name), Addressing(addr), Bytes(bytes), Cycles(cycles) {
+                    const Opsize &bytes, const Optime &cycles, const bool extra = false)
+        : Instruction(name), Addressing(addr), Bytes(bytes),
+          Cycles(cycles), ExtraOnPageCrossing(extra) {
     }
 
     InstructionName Instruction;
     AddressingType Addressing;
     Opsize Bytes;
     Optime Cycles;
+    bool ExtraOnPageCrossing;
 };
 
 class Cpu {

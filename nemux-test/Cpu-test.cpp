@@ -122,6 +122,29 @@ public:
         Tester(0xF0, 0xE0, 1, 0, 1); // Negative flag
     }
 
+    template<typename Setter>
+    void Test_AND(Setter set, Opcode op, bool extra) {
+        const auto expectedCycles = extra ? op.Cycles + 1 : op.Cycles;
+        auto tester = [&] (Byte a, Byte m, Byte expA, Flag expZ, Flag expN) {
+            set(m);
+            cpu.A = a;
+
+            cpu.PC = BASE_PC;
+            cpu.Ticks = BASE_TICKS;
+            cpu.Execute(op);
+
+            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+            EXPECT_EQ(BASE_TICKS + expectedCycles, cpu.Ticks);
+            EXPECT_EQ(expA, cpu.A);
+            EXPECT_EQ(expZ, cpu.Z);
+            EXPECT_EQ(expN, cpu.N);
+        };
+
+        tester(0x66, 0x00, 0x00, 1, 0); // Zero
+        tester(0xFF, 0x80, 0x80, 0, 1); // Negative
+        tester(0xAA, 0x24, 0x20, 0, 0); // Normal
+    }
+
 };
 
 TEST_F(CpuTest, ASL_Accumulator) {
@@ -171,6 +194,123 @@ TEST_F(CpuTest, ASL_AbsoluteX) {
         [&]              { return cpu.Memory.GetByteAt(0x0128); },
         [&] (Byte value) { cpu.Memory.SetByteAt(0x0128, value); },
         Opcode(InstructionName::ASL, AddressingType::AbsoluteX, 3, 7));
+}
+
+TEST_F(CpuTest, AND_Immediate) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+
+    Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(BASE_PC + 1, m); },
+             Opcode(InstructionName::AND, AddressingType::Immediate, 2, 2),
+             false);
+}
+
+TEST_F(CpuTest, AND_ZeroPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+
+    Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x20, m); },
+             Opcode(InstructionName::AND, AddressingType::ZeroPage, 2, 3),
+             false);
+}
+
+TEST_F(CpuTest, AND_ZeroPageX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+
+    Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x28, m); },
+             Opcode(InstructionName::AND, AddressingType::ZeroPageX, 2, 4),
+             false);
+}
+
+TEST_F(CpuTest, AND_Absolute) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+
+    Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x0120, m); },
+             Opcode(InstructionName::AND, AddressingType::Absolute, 3, 4),
+             false);
+}
+
+TEST_F(CpuTest, AND_AbsoluteX) {
+    // Same page
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0x08;
+
+    Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x0128, m); },
+             Opcode(InstructionName::AND, AddressingType::AbsoluteX, 3, 4),
+             false);
+}
+
+TEST_F(CpuTest, AND_AbsoluteX_CrossingPage) {
+    // Crossing page
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0xF0;
+
+    Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x0210, m); },
+             Opcode(InstructionName::AND, AddressingType::AbsoluteX, 3, 4),
+             true);
+}
+
+TEST_F(CpuTest, AND_AbsoluteY) {
+    // Same page
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0x08;
+
+    Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x0128, m); },
+             Opcode(InstructionName::AND, AddressingType::AbsoluteY, 3, 4),
+             false);
+}
+
+TEST_F(CpuTest, AND_AbsoluteY_CrossingPage) {
+    // Crossing page
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0xF0;
+
+    Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x0210, m); },
+             Opcode(InstructionName::AND, AddressingType::AbsoluteY, 3, 4),
+             true);
+}
+
+TEST_F(CpuTest, AND_IndexedIndirect) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+    cpu.Memory.SetWordAt(0x28, 0x0120);
+
+    Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x0120, m); },
+             Opcode(InstructionName::AND, AddressingType::IndexedIndirect, 2, 6),
+             false);
+}
+
+TEST_F(CpuTest, AND_IndirectIndexed) {
+    // Same page
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.Memory.SetWordAt(0x20, 0x120);
+    cpu.Y = 0x08;
+    cpu.Memory.SetWordAt(0x0128, 0x0200);
+
+    Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x0200, m); },
+             Opcode(InstructionName::AND, AddressingType::IndirectIndexed, 2, 5),
+             false);
+}
+
+TEST_F(CpuTest, AND_IndirectIndexed_CrossingPage) {
+    // Crossing page
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.Memory.SetWordAt(0x20, 0x120);
+    cpu.Y = 0xF0;
+    cpu.Memory.SetWordAt(0x0210, 0x0200);
+
+    Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x0200, m); },
+             Opcode(InstructionName::AND, AddressingType::IndirectIndexed, 2, 5),
+             true);
 }
 
 TEST_F(CpuTest, BIT_ZeroPage) {
