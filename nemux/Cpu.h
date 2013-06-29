@@ -16,12 +16,12 @@
 
 static const auto OPCODES_COUNT = 0x0100;
 
-typedef unsigned int Flag;
+typedef Byte Flag;
 enum class InstructionName {
-    ASL,
-    AND, BIT,
-    CLC, CLD, CLI, CLV,
-    DEC, DEX, DEY,
+    ASL,                // Shift
+    AND, BIT,           // Bit operations
+    CLC, CLD, CLI, CLV, // Flags
+    ADC, DEC, DEX, DEY,      // Arithmetic
     NOP,
     Unknown,
 };

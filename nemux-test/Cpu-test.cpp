@@ -145,6 +145,40 @@ public:
         tester(0xAA, 0x24, 0x20, 0, 0); // Normal
     }
 
+    template<typename Setter>
+    void Test_AddWithCarry(Setter set, Opcode op, bool extra) {
+        const auto expectedCycles = extra ? op.Cycles + 1 : op.Cycles;
+        auto tester = [&] (Byte a, Byte m, Flag c, Byte expA, Flag expC, Flag expZ, Flag expV, Flag expN) {
+            set(m);
+            cpu.A = a;
+            cpu.C = c;
+
+            cpu.PC = BASE_PC;
+            cpu.Ticks = BASE_TICKS;
+            cpu.Execute(op);
+
+            cout << Word{a} << " " << Word{m} << " " << Word{c} << endl;
+            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+            EXPECT_EQ(BASE_TICKS + expectedCycles, cpu.Ticks);
+            EXPECT_EQ(expA, cpu.A);
+            EXPECT_EQ(expC, cpu.C);
+            EXPECT_EQ(expZ, cpu.Z);
+            EXPECT_EQ(expV, cpu.V);
+            EXPECT_EQ(expN, cpu.N);
+        };
+
+        tester(0x10, 0x20, 0, 0x30, 0, 0, 0, 0); // pos pos > pos
+        tester(0x10, 0x20, 1, 0x31, 0, 0, 0, 0); // pos pos C > pos
+        tester(0x00, 0x00, 0, 0x00, 0, 1, 0, 0); // Zero
+        tester(0x7F, 0x80, 1, 0x00, 1, 1, 0, 0); // Zero by carry
+        tester(0x80, 0x80, 0, 0x00, 1, 1, 1, 0); // Zero by overflow
+        tester(0x20, 0xF0, 0, 0x10, 1, 0, 0, 0); // Carry w/o overflow w/o sign change
+        tester(0xF0, 0x20, 0, 0x10, 1, 0, 0, 0); // Carry w/o overflow w/  sign change
+        tester(0xA0, 0xA0, 0, 0x40, 1, 0, 1, 0); // Carry with overflow
+        tester(0x70, 0x10, 0, 0x80, 0, 0, 1, 1); // Overflow pos > neg
+        tester(0xB0, 0xB0, 0, 0x60, 1, 0, 1, 0); // Overflow neg > pos
+        tester(0x00, 0xF0, 0, 0xF0, 0, 0, 0, 1); // Negative
+    }
 };
 
 TEST_F(CpuTest, ASL_Accumulator) {
@@ -378,6 +412,16 @@ TEST_F(CpuTest, CLI) {
 
 TEST_F(CpuTest, CLV) {
     Test_ClearFlag(InstructionName::CLV, cpu.V);
+}
+
+TEST_F(CpuTest, ADC_Immediate) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+
+    Test_AddWithCarry(
+        [&] (Byte value) { cpu.Memory.SetByteAt(BASE_PC + 1, value); },
+        Opcode(InstructionName::ADC, AddressingType::Immediate, 2, 2),
+        false
+        );
 }
 
 TEST_F(CpuTest, DEC_ZeroPage) {

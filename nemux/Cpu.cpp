@@ -51,7 +51,16 @@ using namespace std;
 
     m_opcodes[0xB8] = Opcode(InstructionName::CLV, AddressingType::Implicit, 1, 2);
 
-    // Decrement
+    // Arithmetic
+    m_opcodes[0x69] = Opcode(InstructionName::ADC, AddressingType::Immediate, 2, 2);
+    m_opcodes[0x65] = Opcode(InstructionName::ADC, AddressingType::ZeroPage,  2, 3);
+    m_opcodes[0x75] = Opcode(InstructionName::ADC, AddressingType::ZeroPageX, 2, 4);
+    m_opcodes[0x6D] = Opcode(InstructionName::ADC, AddressingType::Absolute,  3, 4);
+    m_opcodes[0x7D] = Opcode(InstructionName::ADC, AddressingType::AbsoluteX, 3, 4, true);
+    m_opcodes[0x79] = Opcode(InstructionName::ADC, AddressingType::AbsoluteY, 3, 4, true);
+    m_opcodes[0x61] = Opcode(InstructionName::ADC, AddressingType::IndexedIndirect, 2, 6);
+    m_opcodes[0x71] = Opcode(InstructionName::ADC, AddressingType::IndirectIndexed, 2, 5, true);
+
     m_opcodes[0xC6] = Opcode(InstructionName::DEC, AddressingType::ZeroPage,  2, 5);
     m_opcodes[0xD6] = Opcode(InstructionName::DEC, AddressingType::ZeroPageX, 2, 6);
     m_opcodes[0xCE] = Opcode(InstructionName::DEC, AddressingType::Absolute,  3, 6);
@@ -87,6 +96,17 @@ inline void Decrement(Byte & value, Flag & Z, Flag & N) {
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
+        case InstructionName::ADC: {
+            const auto M = Memory.GetByteAt(BuildAddress(op.Addressing));
+            Word a = A + M + C;
+            C = (a > BYTE_MASK) ? 1 : 0;
+//            V = (a >= BYTE_MASK_SIGN) ? 1 : 0;
+            V = ((~((A ^ M) & BYTE_MASK_SIGN) & ((A ^ a)& BYTE_MASK_SIGN)) == 0) ? 0 : 1;
+            Z = ((a & BYTE_MASK) == 0) ? 1 : 0;
+            N = ((a & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+            A = a & BYTE_MASK;
+            PC += op.Bytes; Ticks += op.Cycles; break;
+        }
         case InstructionName::ASL: {
             if (op.Addressing == AddressingType::Accumulator) {
                 C = ((A & BYTE_MASK_SIGN) == 0) ? 0 : 1;
