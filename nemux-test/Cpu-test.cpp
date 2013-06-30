@@ -48,7 +48,7 @@ public:
     }
 
     template<typename Getter, typename Setter>
-    void Test_Decrement(Getter get, Setter set, Opcode op) {
+    void Test_DEC(Getter get, Setter set, Opcode op) {
         const auto initialPC = cpu.PC;
         const auto initialTicks = cpu.Ticks;
 
@@ -146,7 +146,7 @@ public:
     }
 
     template<typename Setter>
-    void Test_AddWithCarry(Setter set, Opcode op, bool extra) {
+    void Test_ADC(Setter set, Opcode op, bool extra) {
         const auto expectedCycles = extra ? op.Cycles + 1 : op.Cycles;
         auto tester = [&] (Byte a, Byte m, Flag c, Byte expA, Flag expC, Flag expZ, Flag expV, Flag expN) {
             set(m);
@@ -273,7 +273,7 @@ TEST_F(CpuTest, AND_AbsoluteX) {
     cpu.X = 0x08;
 
     Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x0128, m); },
-             Opcode(InstructionName::AND, AddressingType::AbsoluteX, 3, 4),
+             Opcode(InstructionName::AND, AddressingType::AbsoluteX, 3, 4, true),
              false);
 }
 
@@ -284,7 +284,7 @@ TEST_F(CpuTest, AND_AbsoluteX_CrossingPage) {
     cpu.X = 0xF0;
 
     Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x0210, m); },
-             Opcode(InstructionName::AND, AddressingType::AbsoluteX, 3, 4),
+             Opcode(InstructionName::AND, AddressingType::AbsoluteX, 3, 4, true),
              true);
 }
 
@@ -295,7 +295,7 @@ TEST_F(CpuTest, AND_AbsoluteY) {
     cpu.Y = 0x08;
 
     Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x0128, m); },
-             Opcode(InstructionName::AND, AddressingType::AbsoluteY, 3, 4),
+             Opcode(InstructionName::AND, AddressingType::AbsoluteY, 3, 4, true),
              false);
 }
 
@@ -306,7 +306,7 @@ TEST_F(CpuTest, AND_AbsoluteY_CrossingPage) {
     cpu.Y = 0xF0;
 
     Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x0210, m); },
-             Opcode(InstructionName::AND, AddressingType::AbsoluteY, 3, 4),
+             Opcode(InstructionName::AND, AddressingType::AbsoluteY, 3, 4, true),
              true);
 }
 
@@ -330,7 +330,7 @@ TEST_F(CpuTest, AND_IndirectIndexed) {
     cpu.Memory.SetWordAt(0x0128, 0x0200);
 
     Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x0200, m); },
-             Opcode(InstructionName::AND, AddressingType::IndirectIndexed, 2, 5),
+             Opcode(InstructionName::AND, AddressingType::IndirectIndexed, 2, 5, true),
              false);
 }
 
@@ -343,7 +343,7 @@ TEST_F(CpuTest, AND_IndirectIndexed_CrossingPage) {
     cpu.Memory.SetWordAt(0x0210, 0x0200);
 
     Test_AND([&] (Byte m) { cpu.Memory.SetByteAt(0x0200, m); },
-             Opcode(InstructionName::AND, AddressingType::IndirectIndexed, 2, 5),
+             Opcode(InstructionName::AND, AddressingType::IndirectIndexed, 2, 5, true),
              true);
 }
 
@@ -417,10 +417,135 @@ TEST_F(CpuTest, CLV) {
 TEST_F(CpuTest, ADC_Immediate) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
 
-    Test_AddWithCarry(
+    Test_ADC(
         [&] (Byte value) { cpu.Memory.SetByteAt(BASE_PC + 1, value); },
         Opcode(InstructionName::ADC, AddressingType::Immediate, 2, 2),
         false
+        );
+}
+
+TEST_F(CpuTest, ADC_ZeroPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+
+    Test_ADC(
+        [&] (Byte value) { cpu.Memory.SetByteAt(0x20, value); },
+        Opcode(InstructionName::ADC, AddressingType::ZeroPage, 2, 3),
+        false
+        );
+}
+
+TEST_F(CpuTest, ADC_ZeroPageX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+
+    Test_ADC(
+        [&] (Byte value) { cpu.Memory.SetByteAt(0x28, value); },
+        Opcode(InstructionName::ADC, AddressingType::ZeroPageX, 2, 4),
+        false
+        );
+}
+
+TEST_F(CpuTest, ADC_Absolute) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+
+    Test_ADC(
+        [&] (Byte value) { cpu.Memory.SetByteAt(0x0120, value); },
+        Opcode(InstructionName::ADC, AddressingType::Absolute, 3, 4),
+        false
+        );
+}
+
+TEST_F(CpuTest, ADC_AbsoluteX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0x08;
+
+    Test_ADC(
+        [&] (Byte value) { cpu.Memory.SetByteAt(0x0128, value); },
+        Opcode(InstructionName::ADC, AddressingType::AbsoluteX, 3, 4, true),
+        false
+        );
+}
+
+TEST_F(CpuTest, ADC_AbsoluteX_CrossingPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0xF0;
+
+    Test_ADC(
+        [&] (Byte value) { cpu.Memory.SetByteAt(0x0210, value); },
+        Opcode(InstructionName::ADC, AddressingType::AbsoluteX, 3, 4, true),
+        true
+        );
+}
+
+TEST_F(CpuTest, ADC_AbsoluteY) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0x08;
+
+    Test_ADC(
+        [&] (Byte value) { cpu.Memory.SetByteAt(0x0128, value); },
+        Opcode(InstructionName::ADC, AddressingType::AbsoluteY, 3, 4, true),
+        false
+        );
+}
+
+TEST_F(CpuTest, ADC_AbsoluteY_CrossingPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0xF0;
+
+    Test_ADC(
+        [&] (Byte value) { cpu.Memory.SetByteAt(0x0210, value); },
+        Opcode(InstructionName::ADC, AddressingType::AbsoluteY, 3, 4, true),
+        true
+        );
+}
+
+TEST_F(CpuTest, ADC_IndexedIndirect) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+    cpu.Memory.SetWordAt(0x28, 0x0120);
+
+    Test_ADC(
+        [&] (Byte m) { cpu.Memory.SetByteAt(0x0120, m); },
+        Opcode(InstructionName::ADC, AddressingType::IndexedIndirect, 2, 6),
+        false
+        );
+}
+
+TEST_F(CpuTest, ADC_IndirectIndexed) {
+    // Same page
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.Memory.SetWordAt(0x20, 0x120);
+    cpu.Y = 0x08;
+    cpu.Memory.SetWordAt(0x0128, 0x0200);
+
+    Test_ADC(
+        [&] (Byte m) { cpu.Memory.SetByteAt(0x0200, m); },
+        Opcode(InstructionName::ADC, AddressingType::IndirectIndexed, 2, 5, true),
+        false
+        );
+}
+
+TEST_F(CpuTest, ADC_IndirectIndexed_CrossingPage) {
+    // Crossing page
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.Memory.SetWordAt(0x20, 0x120);
+    cpu.Y = 0xF0;
+    cpu.Memory.SetWordAt(0x0210, 0x0200);
+
+    Test_ADC(
+        [&] (Byte m) { cpu.Memory.SetByteAt(0x0200, m); },
+        Opcode(InstructionName::ADC, AddressingType::IndirectIndexed, 2, 5, true),
+        true
         );
 }
 
@@ -428,7 +553,7 @@ TEST_F(CpuTest, DEC_ZeroPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
 
-    Test_Decrement(
+    Test_DEC(
         [&]              { return cpu.Memory.GetByteAt(0x20); },
         [&] (Byte value) { cpu.Memory.SetByteAt(0x20, value); },
         Opcode(InstructionName::DEC, AddressingType::ZeroPage, 2, 5)
@@ -440,7 +565,7 @@ TEST_F(CpuTest, DEC_ZeroPageX) {
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
 
-    Test_Decrement(
+    Test_DEC(
         [&]              { return cpu.Memory.GetByteAt(0x28); },
         [&] (Byte value) { cpu.Memory.SetByteAt(0x28, value); },
         Opcode(InstructionName::DEC, AddressingType::ZeroPageX, 2, 6)
@@ -451,7 +576,7 @@ TEST_F(CpuTest, DEC_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
 
-    Test_Decrement(
+    Test_DEC(
         [&]              { return cpu.Memory.GetByteAt(0x0120); },
         [&] (Byte value) { cpu.Memory.SetByteAt(0x0120, value); },
         Opcode(InstructionName::DEC, AddressingType::Absolute, 2, 6)
@@ -463,7 +588,7 @@ TEST_F(CpuTest, DEC_AbsoluteX) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
 
-    Test_Decrement(
+    Test_DEC(
         [&]              { return cpu.Memory.GetByteAt(0x0128); },
         [&] (Byte value) { cpu.Memory.SetByteAt(0x0128, value); },
         Opcode(InstructionName::DEC, AddressingType::AbsoluteX, 2, 7)
@@ -471,7 +596,7 @@ TEST_F(CpuTest, DEC_AbsoluteX) {
 }
 
 TEST_F(CpuTest, DEX) {
-    Test_Decrement(
+    Test_DEC(
         [&]              { return cpu.X; },
         [&] (Byte value) { cpu.X = value; },
         Opcode(InstructionName::DEX, AddressingType::Implicit, 1, 2)
@@ -479,7 +604,7 @@ TEST_F(CpuTest, DEX) {
 }
 
 TEST_F(CpuTest, DEY) {
-    Test_Decrement(
+    Test_DEC(
         [&]              { return cpu.Y; },
         [&] (Byte value) { cpu.Y = value; },
         Opcode(InstructionName::DEY, AddressingType::Implicit, 1, 2)

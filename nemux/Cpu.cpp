@@ -97,15 +97,32 @@ inline void Decrement(Byte & value, Flag & Z, Flag & N) {
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
         case InstructionName::ADC: {
-            const auto M = Memory.GetByteAt(BuildAddress(op.Addressing));
+            const auto addr = BuildAddress(op.Addressing);
+            const auto M = Memory.GetByteAt(addr);
             Word a = A + M + C;
             C = (a > BYTE_MASK) ? 1 : 0;
 //            V = (a >= BYTE_MASK_SIGN) ? 1 : 0;
-            V = ((~((A ^ M) & BYTE_MASK_SIGN) & ((A ^ a)& BYTE_MASK_SIGN)) == 0) ? 0 : 1;
+            V = ((~((A ^ M) & BYTE_MASK_SIGN) & ((A ^ a) & BYTE_MASK_SIGN)) == 0) ? 0 : 1;
             Z = ((a & BYTE_MASK) == 0) ? 1 : 0;
             N = ((a & BYTE_MASK_SIGN) == 0) ? 0 : 1;
             A = a & BYTE_MASK;
-            PC += op.Bytes; Ticks += op.Cycles; break;
+            switch (op.Addressing) {
+                case AddressingType::AbsoluteX: {
+                    if (X > (addr & BYTE_MASK)) ++Ticks;
+                    break;
+                }
+                case AddressingType::AbsoluteY: {
+                    if (Y > (addr & BYTE_MASK)) ++Ticks;
+                    break;
+                }
+                case AddressingType::IndirectIndexed: {
+                    const auto base = Memory.GetWordAt(Memory.GetByteAt(PC + 1)) + Y;
+                    if (Y > (base & BYTE_MASK)) ++Ticks;
+                }
+                default: break;
+            }
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
         }
         case InstructionName::ASL: {
             if (op.Addressing == AddressingType::Accumulator) {
