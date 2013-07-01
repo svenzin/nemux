@@ -179,13 +179,12 @@ public:
         tester(0x00, 0xF0, 0, 0xF0, 0, 0, 0, 1); // Negative
     }
 
-    void Test_BCC() {
-        const auto op = Opcode(InstructionName::BCC, AddressingType::Relative, 2, 2);
-
+    template<typename Setter>
+    void Test_Branch(Setter set, Flag success, Flag failure, Opcode op) {
         auto tester = [&] (Word pc, Byte offset, Flag c, Word expPC, int extra) {
             cpu.Memory.SetByteAt(pc, 0xFF);
             cpu.Memory.SetByteAt(pc + 1, offset);
-            cpu.C = c;
+            set(c);
 
             cpu.PC = pc;
             cpu.Ticks = BASE_TICKS;
@@ -195,98 +194,41 @@ public:
             EXPECT_EQ(BASE_TICKS + op.Cycles + extra, cpu.Ticks);
         };
 
-        tester(0x0080, 0x20, 1, 0x0082, 0); // Fail
-        tester(0x0080, 0x20, 0, 0x00A0, 1); // Success, positive offset
-        tester(0x0080, 0xE0, 0, 0x0060, 1); // Success, negative offset
-        tester(0x00F0, 0x20, 0, 0x0110, 3); // Success, positive offset, crossing page
-        tester(0x0110, 0xE0, 0, 0x00F0, 3); // Success, negative offset, crossing page
-    };
-
-    void Test_BCS() {
-        const auto op = Opcode(InstructionName::BCS, AddressingType::Relative, 2, 2);
-
-        auto tester = [&] (Word pc, Byte offset, Flag c, Word expPC, int extra) {
-            cpu.Memory.SetByteAt(pc, 0xFF);
-            cpu.Memory.SetByteAt(pc + 1, offset);
-            cpu.C = c;
-
-            cpu.PC = pc;
-            cpu.Ticks = BASE_TICKS;
-            cpu.Execute(op);
-
-            EXPECT_EQ(expPC, cpu.PC);
-            EXPECT_EQ(BASE_TICKS + op.Cycles + extra, cpu.Ticks);
-        };
-
-        tester(0x0080, 0x20, 0, 0x0082, 0); // Fail
-        tester(0x0080, 0x20, 1, 0x00A0, 1); // Success, positive offset
-        tester(0x0080, 0xE0, 1, 0x0060, 1); // Success, negative offset
-        tester(0x00F0, 0x20, 1, 0x0110, 3); // Success, positive offset, crossing page
-        tester(0x0110, 0xE0, 1, 0x00F0, 3); // Success, negative offset, crossing page
-    };
-
-    void Test_BEQ() {
-        const auto op = Opcode(InstructionName::BEQ, AddressingType::Relative, 2, 2);
-
-        auto tester = [&] (Word pc, Byte offset, Flag z, Word expPC, int extra) {
-            cpu.Memory.SetByteAt(pc, 0xFF);
-            cpu.Memory.SetByteAt(pc + 1, offset);
-            cpu.Z = z;
-
-            cpu.PC = pc;
-            cpu.Ticks = BASE_TICKS;
-            cpu.Execute(op);
-
-            EXPECT_EQ(expPC, cpu.PC);
-            EXPECT_EQ(BASE_TICKS + op.Cycles + extra, cpu.Ticks);
-        };
-
-        tester(0x0080, 0x20, 0, 0x0082, 0); // Fail
-        tester(0x0080, 0x20, 1, 0x00A0, 1); // Success, positive offset
-        tester(0x0080, 0xE0, 1, 0x0060, 1); // Success, negative offset
-        tester(0x00F0, 0x20, 1, 0x0110, 3); // Success, positive offset, crossing page
-        tester(0x0110, 0xE0, 1, 0x00F0, 3); // Success, negative offset, crossing page
-    };
-
-    void Test_BMI() {
-            const auto op = Opcode(InstructionName::BMI, AddressingType::Relative, 2, 2);
-
-            auto tester = [&] (Word pc, Byte offset, Flag n, Word expPC, int extra) {
-                cpu.Memory.SetByteAt(pc, 0xFF);
-                cpu.Memory.SetByteAt(pc + 1, offset);
-                cpu.N = n;
-
-                cpu.PC = pc;
-                cpu.Ticks = BASE_TICKS;
-                cpu.Execute(op);
-
-                EXPECT_EQ(expPC, cpu.PC);
-                EXPECT_EQ(BASE_TICKS + op.Cycles + extra, cpu.Ticks);
-            };
-
-            tester(0x0080, 0x20, 0, 0x0082, 0); // Fail
-            tester(0x0080, 0x20, 1, 0x00A0, 1); // Success, positive offset
-            tester(0x0080, 0xE0, 1, 0x0060, 1); // Success, negative offset
-            tester(0x00F0, 0x20, 1, 0x0110, 3); // Success, positive offset, crossing page
-            tester(0x0110, 0xE0, 1, 0x00F0, 3); // Success, negative offset, crossing page
-        };
+        tester(0x0080, 0x20, failure, 0x0082, 0); // Fail
+        tester(0x0080, 0x20, success, 0x00A0, 1); // Success, positive offset
+        tester(0x0080, 0xE0, success, 0x0060, 1); // Success, negative offset
+        tester(0x00F0, 0x20, success, 0x0110, 3); // Success, positive offset, crossing page
+        tester(0x0110, 0xE0, success, 0x00F0, 3); // Success, negative offset, crossing page
+    }
 
 };
 
 TEST_F(CpuTest, BCC) {
-    Test_BCC();
+    Test_Branch(
+        [&] (Byte & value) { cpu.C = value; },
+        0, 1,
+        Opcode(InstructionName::BCC, AddressingType::Relative, 2, 2));
 }
 
 TEST_F(CpuTest, BCS) {
-    Test_BCS();
+    Test_Branch(
+        [&] (Byte & value) { cpu.C = value; },
+        1, 0,
+        Opcode(InstructionName::BCS, AddressingType::Relative, 2, 2));
 }
 
 TEST_F(CpuTest, BEQ) {
-    Test_BEQ();
+    Test_Branch(
+        [&] (Byte & value) { cpu.Z = value; },
+        1, 0,
+        Opcode(InstructionName::BEQ, AddressingType::Relative, 2, 2));
 }
 
 TEST_F(CpuTest, BMI) {
-    Test_BMI();
+    Test_Branch(
+        [&] (Byte & value) { cpu.N = value; },
+        1, 0,
+        Opcode(InstructionName::BMI, AddressingType::Relative, 2, 2));
 }
 
 TEST_F(CpuTest, ASL_Accumulator) {

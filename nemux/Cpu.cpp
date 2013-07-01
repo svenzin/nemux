@@ -94,71 +94,41 @@ Word Cpu::BuildAddress(const AddressingType & type) const {
     }
 }
 
-inline void Decrement(Byte & value, Flag & Z, Flag & N) {
+void Cpu::Decrement(Byte & value) {
     value = (value - 1) & BYTE_MASK;//((value + 0x180 - 1) % 0x100) - 0x80;
     Z = (value == 0) ? 1 : 0;
     N = ((value & BYTE_MASK_SIGN) == 0) ? 0 : 1;
 }
+void Cpu::BranchIf(const bool condition, const Opcode & op) {
+    const auto basePC = PC;
+    const auto M = Memory.GetByteAt(BuildAddress(AddressingType::Immediate));
+    if (condition) {
+        Word offset = ((M & BYTE_MASK_SIGN) >> 7) * 0xFF00 + M;
+        PC = (PC + offset) & 0xFFFF;
+        Ticks += op.Cycles + 1;
+        if ((PC & 0xFF00) != (basePC & 0xFF00)) {
+            Ticks += 2;
+        }
+    } else {
+        PC += op.Bytes; Ticks += op.Cycles;
+    }
+}
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
         case InstructionName::BCC: {
-            const auto basePC = PC;
-            const auto M = Memory.GetByteAt(BuildAddress(AddressingType::Immediate));
-            if (C == 0) {
-                Word offset = ((M & BYTE_MASK_SIGN) >> 7) * 0xFF00 + M;
-                PC = (PC + offset) & 0xFFFF;
-                Ticks += op.Cycles + 1;
-                if ((PC & 0xFF00) != (basePC & 0xFF00)) {
-                    Ticks += 2;
-                }
-            } else {
-                PC += op.Bytes; Ticks += op.Cycles;
-            }
+            BranchIf(C == 0, op);
             break;
         }
         case InstructionName::BCS: {
-            const auto basePC = PC;
-            const auto M = Memory.GetByteAt(BuildAddress(AddressingType::Immediate));
-            if (C == 1) {
-                Word offset = ((M & BYTE_MASK_SIGN) >> 7) * 0xFF00 + M;
-                PC = (PC + offset) & 0xFFFF;
-                Ticks += op.Cycles + 1;
-                if ((PC & 0xFF00) != (basePC & 0xFF00)) {
-                    Ticks += 2;
-                }
-            } else {
-                PC += op.Bytes; Ticks += op.Cycles;
-            }
+            BranchIf(C == 1, op);
             break;
         }
         case InstructionName::BEQ: {
-            const auto basePC = PC;
-            const auto M = Memory.GetByteAt(BuildAddress(AddressingType::Immediate));
-            if (Z == 1) {
-                Word offset = ((M & BYTE_MASK_SIGN) >> 7) * 0xFF00 + M;
-                PC = (PC + offset) & 0xFFFF;
-                Ticks += op.Cycles + 1;
-                if ((PC & 0xFF00) != (basePC & 0xFF00)) {
-                    Ticks += 2;
-                }
-            } else {
-                PC += op.Bytes; Ticks += op.Cycles;
-            }
+            BranchIf(Z == 1, op);
             break;
         }
         case InstructionName::BMI: {
-            const auto basePC = PC;
-            const auto M = Memory.GetByteAt(BuildAddress(AddressingType::Immediate));
-            if (N == 1) {
-                Word offset = ((M & BYTE_MASK_SIGN) >> 7) * 0xFF00 + M;
-                PC = (PC + offset) & 0xFFFF;
-                Ticks += op.Cycles + 1;
-                if ((PC & 0xFF00) != (basePC & 0xFF00)) {
-                    Ticks += 2;
-                }
-            } else {
-                PC += op.Bytes; Ticks += op.Cycles;
-            }
+            BranchIf(N == 1, op);
             break;
         }
         case InstructionName::ADC: {
@@ -256,17 +226,17 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         case InstructionName::DEC: {
             const auto addr = BuildAddress(op.Addressing);
             auto M = Memory.GetByteAt(addr);
-            Decrement(M, Z, N);
+            Decrement(M);
             Memory.SetByteAt(addr, M);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
         case InstructionName::DEX: {
-            Decrement(X, Z, N);
+            Decrement(X);
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
         case InstructionName::DEY: {
-            Decrement(Y, Z, N);
+            Decrement(Y);
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
         case InstructionName::NOP: { PC += op.Bytes; Ticks += op.Cycles; break; }

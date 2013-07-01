@@ -91,6 +91,9 @@ public:
 
     std::string ToString() const;
 
+    void Decrement(Byte & value);
+    void BranchIf(const bool condition, const Opcode & op);
+
 private:
 //    std::vector<Instruction> m_opcodes;
 //    std::vector<Opsize> m_opsize;
