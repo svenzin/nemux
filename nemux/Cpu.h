@@ -21,8 +21,9 @@ enum class InstructionName {
     ASL,                // Shift
     AND, BIT,           // Bit operations
     CLC, CLD, CLI, CLV, // Flags
-    ADC, DEC, DEX, DEY, // Arithmetic
+    ADC, DEC, DEX, DEY, INC, INX, INY, // Arithmetic
     BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS, // Branch
+    BRK, // Stack
     NOP,
     Unknown,
 };
@@ -92,6 +93,7 @@ public:
     std::string ToString() const;
 
     void Decrement(Byte & value);
+    void Increment(Byte & value);
     void BranchIf(const bool condition, const Opcode & op);
 
 private:

@@ -94,6 +94,27 @@ public:
     }
 
     template<typename Getter, typename Setter>
+    void Test_INC(Getter get, Setter set, Opcode op) {
+        auto tester = [&] (Byte m, Byte expM, Flag expZ, Flag expN) {
+            set(m);
+
+            cpu.PC = BASE_PC;
+            cpu.Ticks = BASE_TICKS;
+            cpu.Execute(op);
+
+            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+            EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+            EXPECT_EQ(expM, get());
+            EXPECT_EQ(expZ, cpu.Z);
+            EXPECT_EQ(expN, cpu.N);
+        };
+
+        tester(0x10, 0x11, 0, 0);
+        tester(0xFF, 0x00, 1, 0);
+        tester(0x7F, 0x80, 0, 1);
+    }
+
+    template<typename Getter, typename Setter>
     void Test_ASL(Getter get, Setter set, Opcode op) {
         auto Tester = [&] (Byte m, Byte expM, Flag expC, Flag expZ, Flag expN) {
             set(m);
@@ -686,6 +707,69 @@ TEST_F(CpuTest, DEY) {
         [&]              { return cpu.Y; },
         [&] (Byte value) { cpu.Y = value; },
         Opcode(InstructionName::DEY, AddressingType::Implicit, 1, 2)
+    );
+}
+
+
+TEST_F(CpuTest, INC_ZeroPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+
+    Test_INC(
+        [&]              { return cpu.Memory.GetByteAt(0x20); },
+        [&] (Byte value) { cpu.Memory.SetByteAt(0x20, value); },
+        Opcode(InstructionName::INC, AddressingType::ZeroPage, 2, 5)
+    );
+}
+
+TEST_F(CpuTest, INC_ZeroPageX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+
+    Test_INC(
+        [&]              { return cpu.Memory.GetByteAt(0x28); },
+        [&] (Byte value) { cpu.Memory.SetByteAt(0x28, value); },
+        Opcode(InstructionName::INC, AddressingType::ZeroPageX, 2, 6)
+    );
+}
+
+TEST_F(CpuTest, INC_Absolute) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+
+    Test_INC(
+        [&]              { return cpu.Memory.GetByteAt(0x0120); },
+        [&] (Byte value) { cpu.Memory.SetByteAt(0x0120, value); },
+        Opcode(InstructionName::INC, AddressingType::Absolute, 2, 6)
+    );
+}
+
+TEST_F(CpuTest, INC_AbsoluteX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0x08;
+
+    Test_INC(
+        [&]              { return cpu.Memory.GetByteAt(0x0128); },
+        [&] (Byte value) { cpu.Memory.SetByteAt(0x0128, value); },
+        Opcode(InstructionName::INC, AddressingType::AbsoluteX, 2, 7)
+    );
+}
+
+TEST_F(CpuTest, INX) {
+    Test_INC(
+        [&]              { return cpu.X; },
+        [&] (Byte value) { cpu.X = value; },
+        Opcode(InstructionName::INX, AddressingType::Implicit, 1, 2)
+    );
+}
+
+TEST_F(CpuTest, INY) {
+    Test_INC(
+        [&]              { return cpu.Y; },
+        [&] (Byte value) { cpu.Y = value; },
+        Opcode(InstructionName::INY, AddressingType::Implicit, 1, 2)
     );
 }
 

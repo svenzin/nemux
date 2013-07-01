@@ -70,6 +70,15 @@ using namespace std;
 
     m_opcodes[0x88] = Opcode(InstructionName::DEY, AddressingType::Implicit, 1, 2);
 
+    m_opcodes[0xE6] = Opcode(InstructionName::INC, AddressingType::ZeroPage,  2, 5);
+    m_opcodes[0xF6] = Opcode(InstructionName::INC, AddressingType::ZeroPageX, 2, 6);
+    m_opcodes[0xEE] = Opcode(InstructionName::INC, AddressingType::Absolute,  3, 6);
+    m_opcodes[0xFE] = Opcode(InstructionName::INC, AddressingType::AbsoluteX, 3, 7);
+
+    m_opcodes[0xE8] = Opcode(InstructionName::INX, AddressingType::Implicit, 1, 2);
+
+    m_opcodes[0xC8] = Opcode(InstructionName::INY, AddressingType::Implicit, 1, 2);
+
     // Branch
     m_opcodes[0x90] = Opcode(InstructionName::BCC, AddressingType::Relative, 2, 2);
     m_opcodes[0xB0] = Opcode(InstructionName::BCS, AddressingType::Relative, 2, 2);
@@ -79,6 +88,9 @@ using namespace std;
     m_opcodes[0x10] = Opcode(InstructionName::BPL, AddressingType::Relative, 2, 2);
     m_opcodes[0x50] = Opcode(InstructionName::BVC, AddressingType::Relative, 2, 2);
     m_opcodes[0x70] = Opcode(InstructionName::BVS, AddressingType::Relative, 2, 2);
+
+    // Stack
+    m_opcodes[0x00] = Opcode(InstructionName::BRK, AddressingType::Implicit, 1, 7);
 
     // Nop
     m_opcodes[0xEA] = Opcode(InstructionName::NOP, AddressingType::Implicit, 1, 2);
@@ -100,6 +112,11 @@ Word Cpu::BuildAddress(const AddressingType & type) const {
 
 void Cpu::Decrement(Byte & value) {
     value = (value - 1) & BYTE_MASK;//((value + 0x180 - 1) % 0x100) - 0x80;
+    Z = (value == 0) ? 1 : 0;
+    N = ((value & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+}
+void Cpu::Increment(Byte & value) {
+    value = (value + 1) & BYTE_MASK;//((value + 0x180 - 1) % 0x100) - 0x80;
     Z = (value == 0) ? 1 : 0;
     N = ((value & BYTE_MASK_SIGN) == 0) ? 0 : 1;
 }
@@ -257,6 +274,22 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         }
         case InstructionName::DEY: {
             Decrement(Y);
+            PC += op.Bytes; Ticks += op.Cycles; break;
+        }
+        case InstructionName::INC: {
+            const auto addr = BuildAddress(op.Addressing);
+            auto M = Memory.GetByteAt(addr);
+            Increment(M);
+            Memory.SetByteAt(addr, M);
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
+        case InstructionName::INX: {
+            Increment(X);
+            PC += op.Bytes; Ticks += op.Cycles; break;
+        }
+        case InstructionName::INY: {
+            Increment(Y);
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
         case InstructionName::NOP: { PC += op.Bytes; Ticks += op.Cycles; break; }
