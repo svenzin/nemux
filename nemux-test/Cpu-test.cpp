@@ -47,6 +47,15 @@ public:
         EXPECT_EQ(Flag{0}, f);
     }
 
+    void Test_SetFlag(InstructionName inst, Flag &f) {
+        f = 0;
+        cpu.Execute(Opcode(inst, AddressingType::Implicit, 1, 2));//, {});
+
+        EXPECT_EQ(BASE_PC + 1, cpu.PC);
+        EXPECT_EQ(BASE_TICKS + 2, cpu.Ticks);
+        EXPECT_EQ(Flag{1}, f);
+    }
+
     template<typename Getter, typename Setter>
     void Test_DEC(Getter get, Setter set, Opcode op) {
         const auto initialPC = cpu.PC;
@@ -511,6 +520,18 @@ TEST_F(CpuTest, CLI) {
 
 TEST_F(CpuTest, CLV) {
     Test_ClearFlag(InstructionName::CLV, cpu.V);
+}
+
+TEST_F(CpuTest, SEC) {
+    Test_SetFlag(InstructionName::SEC, cpu.C);
+}
+
+TEST_F(CpuTest, SED) {
+    Test_SetFlag(InstructionName::SED, cpu.D);
+}
+
+TEST_F(CpuTest, SEI) {
+    Test_SetFlag(InstructionName::SEI, cpu.I);
 }
 
 TEST_F(CpuTest, ADC_Immediate) {

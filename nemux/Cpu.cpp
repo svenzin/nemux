@@ -51,6 +51,12 @@ using namespace std;
 
     m_opcodes[0xB8] = Opcode(InstructionName::CLV, AddressingType::Implicit, 1, 2);
 
+    m_opcodes[0x38] = Opcode(InstructionName::SEC, AddressingType::Implicit, 1, 2);
+
+    m_opcodes[0xF8] = Opcode(InstructionName::SED, AddressingType::Implicit, 1, 2);
+
+    m_opcodes[0x78] = Opcode(InstructionName::SEI, AddressingType::Implicit, 1, 2);
+
     // Arithmetic
     m_opcodes[0x69] = Opcode(InstructionName::ADC, AddressingType::Immediate, 2, 2);
     m_opcodes[0x65] = Opcode(InstructionName::ADC, AddressingType::ZeroPage,  2, 3);
@@ -258,6 +264,18 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         }
         case InstructionName::CLV: {
             V = 0;
+            PC += op.Bytes; Ticks += op.Cycles; break;
+        }
+        case InstructionName::SEC: {
+            C = 1;
+            PC += op.Bytes; Ticks += op.Cycles; break;
+        }
+        case InstructionName::SED: {
+            D = 1;
+            PC += op.Bytes; Ticks += op.Cycles; break;
+        }
+        case InstructionName::SEI: {
+            I = 1;
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
         case InstructionName::DEC: {

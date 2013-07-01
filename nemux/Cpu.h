@@ -20,7 +20,7 @@ typedef Byte Flag;
 enum class InstructionName {
     ASL,                // Shift
     AND, BIT,           // Bit operations
-    CLC, CLD, CLI, CLV, // Flags
+    CLC, CLD, CLI, CLV, SEC, SED, SEI, // Flags
     ADC, DEC, DEX, DEY, INC, INX, INY, // Arithmetic
     BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS, // Branch
     BRK, // Stack
