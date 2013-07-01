@@ -70,13 +70,18 @@ using namespace std;
 
     m_opcodes[0x88] = Opcode(InstructionName::DEY, AddressingType::Implicit, 1, 2);
 
+    // Branch
+    m_opcodes[0x90] = Opcode(InstructionName::BCC, AddressingType::Relative, 2, 2);
+    m_opcodes[0xB0] = Opcode(InstructionName::BCS, AddressingType::Relative, 2, 2);
+    m_opcodes[0xF0] = Opcode(InstructionName::BEQ, AddressingType::Relative, 2, 2);
+    m_opcodes[0x30] = Opcode(InstructionName::BMI, AddressingType::Relative, 2, 2);
+
     // Nop
     m_opcodes[0xEA] = Opcode(InstructionName::NOP, AddressingType::Implicit, 1, 2);
 }
 
 Word Cpu::BuildAddress(const AddressingType & type) const {
     switch (type) {
-        case AddressingType::Implicit:  return 0;
         case AddressingType::Immediate: return PC + 1;
         case AddressingType::ZeroPage:  return Memory.GetByteAt(PC + 1);
         case AddressingType::ZeroPageX: return Memory.GetByteAt(PC + 1) + X;
@@ -96,6 +101,66 @@ inline void Decrement(Byte & value, Flag & Z, Flag & N) {
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
+        case InstructionName::BCC: {
+            const auto basePC = PC;
+            const auto M = Memory.GetByteAt(BuildAddress(AddressingType::Immediate));
+            if (C == 0) {
+                Word offset = ((M & BYTE_MASK_SIGN) >> 7) * 0xFF00 + M;
+                PC = (PC + offset) & 0xFFFF;
+                Ticks += op.Cycles + 1;
+                if ((PC & 0xFF00) != (basePC & 0xFF00)) {
+                    Ticks += 2;
+                }
+            } else {
+                PC += op.Bytes; Ticks += op.Cycles;
+            }
+            break;
+        }
+        case InstructionName::BCS: {
+            const auto basePC = PC;
+            const auto M = Memory.GetByteAt(BuildAddress(AddressingType::Immediate));
+            if (C == 1) {
+                Word offset = ((M & BYTE_MASK_SIGN) >> 7) * 0xFF00 + M;
+                PC = (PC + offset) & 0xFFFF;
+                Ticks += op.Cycles + 1;
+                if ((PC & 0xFF00) != (basePC & 0xFF00)) {
+                    Ticks += 2;
+                }
+            } else {
+                PC += op.Bytes; Ticks += op.Cycles;
+            }
+            break;
+        }
+        case InstructionName::BEQ: {
+            const auto basePC = PC;
+            const auto M = Memory.GetByteAt(BuildAddress(AddressingType::Immediate));
+            if (Z == 1) {
+                Word offset = ((M & BYTE_MASK_SIGN) >> 7) * 0xFF00 + M;
+                PC = (PC + offset) & 0xFFFF;
+                Ticks += op.Cycles + 1;
+                if ((PC & 0xFF00) != (basePC & 0xFF00)) {
+                    Ticks += 2;
+                }
+            } else {
+                PC += op.Bytes; Ticks += op.Cycles;
+            }
+            break;
+        }
+        case InstructionName::BMI: {
+            const auto basePC = PC;
+            const auto M = Memory.GetByteAt(BuildAddress(AddressingType::Immediate));
+            if (N == 1) {
+                Word offset = ((M & BYTE_MASK_SIGN) >> 7) * 0xFF00 + M;
+                PC = (PC + offset) & 0xFFFF;
+                Ticks += op.Cycles + 1;
+                if ((PC & 0xFF00) != (basePC & 0xFF00)) {
+                    Ticks += 2;
+                }
+            } else {
+                PC += op.Bytes; Ticks += op.Cycles;
+            }
+            break;
+        }
         case InstructionName::ADC: {
             const auto addr = BuildAddress(op.Addressing);
             const auto M = Memory.GetByteAt(addr);

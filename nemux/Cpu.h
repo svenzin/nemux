@@ -21,7 +21,8 @@ enum class InstructionName {
     ASL,                // Shift
     AND, BIT,           // Bit operations
     CLC, CLD, CLI, CLV, // Flags
-    ADC, DEC, DEX, DEY,      // Arithmetic
+    ADC, DEC, DEX, DEY, // Arithmetic
+    BCC, BCS, BEQ, BMI, // Branch
     NOP,
     Unknown,
 };
