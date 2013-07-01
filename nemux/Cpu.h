@@ -22,7 +22,7 @@ enum class InstructionName {
     AND, BIT,           // Bit operations
     CLC, CLD, CLI, CLV, // Flags
     ADC, DEC, DEX, DEY, // Arithmetic
-    BCC, BCS, BEQ, BMI, // Branch
+    BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS, // Branch
     NOP,
     Unknown,
 };

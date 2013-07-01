@@ -231,6 +231,34 @@ TEST_F(CpuTest, BMI) {
         Opcode(InstructionName::BMI, AddressingType::Relative, 2, 2));
 }
 
+TEST_F(CpuTest, BNE) {
+    Test_Branch(
+        [&] (Byte & value) { cpu.Z = value; },
+        0, 1,
+        Opcode(InstructionName::BNE, AddressingType::Relative, 2, 2));
+}
+
+TEST_F(CpuTest, BPL) {
+    Test_Branch(
+        [&] (Byte & value) { cpu.N = value; },
+        0, 1,
+        Opcode(InstructionName::BPL, AddressingType::Relative, 2, 2));
+}
+
+TEST_F(CpuTest, BVC) {
+    Test_Branch(
+        [&] (Byte & value) { cpu.V = value; },
+        0, 1,
+        Opcode(InstructionName::BVC, AddressingType::Relative, 2, 2));
+}
+
+TEST_F(CpuTest, BVS) {
+    Test_Branch(
+        [&] (Byte & value) { cpu.V = value; },
+        1, 0,
+        Opcode(InstructionName::BVS, AddressingType::Relative, 2, 2));
+}
+
 TEST_F(CpuTest, ASL_Accumulator) {
     Test_ASL(
         [&]              { return cpu.A; },

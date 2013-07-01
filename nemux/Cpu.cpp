@@ -75,6 +75,10 @@ using namespace std;
     m_opcodes[0xB0] = Opcode(InstructionName::BCS, AddressingType::Relative, 2, 2);
     m_opcodes[0xF0] = Opcode(InstructionName::BEQ, AddressingType::Relative, 2, 2);
     m_opcodes[0x30] = Opcode(InstructionName::BMI, AddressingType::Relative, 2, 2);
+    m_opcodes[0xD0] = Opcode(InstructionName::BNE, AddressingType::Relative, 2, 2);
+    m_opcodes[0x10] = Opcode(InstructionName::BPL, AddressingType::Relative, 2, 2);
+    m_opcodes[0x50] = Opcode(InstructionName::BVC, AddressingType::Relative, 2, 2);
+    m_opcodes[0x70] = Opcode(InstructionName::BVS, AddressingType::Relative, 2, 2);
 
     // Nop
     m_opcodes[0xEA] = Opcode(InstructionName::NOP, AddressingType::Implicit, 1, 2);
@@ -129,6 +133,22 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         }
         case InstructionName::BMI: {
             BranchIf(N == 1, op);
+            break;
+        }
+        case InstructionName::BNE: {
+            BranchIf(Z == 0, op);
+            break;
+        }
+        case InstructionName::BPL: {
+            BranchIf(N == 0, op);
+            break;
+        }
+        case InstructionName::BVC: {
+            BranchIf(V == 0, op);
+            break;
+        }
+        case InstructionName::BVS: {
+            BranchIf(V == 1, op);
             break;
         }
         case InstructionName::ADC: {
