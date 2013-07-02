@@ -98,6 +98,15 @@ using namespace std;
     // Stack
     m_opcodes[0x00] = Opcode(InstructionName::BRK, AddressingType::Implicit, 1, 7);
 
+    // Memory
+    m_opcodes[0x86] = Opcode(InstructionName::STX, AddressingType::ZeroPage,  2, 3);
+    m_opcodes[0x96] = Opcode(InstructionName::STX, AddressingType::ZeroPageY, 2, 4);
+    m_opcodes[0x8E] = Opcode(InstructionName::STX, AddressingType::Absolute,  3, 4);
+
+    m_opcodes[0x84] = Opcode(InstructionName::STY, AddressingType::ZeroPage,  2, 3);
+    m_opcodes[0x94] = Opcode(InstructionName::STY, AddressingType::ZeroPageX, 2, 4);
+    m_opcodes[0x8C] = Opcode(InstructionName::STY, AddressingType::Absolute,  3, 4);
+
     // Nop
     m_opcodes[0xEA] = Opcode(InstructionName::NOP, AddressingType::Implicit, 1, 2);
 }
@@ -107,6 +116,7 @@ Word Cpu::BuildAddress(const AddressingType & type) const {
         case AddressingType::Immediate: return PC + 1;
         case AddressingType::ZeroPage:  return Memory.GetByteAt(PC + 1);
         case AddressingType::ZeroPageX: return Memory.GetByteAt(PC + 1) + X;
+        case AddressingType::ZeroPageY: return Memory.GetByteAt(PC + 1) + Y;
         case AddressingType::Absolute:  return Memory.GetWordAt(PC + 1);
         case AddressingType::AbsoluteX: return Memory.GetWordAt(PC + 1) + X;
         case AddressingType::AbsoluteY: return Memory.GetWordAt(PC + 1) + Y;
@@ -142,6 +152,16 @@ void Cpu::BranchIf(const bool condition, const Opcode & op) {
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
+        case InstructionName::STX: {
+            Memory.SetByteAt(BuildAddress(op.Addressing), X);
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
+        case InstructionName::STY: {
+            Memory.SetByteAt(BuildAddress(op.Addressing), Y);
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
         case InstructionName::BCC: {
             BranchIf(C == 0, op);
             break;
