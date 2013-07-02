@@ -99,6 +99,14 @@ using namespace std;
     m_opcodes[0x00] = Opcode(InstructionName::BRK, AddressingType::Implicit, 1, 7);
 
     // Memory
+    m_opcodes[0x85] = Opcode(InstructionName::STA, AddressingType::ZeroPage,  2, 3);
+    m_opcodes[0x95] = Opcode(InstructionName::STA, AddressingType::ZeroPageX, 2, 4);
+    m_opcodes[0x8D] = Opcode(InstructionName::STA, AddressingType::Absolute,  3, 4);
+    m_opcodes[0x9D] = Opcode(InstructionName::STA, AddressingType::AbsoluteX, 3, 5);
+    m_opcodes[0x99] = Opcode(InstructionName::STA, AddressingType::AbsoluteY, 3, 5);
+    m_opcodes[0x81] = Opcode(InstructionName::STA, AddressingType::IndexedIndirect, 2, 6);
+    m_opcodes[0x91] = Opcode(InstructionName::STA, AddressingType::IndirectIndexed, 2, 6);
+
     m_opcodes[0x86] = Opcode(InstructionName::STX, AddressingType::ZeroPage,  2, 3);
     m_opcodes[0x96] = Opcode(InstructionName::STX, AddressingType::ZeroPageY, 2, 4);
     m_opcodes[0x8E] = Opcode(InstructionName::STX, AddressingType::Absolute,  3, 4);
@@ -152,6 +160,11 @@ void Cpu::BranchIf(const bool condition, const Opcode & op) {
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
+        case InstructionName::STA: {
+            Memory.SetByteAt(BuildAddress(op.Addressing), A);
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
         case InstructionName::STX: {
             Memory.SetByteAt(BuildAddress(op.Addressing), X);
             PC += op.Bytes; Ticks += op.Cycles;
