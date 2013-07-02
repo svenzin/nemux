@@ -119,6 +119,14 @@ using namespace std;
 
     m_opcodes[0xA8] = Opcode(InstructionName::TAY, AddressingType::Implicit, 1, 2);
 
+    m_opcodes[0xBA] = Opcode(InstructionName::TSX, AddressingType::Implicit, 1, 2);
+
+    m_opcodes[0x8A] = Opcode(InstructionName::TXA, AddressingType::Implicit, 1, 2);
+
+    m_opcodes[0x9A] = Opcode(InstructionName::TXS, AddressingType::Implicit, 1, 2);
+
+    m_opcodes[0x98] = Opcode(InstructionName::TYA, AddressingType::Implicit, 1, 2);
+
     // Nop
     m_opcodes[0xEA] = Opcode(InstructionName::NOP, AddressingType::Implicit, 1, 2);
 }
@@ -176,6 +184,26 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         }
         case InstructionName::TAY: {
             Transfer(A, Y);
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
+        case InstructionName::TSX: {
+            Transfer(SP, X);
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
+        case InstructionName::TXA: {
+            Transfer(X, A);
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
+        case InstructionName::TXS: {
+            Transfer(X, SP);
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
+        case InstructionName::TYA: {
+            Transfer(Y, A);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }

@@ -1006,4 +1006,34 @@ TEST_F(CpuTest, TAY) {
     );
 }
 
+TEST_F(CpuTest, TSX) {
+    Test_Transfer(
+        [&]              { return cpu.X; },
+        [&] (Byte value) { cpu.SP = value; },
+        Opcode(InstructionName::TSX, AddressingType::Implicit, 1, 2)
+    );
+}
 
+TEST_F(CpuTest, TXA) {
+    Test_Transfer(
+        [&]              { return cpu.A; },
+        [&] (Byte value) { cpu.X = value; },
+        Opcode(InstructionName::TXA, AddressingType::Implicit, 1, 2)
+    );
+}
+
+TEST_F(CpuTest, TXS) {
+    Test_Transfer(
+        [&]              { return cpu.SP; },
+        [&] (Byte value) { cpu.X = value; },
+        Opcode(InstructionName::TXS, AddressingType::Implicit, 1, 2)
+    );
+}
+
+TEST_F(CpuTest, TYA) {
+    Test_Transfer(
+        [&]              { return cpu.A; },
+        [&] (Byte value) { cpu.Y = value; },
+        Opcode(InstructionName::TYA, AddressingType::Implicit, 1, 2)
+    );
+}
