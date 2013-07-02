@@ -24,7 +24,7 @@ enum class InstructionName {
     ADC, DEC, DEX, DEY, INC, INX, INY, // Arithmetic
     BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS, // Branch
     BRK, // Stack
-    STA, STX, STY, // Memory
+    STA, STX, STY, TAX, TAY, // Memory
     NOP,
     Unknown,
 };
@@ -95,6 +95,7 @@ public:
 
     void Decrement(Byte & value);
     void Increment(Byte & value);
+    void Transfer(Byte & from, Byte & to);
     void BranchIf(const bool condition, const Opcode & op);
 
 private:

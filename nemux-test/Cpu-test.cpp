@@ -241,6 +241,28 @@ public:
         EXPECT_EQ(0x80, get());
     }
 
+    template<typename Getter, typename Setter>
+    void Test_Transfer(Getter get, Setter set, Opcode op) {
+        auto tester = [&] (Byte value, Flag expZ, Flag expN) {
+            set(value);
+
+            cpu.PC = BASE_PC;
+            cpu.Ticks = BASE_TICKS;
+            cpu.Execute(op);
+
+            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+            EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+            EXPECT_EQ(value, get());
+            EXPECT_EQ(expZ, cpu.Z);
+            EXPECT_EQ(expN, cpu.N);
+        };
+
+        tester(0x20, 0, 0);
+        tester(0xA0, 0, 1);
+        tester(0x00, 1, 0);
+    };
+
+
 };
 
 TEST_F(CpuTest, BCC) {
@@ -966,4 +988,22 @@ TEST_F(CpuTest, STA_IndirectIndexed) {
         Opcode(InstructionName::STA, AddressingType::IndirectIndexed, 2, 6)
     );
 }
+
+TEST_F(CpuTest, TAX) {
+    Test_Transfer(
+        [&]              { return cpu.X; },
+        [&] (Byte value) { cpu.A = value; },
+        Opcode(InstructionName::TAX, AddressingType::Implicit, 1, 2)
+    );
+}
+
+
+TEST_F(CpuTest, TAY) {
+    Test_Transfer(
+        [&]              { return cpu.Y; },
+        [&] (Byte value) { cpu.A = value; },
+        Opcode(InstructionName::TAY, AddressingType::Implicit, 1, 2)
+    );
+}
+
 

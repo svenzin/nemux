@@ -115,6 +115,10 @@ using namespace std;
     m_opcodes[0x94] = Opcode(InstructionName::STY, AddressingType::ZeroPageX, 2, 4);
     m_opcodes[0x8C] = Opcode(InstructionName::STY, AddressingType::Absolute,  3, 4);
 
+    m_opcodes[0xAA] = Opcode(InstructionName::TAX, AddressingType::Implicit, 1, 2);
+
+    m_opcodes[0xA8] = Opcode(InstructionName::TAY, AddressingType::Implicit, 1, 2);
+
     // Nop
     m_opcodes[0xEA] = Opcode(InstructionName::NOP, AddressingType::Implicit, 1, 2);
 }
@@ -144,6 +148,11 @@ void Cpu::Increment(Byte & value) {
     Z = (value == 0) ? 1 : 0;
     N = ((value & BYTE_MASK_SIGN) == 0) ? 0 : 1;
 }
+void Cpu::Transfer(Byte & from, Byte & to) {
+    to = from;
+    Z = (to == 0) ? 1 : 0;
+    N = ((to & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+}
 void Cpu::BranchIf(const bool condition, const Opcode & op) {
     const auto basePC = PC;
     const auto M = Memory.GetByteAt(BuildAddress(AddressingType::Immediate));
@@ -160,6 +169,16 @@ void Cpu::BranchIf(const bool condition, const Opcode & op) {
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
+        case InstructionName::TAX: {
+            Transfer(A, X);
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
+        case InstructionName::TAY: {
+            Transfer(A, Y);
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
         case InstructionName::STA: {
             Memory.SetByteAt(BuildAddress(op.Addressing), A);
             PC += op.Bytes; Ticks += op.Cycles;
