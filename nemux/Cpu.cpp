@@ -96,6 +96,15 @@ using namespace std;
     m_opcodes[0x70] = Opcode(InstructionName::BVS, AddressingType::Relative, 2, 2);
 
     // Comparisons
+    m_opcodes[0xC9] = Opcode(InstructionName::CMP, AddressingType::Immediate, 2, 2);
+    m_opcodes[0xC5] = Opcode(InstructionName::CMP, AddressingType::ZeroPage,  2, 3);
+    m_opcodes[0xD5] = Opcode(InstructionName::CMP, AddressingType::ZeroPageX, 2, 4);
+    m_opcodes[0xCD] = Opcode(InstructionName::CMP, AddressingType::Absolute,  3, 4);
+    m_opcodes[0xDD] = Opcode(InstructionName::CMP, AddressingType::AbsoluteX, 3, 4);
+    m_opcodes[0xD9] = Opcode(InstructionName::CMP, AddressingType::AbsoluteY, 3, 4);
+    m_opcodes[0xC1] = Opcode(InstructionName::CMP, AddressingType::IndexedIndirect, 2, 6);
+    m_opcodes[0xD1] = Opcode(InstructionName::CMP, AddressingType::IndirectIndexed, 2, 5);
+
     m_opcodes[0xE0] = Opcode(InstructionName::CPX, AddressingType::Immediate, 2, 2);
     m_opcodes[0xE4] = Opcode(InstructionName::CPX, AddressingType::ZeroPage,  2, 3);
     m_opcodes[0xEC] = Opcode(InstructionName::CPX, AddressingType::Absolute,  3, 4);
@@ -192,6 +201,27 @@ void Cpu::BranchIf(const bool condition, const Opcode & op) {
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
+        case InstructionName::CMP: {
+            const auto addr = BuildAddress(op.Addressing);
+            Compare(A, Memory.GetByteAt(addr));
+            switch (op.Addressing) {
+                case AddressingType::AbsoluteX: {
+                    if (X > (addr & BYTE_MASK)) ++Ticks;
+                    break;
+                }
+                case AddressingType::AbsoluteY: {
+                    if (Y > (addr & BYTE_MASK)) ++Ticks;
+                    break;
+                }
+                case AddressingType::IndirectIndexed: {
+                    const auto base = Memory.GetWordAt(Memory.GetByteAt(PC + 1)) + Y;
+                    if (Y > (base & BYTE_MASK)) ++Ticks;
+                }
+                default: break;
+            }
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
         case InstructionName::CPX: {
             Compare(X, Memory.GetByteAt(BuildAddress(op.Addressing)));
             PC += op.Bytes; Ticks += op.Cycles;

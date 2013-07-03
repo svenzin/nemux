@@ -23,7 +23,7 @@ enum class InstructionName {
     CLC, CLD, CLI, CLV, SEC, SED, SEI, // Flags
     ADC, DEC, DEX, DEY, INC, INX, INY, // Arithmetic
     BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS, // Branch
-    CPX, CPY, // Comparisons
+    CMP, CPX, CPY, // Comparisons
     BRK, // Stack
     STA, STX, STY, TAX, TAY, TSX, TXA, TXS, TYA, // Memory
     NOP,

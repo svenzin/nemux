@@ -264,7 +264,7 @@ public:
     }
 
     template<typename Setter>
-    void Test_Compare(Setter set, Opcode op) {
+    void Test_Compare(Setter set, Opcode op, int extra) {
         auto tester = [&] (Byte r, Byte m, Flag expC, Flag expZ, Flag expN) {
             set(r, m);
 
@@ -273,7 +273,7 @@ public:
             cpu.Execute(op);
 
             EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
-            EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+            EXPECT_EQ(BASE_TICKS + op.Cycles + extra, cpu.Ticks);
             EXPECT_EQ(expC, cpu.C);
             EXPECT_EQ(expZ, cpu.Z);
             EXPECT_EQ(expN, cpu.N);
@@ -294,7 +294,7 @@ TEST_F(CpuTest, CPX_Immediate) {
 
     Test_Compare(
         [&] (Byte r, Byte m) { cpu.X = r; cpu.Memory.SetByteAt(BASE_PC + 1, m); },
-        Opcode(InstructionName::CPX, AddressingType::Immediate, 2, 2)
+        Opcode(InstructionName::CPX, AddressingType::Immediate, 2, 2), 0
     );
 }
 
@@ -304,7 +304,7 @@ TEST_F(CpuTest, CPX_ZeroPage) {
 
     Test_Compare(
         [&] (Byte r, Byte m) { cpu.X = r; cpu.Memory.SetByteAt(0x20, m); },
-        Opcode(InstructionName::CPX, AddressingType::ZeroPage, 2, 3)
+        Opcode(InstructionName::CPX, AddressingType::ZeroPage, 2, 3), 0
     );
 }
 
@@ -314,7 +314,7 @@ TEST_F(CpuTest, CPX_Absolute) {
 
     Test_Compare(
         [&] (Byte r, Byte m) { cpu.X = r; cpu.Memory.SetByteAt(0x0120, m); },
-        Opcode(InstructionName::CPX, AddressingType::Absolute, 3, 4)
+        Opcode(InstructionName::CPX, AddressingType::Absolute, 3, 4), 0
     );
 }
 
@@ -323,7 +323,7 @@ TEST_F(CpuTest, CPY_Immediate) {
 
     Test_Compare(
         [&] (Byte r, Byte m) { cpu.Y = r; cpu.Memory.SetByteAt(BASE_PC + 1, m); },
-        Opcode(InstructionName::CPY, AddressingType::Immediate, 2, 2)
+        Opcode(InstructionName::CPY, AddressingType::Immediate, 2, 2), 0
     );
 }
 
@@ -333,7 +333,7 @@ TEST_F(CpuTest, CPY_ZeroPage) {
 
     Test_Compare(
         [&] (Byte r, Byte m) { cpu.Y = r; cpu.Memory.SetByteAt(0x20, m); },
-        Opcode(InstructionName::CPY, AddressingType::ZeroPage, 2, 3)
+        Opcode(InstructionName::CPY, AddressingType::ZeroPage, 2, 3), 0
     );
 }
 
@@ -343,9 +343,132 @@ TEST_F(CpuTest, CPY_Absolute) {
 
     Test_Compare(
         [&] (Byte r, Byte m) { cpu.Y = r; cpu.Memory.SetByteAt(0x0120, m); },
-        Opcode(InstructionName::CPY, AddressingType::Absolute, 3, 4)
+        Opcode(InstructionName::CPY, AddressingType::Absolute, 3, 4), 0
     );
 }
+
+TEST_F(CpuTest, CMP_Immediate) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+
+    Test_Compare(
+        [&] (Byte r, Byte m) { cpu.A = r; cpu.Memory.SetByteAt(BASE_PC + 1, m); },
+        Opcode(InstructionName::CMP, AddressingType::Immediate, 2, 2), 0
+    );
+}
+
+TEST_F(CpuTest, CMP_ZeroPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x20);
+
+    Test_Compare(
+        [&] (Byte r, Byte m) { cpu.A = r; cpu.Memory.SetByteAt(0x20, m); },
+        Opcode(InstructionName::CMP, AddressingType::ZeroPage, 2, 3), 0
+    );
+}
+
+TEST_F(CpuTest, CMP_ZeroPageX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+
+    Test_Compare(
+        [&] (Byte r, Byte m) { cpu.A = r; cpu.Memory.SetByteAt(0x28, m); },
+        Opcode(InstructionName::CMP, AddressingType::ZeroPageX, 2, 4), 0
+    );
+}
+
+TEST_F(CpuTest, CMP_Absolute) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+
+    Test_Compare(
+        [&] (Byte r, Byte m) { cpu.A = r; cpu.Memory.SetByteAt(0x0120, m); },
+        Opcode(InstructionName::CMP, AddressingType::Absolute, 3, 4), 0
+    );
+}
+
+TEST_F(CpuTest, CMP_AbsoluteX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0x08;
+
+    Test_Compare(
+        [&] (Byte r, Byte m) { cpu.A = r; cpu.Memory.SetByteAt(0x0128, m); },
+        Opcode(InstructionName::CMP, AddressingType::AbsoluteX, 3, 4), 0
+    );
+}
+
+TEST_F(CpuTest, CMP_AbsoluteX_CrossingPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0xF0;
+
+    Test_Compare(
+        [&] (Byte r, Byte m) { cpu.A = r; cpu.Memory.SetByteAt(0x0210, m); },
+        Opcode(InstructionName::CMP, AddressingType::AbsoluteX, 3, 4), 1
+    );
+}
+
+TEST_F(CpuTest, CMP_AbsoluteY) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0x08;
+
+    Test_Compare(
+        [&] (Byte r, Byte m) { cpu.A = r; cpu.Memory.SetByteAt(0x0128, m); },
+        Opcode(InstructionName::CMP, AddressingType::AbsoluteY, 3, 4), 0
+    );
+}
+
+TEST_F(CpuTest, CMP_AbsoluteY_CrossingPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0xF0;
+
+    Test_Compare(
+        [&] (Byte r, Byte m) { cpu.A = r; cpu.Memory.SetByteAt(0x0210, m); },
+        Opcode(InstructionName::CMP, AddressingType::AbsoluteY, 3, 4), 1
+    );
+}
+
+TEST_F(CpuTest, CMP_IndexedIndirect) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+    cpu.Memory.SetWordAt(0x28, 0x0120);
+
+    Test_Compare(
+        [&] (Byte r, Byte m) { cpu.A = r; cpu.Memory.SetByteAt(0x0120, m); },
+        Opcode(InstructionName::CMP, AddressingType::IndexedIndirect, 2, 6), 0
+    );
+}
+
+TEST_F(CpuTest, CMP_IndirectIndexed) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.Memory.SetWordAt(0x20, 0x120);
+    cpu.Y = 0x08;
+    cpu.Memory.SetWordAt(0x0128, 0x0200);
+
+    Test_Compare(
+        [&] (Byte r, Byte m) { cpu.A = r; cpu.Memory.SetByteAt(0x0200, m); },
+        Opcode(InstructionName::CMP, AddressingType::IndirectIndexed, 2, 5), 0
+    );
+}
+
+TEST_F(CpuTest, CMP_IndirectIndexed_CrossingPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.Memory.SetWordAt(0x20, 0x120);
+    cpu.Y = 0xF0;
+    cpu.Memory.SetWordAt(0x0210, 0x0200);
+
+    Test_Compare(
+        [&] (Byte r, Byte m) { cpu.A = r; cpu.Memory.SetByteAt(0x0200, m); },
+        Opcode(InstructionName::CMP, AddressingType::IndirectIndexed, 2, 5), 1
+    );
+}
+
 //
 //TEST_F(CpuTest, Opcode_Instruction) {
 //    typedef InstructionName i;
