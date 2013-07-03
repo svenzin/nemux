@@ -34,10 +34,10 @@ using namespace std;
     m_opcodes[0x25] = Opcode(InstructionName::AND, AddressingType::ZeroPage,  2, 3);
     m_opcodes[0x35] = Opcode(InstructionName::AND, AddressingType::ZeroPageX, 2, 4);
     m_opcodes[0x2D] = Opcode(InstructionName::AND, AddressingType::Absolute,  3, 4);
-    m_opcodes[0x3D] = Opcode(InstructionName::AND, AddressingType::AbsoluteX, 3, 4, true);
-    m_opcodes[0x39] = Opcode(InstructionName::AND, AddressingType::AbsoluteY, 3, 4, true);
+    m_opcodes[0x3D] = Opcode(InstructionName::AND, AddressingType::AbsoluteX, 3, 4);
+    m_opcodes[0x39] = Opcode(InstructionName::AND, AddressingType::AbsoluteY, 3, 4);
     m_opcodes[0x21] = Opcode(InstructionName::AND, AddressingType::IndexedIndirect, 2, 6);
-    m_opcodes[0x31] = Opcode(InstructionName::AND, AddressingType::IndirectIndexed, 2, 5, true);
+    m_opcodes[0x31] = Opcode(InstructionName::AND, AddressingType::IndirectIndexed, 2, 5);
 
     m_opcodes[0x24] = Opcode(InstructionName::BIT, AddressingType::ZeroPage, 2, 3);
     m_opcodes[0x2C] = Opcode(InstructionName::BIT, AddressingType::Absolute, 3, 4);
@@ -62,10 +62,10 @@ using namespace std;
     m_opcodes[0x65] = Opcode(InstructionName::ADC, AddressingType::ZeroPage,  2, 3);
     m_opcodes[0x75] = Opcode(InstructionName::ADC, AddressingType::ZeroPageX, 2, 4);
     m_opcodes[0x6D] = Opcode(InstructionName::ADC, AddressingType::Absolute,  3, 4);
-    m_opcodes[0x7D] = Opcode(InstructionName::ADC, AddressingType::AbsoluteX, 3, 4, true);
-    m_opcodes[0x79] = Opcode(InstructionName::ADC, AddressingType::AbsoluteY, 3, 4, true);
+    m_opcodes[0x7D] = Opcode(InstructionName::ADC, AddressingType::AbsoluteX, 3, 4);
+    m_opcodes[0x79] = Opcode(InstructionName::ADC, AddressingType::AbsoluteY, 3, 4);
     m_opcodes[0x61] = Opcode(InstructionName::ADC, AddressingType::IndexedIndirect, 2, 6);
-    m_opcodes[0x71] = Opcode(InstructionName::ADC, AddressingType::IndirectIndexed, 2, 5, true);
+    m_opcodes[0x71] = Opcode(InstructionName::ADC, AddressingType::IndirectIndexed, 2, 5);
 
     m_opcodes[0xC6] = Opcode(InstructionName::DEC, AddressingType::ZeroPage,  2, 5);
     m_opcodes[0xD6] = Opcode(InstructionName::DEC, AddressingType::ZeroPageX, 2, 6);
@@ -94,6 +94,15 @@ using namespace std;
     m_opcodes[0x10] = Opcode(InstructionName::BPL, AddressingType::Relative, 2, 2);
     m_opcodes[0x50] = Opcode(InstructionName::BVC, AddressingType::Relative, 2, 2);
     m_opcodes[0x70] = Opcode(InstructionName::BVS, AddressingType::Relative, 2, 2);
+
+    // Comparisons
+    m_opcodes[0xE0] = Opcode(InstructionName::CPX, AddressingType::Immediate, 2, 2);
+    m_opcodes[0xE4] = Opcode(InstructionName::CPX, AddressingType::ZeroPage,  2, 3);
+    m_opcodes[0xEC] = Opcode(InstructionName::CPX, AddressingType::Absolute,  3, 4);
+
+    m_opcodes[0xC0] = Opcode(InstructionName::CPY, AddressingType::Immediate, 2, 2);
+    m_opcodes[0xC4] = Opcode(InstructionName::CPY, AddressingType::ZeroPage,  2, 3);
+    m_opcodes[0xCC] = Opcode(InstructionName::CPY, AddressingType::Absolute,  3, 4);
 
     // Stack
     m_opcodes[0x00] = Opcode(InstructionName::BRK, AddressingType::Implicit, 1, 7);
@@ -161,6 +170,12 @@ void Cpu::Transfer(Byte & from, Byte & to) {
     Z = (to == 0) ? 1 : 0;
     N = ((to & BYTE_MASK_SIGN) == 0) ? 0 : 1;
 }
+void Cpu::Compare(const Byte lhs, const Byte rhs) {
+    const auto r = lhs - rhs;
+    C = (r >= 0) ? 1 : 0;
+    Z = (r == 0) ? 1 : 0;
+    N = (r  < 0) ? 1 : 0;
+}
 void Cpu::BranchIf(const bool condition, const Opcode & op) {
     const auto basePC = PC;
     const auto M = Memory.GetByteAt(BuildAddress(AddressingType::Immediate));
@@ -177,6 +192,16 @@ void Cpu::BranchIf(const bool condition, const Opcode & op) {
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
+        case InstructionName::CPX: {
+            Compare(X, Memory.GetByteAt(BuildAddress(op.Addressing)));
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
+        case InstructionName::CPY: {
+            Compare(Y, Memory.GetByteAt(BuildAddress(op.Addressing)));
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
         case InstructionName::TAX: {
             Transfer(A, X);
             PC += op.Bytes; Ticks += op.Cycles;

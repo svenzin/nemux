@@ -23,6 +23,7 @@ enum class InstructionName {
     CLC, CLD, CLI, CLV, SEC, SED, SEI, // Flags
     ADC, DEC, DEX, DEY, INC, INX, INY, // Arithmetic
     BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS, // Branch
+    CPX, CPY, // Comparisons
     BRK, // Stack
     STA, STX, STY, TAX, TAY, TSX, TXA, TXS, TYA, // Memory
     NOP,
@@ -52,16 +53,15 @@ enum class AddressingType {
 class Opcode {
 public:
     explicit Opcode(const InstructionName &name, const AddressingType &addr,
-                    const Opsize &bytes, const Optime &cycles, const bool extra = false)
+                    const Opsize &bytes, const Optime &cycles)
         : Instruction(name), Addressing(addr), Bytes(bytes),
-          Cycles(cycles), ExtraOnPageCrossing(extra) {
+          Cycles(cycles) {
     }
 
     InstructionName Instruction;
     AddressingType Addressing;
     Opsize Bytes;
     Optime Cycles;
-    bool ExtraOnPageCrossing;
 };
 
 class Cpu {
@@ -95,6 +95,7 @@ public:
 
     void Decrement(Byte & value);
     void Increment(Byte & value);
+    void Compare(const Byte lhs, const Byte rhs);
     void Transfer(Byte & from, Byte & to);
     void BranchIf(const bool condition, const Opcode & op);
 
