@@ -26,7 +26,7 @@ enum class InstructionName {
     BRK, // Stack
     STA, STX, STY, TAX, TAY, TSX, TXA, TXS, TYA, // Memory
     NOP,
-    Unknown,
+    UNK,
 };
 typedef int Opsize;
 typedef int Optime;

@@ -19,7 +19,7 @@ using namespace std;
       Ticks{0}, Memory{"", 0} {
     m_opcodes.resize(
         OPCODES_COUNT,
-        Opcode(InstructionName::Unknown, AddressingType::Unknown, 0, 0)
+        Opcode(InstructionName::UNK, AddressingType::Unknown, 0, 0)
     );
 
     // Shift
@@ -393,7 +393,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         case InstructionName::NOP: { PC += op.Bytes; Ticks += op.Cycles; break; }
 
         default:
-        case InstructionName::Unknown:
+        case InstructionName::UNK:
             break;
     }
 }
