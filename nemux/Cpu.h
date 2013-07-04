@@ -19,7 +19,7 @@ static const auto OPCODES_COUNT = 0x0100;
 typedef Byte Flag;
 enum class InstructionName {
     ASL,                // Shift
-    AND, BIT,           // Bit operations
+    AND, BIT, EOR,          // Bit operations
     CLC, CLD, CLI, CLV, SEC, SED, SEI, // Flags
     ADC, DEC, DEX, DEY, INC, INX, INY, // Arithmetic
     BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS, // Branch

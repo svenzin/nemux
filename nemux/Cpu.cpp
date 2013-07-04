@@ -42,6 +42,15 @@ using namespace std;
     m_opcodes[0x24] = Opcode(InstructionName::BIT, AddressingType::ZeroPage, 2, 3);
     m_opcodes[0x2C] = Opcode(InstructionName::BIT, AddressingType::Absolute, 3, 4);
 
+    m_opcodes[0x49] = Opcode(InstructionName::EOR, AddressingType::Immediate, 2, 2);
+    m_opcodes[0x45] = Opcode(InstructionName::EOR, AddressingType::ZeroPage,  2, 3);
+    m_opcodes[0x55] = Opcode(InstructionName::EOR, AddressingType::ZeroPageX, 2, 4);
+    m_opcodes[0x40] = Opcode(InstructionName::EOR, AddressingType::Absolute,  3, 4);
+    m_opcodes[0x50] = Opcode(InstructionName::EOR, AddressingType::AbsoluteX, 3, 4);
+    m_opcodes[0x59] = Opcode(InstructionName::EOR, AddressingType::AbsoluteY, 3, 4);
+    m_opcodes[0x41] = Opcode(InstructionName::EOR, AddressingType::IndexedIndirect, 2, 6);
+    m_opcodes[0x51] = Opcode(InstructionName::EOR, AddressingType::IndirectIndexed, 2, 5);
+
     // Clear flags
     m_opcodes[0x18] = Opcode(InstructionName::CLC, AddressingType::Implicit, 1, 2);
 
@@ -201,6 +210,29 @@ void Cpu::BranchIf(const bool condition, const Opcode & op) {
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
+        case InstructionName::EOR: {
+                const auto addr = BuildAddress(op.Addressing);
+                A ^= Memory.GetByteAt(addr);
+                Z = (A == 0) ? 1 : 0;
+                N = ((A & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+                switch (op.Addressing) {
+                    case AddressingType::AbsoluteX: {
+                        if (X > (addr & BYTE_MASK)) ++Ticks;
+                        break;
+                    }
+                    case AddressingType::AbsoluteY: {
+                        if (Y > (addr & BYTE_MASK)) ++Ticks;
+                        break;
+                    }
+                    case AddressingType::IndirectIndexed: {
+                        const auto base = Memory.GetWordAt(Memory.GetByteAt(PC + 1)) + Y;
+                        if (Y > (base & BYTE_MASK)) ++Ticks;
+                    }
+                    default: break;
+                }
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
         case InstructionName::CMP: {
             const auto addr = BuildAddress(op.Addressing);
             Compare(A, Memory.GetByteAt(addr));

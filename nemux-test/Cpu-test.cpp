@@ -13,6 +13,7 @@
 #include <vector>
 #include <map>
 #include <array>
+#include <functional>
 
 using namespace std;
 
@@ -287,7 +288,111 @@ public:
         tester(0xF0, 0xF0, 1, 1, 0); // Equal
         tester(0xF0, 0xF8, 0, 0, 1); // Lower
     }
+
+    template<typename Setter>
+    void Test_EOR(Setter set, Opcode op, int extra) {
+        auto tester = [&] (Byte a, Byte m, Byte expA, Flag expZ, Flag expN) {
+            set(m);
+            cpu.A = a;
+
+            cpu.PC = BASE_PC;
+            cpu.Ticks = BASE_TICKS;
+            cpu.Execute(op);
+
+            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+            EXPECT_EQ(BASE_TICKS + op.Cycles + extra, cpu.Ticks);
+            EXPECT_EQ(expA, cpu.A);
+            EXPECT_EQ(expZ, cpu.Z);
+            EXPECT_EQ(expN, cpu.N);
+        };
+
+        tester(0x0C, 0x0A, 0x06, 0, 0); // 1100b XOR 1010b = 0110b
+        tester(0x0C, 0x0C, 0x00, 1, 0); // 1100b XOR 1100b = 0000b
+        tester(0x8C, 0x0C, 0x80, 0, 1); // 10001100b XOR 00001100b = 10000000b
+    }
+
+    function<void (Byte)> Setter(Word a) {
+        return [=] (Byte value) { cpu.Memory.SetByteAt(a, value); };
+    }
 };
+
+TEST_F(CpuTest, EOR_Immediate) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    Test_EOR(Setter(BASE_PC + 1), Opcode(InstructionName::EOR, AddressingType::Immediate, 2, 2), 0);
+}
+
+TEST_F(CpuTest, EOR_ZeroPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    Test_EOR(Setter(0x0020), Opcode(InstructionName::EOR, AddressingType::ZeroPage, 2, 3), 0);
+}
+
+TEST_F(CpuTest, EOR_ZeroPageX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+    Test_EOR(Setter(0x0028), Opcode(InstructionName::EOR, AddressingType::ZeroPageX, 2, 4), 0);
+}
+
+TEST_F(CpuTest, EOR_Absolute) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    Test_EOR(Setter(0x0120), Opcode(InstructionName::EOR, AddressingType::Absolute, 3, 4), 0);
+}
+
+TEST_F(CpuTest, EOR_AbsoluteX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0x08;
+    Test_EOR(Setter(0x0128), Opcode(InstructionName::EOR, AddressingType::AbsoluteX, 3, 4), 0);
+}
+
+TEST_F(CpuTest, EOR_AbsoluteX_CrossingPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0xF0;
+    Test_EOR(Setter(0x0210), Opcode(InstructionName::EOR, AddressingType::AbsoluteX, 3, 4), 1);
+}
+
+TEST_F(CpuTest, EOR_AbsoluteY) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0x08;
+    Test_EOR(Setter(0x0128), Opcode(InstructionName::EOR, AddressingType::AbsoluteY, 3, 4), 0);
+}
+
+TEST_F(CpuTest, EOR_AbsoluteY_CrossingPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0xF0;
+    Test_EOR(Setter(0x0210), Opcode(InstructionName::EOR, AddressingType::AbsoluteY, 3, 4), 1);
+}
+
+TEST_F(CpuTest, EOR_IndexedIndirect) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+    cpu.Memory.SetWordAt(0x28, 0x0120);
+    Test_EOR(Setter(0x0120), Opcode(InstructionName::EOR, AddressingType::IndexedIndirect, 2, 6), 0);
+}
+
+TEST_F(CpuTest, EOR_IndirectIndexed) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.Memory.SetWordAt(0x20, 0x0120);
+    cpu.Y = 0x08;
+    cpu.Memory.SetWordAt(0x0128, 0x0200);
+    Test_EOR(Setter(0x0200), Opcode(InstructionName::EOR, AddressingType::IndirectIndexed, 2, 5), 0);
+}
+
+TEST_F(CpuTest, EOR_IndirectIndexed_CrossingPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.Memory.SetWordAt(0x20, 0x0120);
+    cpu.Y = 0xF0;
+    cpu.Memory.SetWordAt(0x0210, 0x0200);
+    Test_EOR(Setter(0x0200), Opcode(InstructionName::EOR, AddressingType::IndirectIndexed, 2, 5), 1);
+}
 
 TEST_F(CpuTest, CPX_Immediate) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
