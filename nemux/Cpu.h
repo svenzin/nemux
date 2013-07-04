@@ -64,6 +64,11 @@ public:
     Optime Cycles;
 };
 
+struct address_t {
+    Word Address;
+    bool HasCrossedPage;
+};
+
 class Cpu {
 public:
     explicit Cpu(std::string name);
@@ -86,7 +91,7 @@ public:
 
     int Ticks;
 
-    Word BuildAddress(const AddressingType & type) const;
+    address_t BuildAddress(const AddressingType & type) const;
     void Execute(const Opcode &op);//, const std::vector<Byte> &data);
 
     Mapper Memory;
@@ -98,6 +103,8 @@ public:
     void Compare(const Byte lhs, const Byte rhs);
     void Transfer(Byte & from, Byte & to);
     void BranchIf(const bool condition, const Opcode & op);
+
+    bool CrossedPage(const Opcode & op, const Word address);
 
 private:
 //    std::vector<Instruction> m_opcodes;

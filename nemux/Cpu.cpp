@@ -158,18 +158,39 @@ using namespace std;
     m_opcodes[0xEA] = Opcode(InstructionName::NOP, AddressingType::Implicit, 1, 2);
 }
 
-Word Cpu::BuildAddress(const AddressingType & type) const {
+address_t Cpu::BuildAddress(const AddressingType & type) const {
     switch (type) {
-        case AddressingType::Immediate: return PC + 1;
-        case AddressingType::ZeroPage:  return Memory.GetByteAt(PC + 1);
-        case AddressingType::ZeroPageX: return Memory.GetByteAt(PC + 1) + X;
-        case AddressingType::ZeroPageY: return Memory.GetByteAt(PC + 1) + Y;
-        case AddressingType::Absolute:  return Memory.GetWordAt(PC + 1);
-        case AddressingType::AbsoluteX: return Memory.GetWordAt(PC + 1) + X;
-        case AddressingType::AbsoluteY: return Memory.GetWordAt(PC + 1) + Y;
-        case AddressingType::IndexedIndirect: return Memory.GetWordAt(Memory.GetByteAt(PC + 1) + X);
-        case AddressingType::IndirectIndexed: return Memory.GetWordAt(Memory.GetWordAt(Memory.GetByteAt(PC + 1)) + Y);
-        default: return -1;
+        case AddressingType::Immediate: {
+            return { PC + 1, false };
+        }
+        case AddressingType::ZeroPage: {
+            return { Memory.GetByteAt(PC + 1), false };
+        }
+        case AddressingType::ZeroPageX: {
+            return { Memory.GetByteAt(PC + 1) + X, false };
+        }
+        case AddressingType::ZeroPageY: {
+            return { Memory.GetByteAt(PC + 1) + Y, false };
+        }
+        case AddressingType::Absolute: {
+            return { Memory.GetWordAt(PC + 1), false };
+        }
+        case AddressingType::AbsoluteX: {
+            const auto address = Memory.GetWordAt(PC + 1) + X;
+            return { address, (X > (address & BYTE_MASK)) };
+        }
+        case AddressingType::AbsoluteY: {
+            const auto address = Memory.GetWordAt(PC + 1) + Y;
+            return { address, (Y > (address & BYTE_MASK)) };
+        }
+        case AddressingType::IndexedIndirect: {
+            return { Memory.GetWordAt(Memory.GetByteAt(PC + 1) + X), false };
+        }
+        case AddressingType::IndirectIndexed: {
+            const auto base = Memory.GetWordAt(Memory.GetByteAt(PC + 1)) + Y;
+            return { Memory.GetWordAt(base), (Y > (base & BYTE_MASK)) };
+        }
+        default: return { -1, false };
     }
 }
 
@@ -196,7 +217,7 @@ void Cpu::Compare(const Byte lhs, const Byte rhs) {
 }
 void Cpu::BranchIf(const bool condition, const Opcode & op) {
     const auto basePC = PC;
-    const auto M = Memory.GetByteAt(BuildAddress(AddressingType::Immediate));
+    const auto M = Memory.GetByteAt(BuildAddress(AddressingType::Immediate).Address);
     if (condition) {
         Word offset = ((M & BYTE_MASK_SIGN) >> 7) * 0xFF00 + M;
         PC = (PC + offset) & 0xFFFF;
@@ -211,56 +232,28 @@ void Cpu::BranchIf(const bool condition, const Opcode & op) {
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
         case InstructionName::EOR: {
-                const auto addr = BuildAddress(op.Addressing);
-                A ^= Memory.GetByteAt(addr);
-                Z = (A == 0) ? 1 : 0;
-                N = ((A & BYTE_MASK_SIGN) == 0) ? 0 : 1;
-                switch (op.Addressing) {
-                    case AddressingType::AbsoluteX: {
-                        if (X > (addr & BYTE_MASK)) ++Ticks;
-                        break;
-                    }
-                    case AddressingType::AbsoluteY: {
-                        if (Y > (addr & BYTE_MASK)) ++Ticks;
-                        break;
-                    }
-                    case AddressingType::IndirectIndexed: {
-                        const auto base = Memory.GetWordAt(Memory.GetByteAt(PC + 1)) + Y;
-                        if (Y > (base & BYTE_MASK)) ++Ticks;
-                    }
-                    default: break;
-                }
+            const auto a = BuildAddress(op.Addressing);
+            A ^= Memory.GetByteAt(a.Address);
+            Z = (A == 0) ? 1 : 0;
+            N = ((A & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+            if (a.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
         case InstructionName::CMP: {
-            const auto addr = BuildAddress(op.Addressing);
-            Compare(A, Memory.GetByteAt(addr));
-            switch (op.Addressing) {
-                case AddressingType::AbsoluteX: {
-                    if (X > (addr & BYTE_MASK)) ++Ticks;
-                    break;
-                }
-                case AddressingType::AbsoluteY: {
-                    if (Y > (addr & BYTE_MASK)) ++Ticks;
-                    break;
-                }
-                case AddressingType::IndirectIndexed: {
-                    const auto base = Memory.GetWordAt(Memory.GetByteAt(PC + 1)) + Y;
-                    if (Y > (base & BYTE_MASK)) ++Ticks;
-                }
-                default: break;
-            }
+            const auto a = BuildAddress(op.Addressing);
+            Compare(A, Memory.GetByteAt(a.Address));
+            if (a.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
         case InstructionName::CPX: {
-            Compare(X, Memory.GetByteAt(BuildAddress(op.Addressing)));
+            Compare(X, Memory.GetByteAt(BuildAddress(op.Addressing).Address));
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
         case InstructionName::CPY: {
-            Compare(Y, Memory.GetByteAt(BuildAddress(op.Addressing)));
+            Compare(Y, Memory.GetByteAt(BuildAddress(op.Addressing).Address));
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
@@ -295,17 +288,17 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             break;
         }
         case InstructionName::STA: {
-            Memory.SetByteAt(BuildAddress(op.Addressing), A);
+            Memory.SetByteAt(BuildAddress(op.Addressing).Address, A);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
         case InstructionName::STX: {
-            Memory.SetByteAt(BuildAddress(op.Addressing), X);
+            Memory.SetByteAt(BuildAddress(op.Addressing).Address, X);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
         case InstructionName::STY: {
-            Memory.SetByteAt(BuildAddress(op.Addressing), Y);
+            Memory.SetByteAt(BuildAddress(op.Addressing).Address, Y);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
@@ -342,8 +335,8 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             break;
         }
         case InstructionName::ADC: {
-            const auto addr = BuildAddress(op.Addressing);
-            const auto M = Memory.GetByteAt(addr);
+            const auto aa = BuildAddress(op.Addressing);
+            const auto M = Memory.GetByteAt(aa.Address);
             Word a = A + M + C;
             C = (a > BYTE_MASK) ? 1 : 0;
 //            V = (a >= BYTE_MASK_SIGN) ? 1 : 0;
@@ -351,21 +344,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             Z = ((a & BYTE_MASK) == 0) ? 1 : 0;
             N = ((a & BYTE_MASK_SIGN) == 0) ? 0 : 1;
             A = a & BYTE_MASK;
-            switch (op.Addressing) {
-                case AddressingType::AbsoluteX: {
-                    if (X > (addr & BYTE_MASK)) ++Ticks;
-                    break;
-                }
-                case AddressingType::AbsoluteY: {
-                    if (Y > (addr & BYTE_MASK)) ++Ticks;
-                    break;
-                }
-                case AddressingType::IndirectIndexed: {
-                    const auto base = Memory.GetWordAt(Memory.GetByteAt(PC + 1)) + Y;
-                    if (Y > (base & BYTE_MASK)) ++Ticks;
-                }
-                default: break;
-            }
+            if (aa.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
@@ -376,42 +355,28 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
                 Z = (A == 0) ? 1 : 0;
                 N = ((A & BYTE_MASK_SIGN) == 0) ? 0 : 1;
             } else {
-                const auto addr = BuildAddress(op.Addressing);
-                auto M = Memory.GetByteAt(addr);
+                const auto address = BuildAddress(op.Addressing).Address;
+                auto M = Memory.GetByteAt(address);
                 C = ((M & BYTE_MASK_SIGN) == 0) ? 0 : 1;
                 M <<= 1;
                 Z = (M == 0) ? 1 : 0;
                 N = ((M & BYTE_MASK_SIGN) == 0) ? 0 : 1;
-                Memory.SetByteAt(addr, M);
+                Memory.SetByteAt(address, M);
             }
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
         case InstructionName::AND: {
-            const auto addr = BuildAddress(op.Addressing);
-            const auto M = Memory.GetByteAt(addr);
+            const auto a = BuildAddress(op.Addressing);
+            const auto M = Memory.GetByteAt(a.Address);
             A = A & M;
             Z = A == 0 ? 1 : 0;
             N = (A & 0x80) == 0 ? 0 : 1;
-            switch (op.Addressing) {
-                case AddressingType::AbsoluteX: {
-                    if (X > (addr & BYTE_MASK)) ++Ticks;
-                    break;
-                }
-                case AddressingType::AbsoluteY: {
-                    if (Y > (addr & BYTE_MASK)) ++Ticks;
-                    break;
-                }
-                case AddressingType::IndirectIndexed: {
-                    const auto base = Memory.GetWordAt(Memory.GetByteAt(PC + 1)) + Y;
-                    if (Y > (base & BYTE_MASK)) ++Ticks;
-                }
-                default: break;
-            }
+            if (a.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
         case InstructionName::BIT: {
-            const auto mask = Memory.GetByteAt(BuildAddress(op.Addressing));
+            const auto mask = Memory.GetByteAt(BuildAddress(op.Addressing).Address);
             Z = (mask & A) == 0 ? 1 : 0;
             V = (mask & 0x40) == 0 ? 0 : 1;
             N = (mask & 0x80) == 0 ? 0 : 1;
@@ -446,10 +411,10 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
         case InstructionName::DEC: {
-            const auto addr = BuildAddress(op.Addressing);
-            auto M = Memory.GetByteAt(addr);
+            const auto address = BuildAddress(op.Addressing).Address;
+            auto M = Memory.GetByteAt(address);
             Decrement(M);
-            Memory.SetByteAt(addr, M);
+            Memory.SetByteAt(address, M);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
@@ -462,10 +427,10 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
         case InstructionName::INC: {
-            const auto addr = BuildAddress(op.Addressing);
-            auto M = Memory.GetByteAt(addr);
+            const auto address = BuildAddress(op.Addressing).Address;
+            auto M = Memory.GetByteAt(address);
             Increment(M);
-            Memory.SetByteAt(addr, M);
+            Memory.SetByteAt(address, M);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
