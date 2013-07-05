@@ -18,16 +18,16 @@ static const auto OPCODES_COUNT = 0x0100;
 
 typedef Byte Flag;
 enum class InstructionName {
-    LDA, LDX, LDY, STA, STX, STY, // Load, Store
-    TAX, TAY, TXA, TYA, // Register Transfer
-    TSX, TXS, // Stack
-    AND, BIT, EOR, // Logical
-    ADC, CMP, CPX, CPY, // Arithmetic
-    DEC, DEX, DEY, INC, INX, INY, // Increment, Decrement
-    ASL, // Shift
+    LDA, LDX, LDY, STA, STX, STY,           // Load, Store
+    TAX, TAY, TXA, TYA,                     // Register Transfer
+    TSX, TXS,// Stack
+    AND, BIT, EOR,// Logical
+    ADC, CMP, CPX, CPY,// Arithmetic
+    DEC, DEX, DEY, INC, INX, INY,           // Increment, Decrement
+    ASL,// Shift
     // Jump, Call
     BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS, // Branch
-    CLC, CLD, CLI, CLV, SEC, SED, SEI, // Status Change
+    CLC, CLD, CLI, CLV, SEC, SED, SEI,      // Status Change
     NOP, // System
 
     UNK,

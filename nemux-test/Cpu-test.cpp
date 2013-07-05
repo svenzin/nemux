@@ -780,7 +780,7 @@ TEST_F(CpuTest, CMP_IndirectIndexed_CrossingPage) {
 //TEST_F(CpuTest, Opcode_Instruction) {
 //    typedef InstructionName i;
 //    std::array<InstructionName, 0x100> opcodes {
-///*           x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF */
+///*             x0      x1      x2      x3      x4      x5      x6      x7      x8      x9      xA      xB      xC      xD      xE      xF */
 ///* 0x */    i::BRK, i::ORA, i::UNK, i::UNK, i::UNK, i::ORA, i::ASL, i::UNK, i::PHP, i::ORA, i::ASL, i::UNK, i::UNK, i::ORA, i::ASL, i::UNK,
 ///* 1x */    i::BPL, i::ORA, i::UNK, i::UNK, i::UNK, i::ORA, i::ASL, i::UNK, i::CLC, i::ORA, i::UNK, i::UNK, i::UNK, i::ORA, i::ASL, i::UNK,
 ///* 2x */    i::JSR, i::AND, i::UNK, i::UNK, i::BIT, i::AND, i::ROL, i::UNK, i::PLP, i::AND, i::ROL, i::UNK, i::BIT, i::AND, i::ROL, i::UNK,
@@ -800,7 +800,40 @@ TEST_F(CpuTest, CMP_IndirectIndexed_CrossingPage) {
 //    };
 //}
 //TEST_F(CpuTest, Opcode_Addressing) {
+//    const auto IMP = AddressingType::Implicit;
+//    const auto ACC = AddressingType::Accumulator;
+//    const auto IMM = AddressingType::Immediate;
+//    const auto ZPG = AddressingType::ZeroPage;
+//    const auto ZPX = AddressingType::ZeroPageX;
+//    const auto ZPY = AddressingType::ZeroPageY;
+//    const auto REL = AddressingType::Relative;
+//    const auto ABS = AddressingType::Absolute;
+//    const auto ABX = AddressingType::AbsoluteX;
+//    const auto ABY = AddressingType::AbsoluteY;
+//    const auto IND = AddressingType::Indirect;
+//    const auto IDX = AddressingType::IndexedIndirect;
+//    const auto IDY = AddressingType::IndirectIndexed;
+//    const auto UNK = AddressingType::Unknown;
 //
+//    std::array<AddressingType, 0x100> opcodes {
+///*           x0   x1   x2   x3   x4   x5   x6   x7   x8   x9   xA   xB   xC   xD   xE   xF */
+///* 0x */    IMP, IDX, UNK, UNK, UNK, ZPG, ZPG, UNK, IMP, IMM, ACC, UNK, UNK, ABS, ABS, UNK,
+///* 1x */    IMP, IDY, UNK, UNK, UNK, ZPX, ZPX, UNK, IMP, ABY, UNK, UNK, UNK, ABX, ABX, UNK,
+///* 2x */    IMP, IDX, UNK, UNK, ZPG, ZPG, ZPG, UNK, IMP, IMM, ACC, UNK, ABS, ABS, ABS, UNK,
+///* 3x */    IMP, IDY, UNK, UNK, UNK, ZPX, ZPX, UNK, IMP, ABY, UNK, UNK, UNK, ABX, ABX, UNK,
+///* 4x */    IMP, IDX, UNK, UNK, UNK, ZPG, ZPG, UNK, IMP, IMM, ACC, UNK, ABS, ABS, ABS, UNK,
+///* 5x */    IMP, IDY, UNK, UNK, UNK, ZPX, ZPX, UNK, IMP, ABY, UNK, UNK, UNK, ABX, ABX, UNK,
+///* 6x */    IMP, IDX, UNK, UNK, UNK, ZPG, ZPG, UNK, IMP, IMM, ACC, UNK, IND, ABS, ABS, UNK,
+///* 7x */    IMP, IDY, UNK, UNK, UNK, ZPX, ZPX, UNK, IMP, ABY, UNK, UNK, UNK, ABX, ABX, UNK,
+///* 8x */    UNK, IDX, UNK, UNK, ZPG, ZPG, ZPG, UNK, IMP, UNK, IMP, UNK, ABS, ABS, ABS, UNK,
+///* 9x */    IMP, IDY, UNK, UNK, ZPX, ZPX, ZPY, UNK, IMP, ABY, IMP, UNK, UNK, ABX, UNK, UNK,
+///* Ax */    IMM, IDX, IMM, UNK, ZPG, ZPG, ZPG, UNK, IMP, IMM, IMP, UNK, ABS, ABS, ABS, UNK,
+///* Bx */    IMP, IDY, UNK, UNK, ZPX, ZPX, ZPY, UNK, IMP, ABY, IMP, UNK, ABX, ABX, ABY, UNK,
+///* Cx */    IMM, IDX, UNK, UNK, ZPG, ZPG, ZPG, UNK, IMP, IMM, IMP, UNK, ABS, ABS, ABS, UNK,
+///* Dx */    IMP, IDY, UNK, UNK, UNK, ZPX, ZPX, UNK, IMP, ABY, UNK, UNK, UNK, ABX, ABX, UNK,
+///* Ex */    IMM, IDX, UNK, UNK, ZPG, ZPG, ZPG, UNK, IMP, IMM, IMP, UNK, ABS, ABS, ABS, UNK,
+///* Fx */    IMP, IDY, UNK, UNK, UNK, ZPX, ZPX, UNK, IMP, ABY, UNK, UNK, UNK, ABX, ABX, UNK,
+//    };
 //}
 
 TEST_F(CpuTest, BCC) {
