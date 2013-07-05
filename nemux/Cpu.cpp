@@ -132,11 +132,11 @@ using namespace std;
     m_opcodes[0xAE] = Opcode(InstructionName::LDX, AddressingType::Absolute,  3, 4);
     m_opcodes[0xBE] = Opcode(InstructionName::LDX, AddressingType::AbsoluteY, 3, 4);
 
-//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
-//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
-//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
-//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
-//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
+    m_opcodes[0xA0] = Opcode(InstructionName::LDY, AddressingType::Immediate, 2, 2);
+    m_opcodes[0xA4] = Opcode(InstructionName::LDY, AddressingType::ZeroPage,  2, 3);
+    m_opcodes[0xB4] = Opcode(InstructionName::LDY, AddressingType::ZeroPageY, 2, 4);
+    m_opcodes[0xAC] = Opcode(InstructionName::LDY, AddressingType::Absolute,  3, 4);
+    m_opcodes[0xBC] = Opcode(InstructionName::LDY, AddressingType::AbsoluteY, 3, 4);
 //
 //    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
 //    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
@@ -225,7 +225,7 @@ void Cpu::Increment(Byte & value) {
     Z = (value == 0) ? 1 : 0;
     N = ((value & BYTE_MASK_SIGN) == 0) ? 0 : 1;
 }
-void Cpu::Transfer(Byte & from, Byte & to) {
+void Cpu::Transfer(const Byte & from, Byte & to) {
     to = from;
     Z = (to == 0) ? 1 : 0;
     N = ((to & BYTE_MASK_SIGN) == 0) ? 0 : 1;
@@ -254,9 +254,14 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
         case InstructionName::LDX: {
             const auto a = BuildAddress(op.Addressing);
-            X = Memory.GetByteAt(a.Address);
-            Z = (X == 0) ? 1 : 0;
-            N = ((X & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+            Transfer(Memory.GetByteAt(a.Address), X);
+            if (a.HasCrossedPage) ++Ticks;
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
+        case InstructionName::LDY: {
+            const auto a = BuildAddress(op.Addressing);
+            Transfer(Memory.GetByteAt(a.Address), Y);
             if (a.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
             break;

@@ -384,6 +384,51 @@ TEST_F(CpuTest, LDX_AbsoluteY_CrossingPage) {
               Opcode(InstructionName::LDX, AddressingType::AbsoluteY, 3, 4), 1);
 }
 
+
+TEST_F(CpuTest, LDY_Immediate) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    Test_Load(Getter(cpu.Y), Setter(BASE_PC + 1),
+              Opcode(InstructionName::LDY, AddressingType::Immediate, 2, 2), 0);
+}
+
+TEST_F(CpuTest, LDY_ZeroPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    Test_Load(Getter(cpu.Y), Setter(0x0020),
+              Opcode(InstructionName::LDY, AddressingType::ZeroPage, 2, 3), 0);
+}
+
+TEST_F(CpuTest, LDY_ZeroPageX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+    Test_Load(Getter(cpu.Y), Setter(0x0028),
+              Opcode(InstructionName::LDY, AddressingType::ZeroPageX, 2, 4), 0);
+}
+
+TEST_F(CpuTest, LDY_Absolute) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    Test_Load(Getter(cpu.Y), Setter(0x0120),
+              Opcode(InstructionName::LDY, AddressingType::Absolute, 3, 4), 0);
+}
+
+TEST_F(CpuTest, LDY_AbsoluteX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0x08;
+    Test_Load(Getter(cpu.Y), Setter(0x0128),
+              Opcode(InstructionName::LDY, AddressingType::AbsoluteX, 3, 4), 0);
+}
+
+TEST_F(CpuTest, LDY_AbsoluteX_CrossingPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0xF0;
+    Test_Load(Getter(cpu.Y), Setter(0x0210),
+              Opcode(InstructionName::LDY, AddressingType::AbsoluteX, 3, 4), 1);
+}
+
 TEST_F(CpuTest, EOR_Immediate) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     Test_EOR(Setter(BASE_PC + 1), Opcode(InstructionName::EOR, AddressingType::Immediate, 2, 2), 0);

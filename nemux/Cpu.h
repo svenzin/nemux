@@ -104,7 +104,7 @@ public:
     void Decrement(Byte & value);
     void Increment(Byte & value);
     void Compare(const Byte lhs, const Byte rhs);
-    void Transfer(Byte & from, Byte & to);
+    void Transfer(const Byte & from, Byte & to);
     void BranchIf(const bool condition, const Opcode & op);
 
     bool CrossedPage(const Opcode & op, const Word address);
