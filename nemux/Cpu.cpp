@@ -313,7 +313,8 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             break;
         }
         case InstructionName::TXS: {
-            Transfer(X, SP);
+            // TXS does not change the flags
+            SP = X;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }

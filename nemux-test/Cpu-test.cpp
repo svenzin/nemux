@@ -1472,11 +1472,17 @@ TEST_F(CpuTest, TXA) {
 }
 
 TEST_F(CpuTest, TXS) {
-    Test_Transfer(
-        [&]              { return cpu.SP; },
-        [&] (Byte value) { cpu.X = value; },
-        Opcode(InstructionName::TXS, AddressingType::Implicit, 1, 2)
-    );
+    // TXS does not change the flags
+    auto op = Opcode(InstructionName::TXS, AddressingType::Implicit, 1, 2);
+    cpu.X = 0x20;
+
+    cpu.PC = BASE_PC;
+    cpu.Ticks = BASE_TICKS;
+    cpu.Execute(op);
+
+    EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+    EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+    EXPECT_EQ(0x20, cpu.SP);
 }
 
 TEST_F(CpuTest, TYA) {
