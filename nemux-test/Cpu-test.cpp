@@ -311,10 +311,78 @@ public:
         tester(0x8C, 0x0C, 0x80, 0, 1); // 10001100b XOR 00001100b = 10000000b
     }
 
+    template<typename Getter, typename Setter>
+    void Test_Load(Getter get, Setter set, Opcode op, int extra) {
+        auto tester = [&] (Byte m, Flag expZ, Flag expN) {
+            set(m);
+
+            cpu.PC = BASE_PC;
+            cpu.Ticks = BASE_TICKS;
+            cpu.Execute(op);
+
+            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+            EXPECT_EQ(BASE_TICKS + op.Cycles + extra, cpu.Ticks);
+            EXPECT_EQ(m, get());
+            EXPECT_EQ(expZ, cpu.Z);
+            EXPECT_EQ(expN, cpu.N);
+        };
+
+        tester(0x20, 0, 0);
+        tester(0x00, 1, 0);
+        tester(0x80, 0, 1);
+    }
+
     function<void (Byte)> Setter(Word a) {
         return [=] (Byte value) { cpu.Memory.SetByteAt(a, value); };
     }
+    function<Byte ()> Getter(Byte & b) {
+        return [&] () { return b; };
+    }
 };
+
+TEST_F(CpuTest, LDX_Immediate) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    Test_Load(Getter(cpu.X), Setter(BASE_PC + 1),
+              Opcode(InstructionName::LDX, AddressingType::Immediate, 2, 2), 0);
+}
+
+TEST_F(CpuTest, LDX_ZeroPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    Test_Load(Getter(cpu.X), Setter(0x0020),
+              Opcode(InstructionName::LDX, AddressingType::ZeroPage, 2, 3), 0);
+}
+
+TEST_F(CpuTest, LDX_ZeroPageY) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.Y = 0x08;
+    Test_Load(Getter(cpu.X), Setter(0x0028),
+              Opcode(InstructionName::LDX, AddressingType::ZeroPageY, 2, 4), 0);
+}
+
+TEST_F(CpuTest, LDX_Absolute) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    Test_Load(Getter(cpu.X), Setter(0x0120),
+              Opcode(InstructionName::LDX, AddressingType::Absolute, 3, 4), 0);
+}
+
+TEST_F(CpuTest, LDX_AbsoluteY) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0x08;
+    Test_Load(Getter(cpu.X), Setter(0x0128),
+              Opcode(InstructionName::LDX, AddressingType::AbsoluteY, 3, 4), 0);
+}
+
+TEST_F(CpuTest, LDX_AbsoluteY_CrossingPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0xF0;
+    Test_Load(Getter(cpu.X), Setter(0x0210),
+              Opcode(InstructionName::LDX, AddressingType::AbsoluteY, 3, 4), 1);
+}
 
 TEST_F(CpuTest, EOR_Immediate) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);

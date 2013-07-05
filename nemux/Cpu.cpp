@@ -123,9 +123,30 @@ using namespace std;
     m_opcodes[0xCC] = Opcode(InstructionName::CPY, AddressingType::Absolute,  3, 4);
 
     // Stack
-    m_opcodes[0x00] = Opcode(InstructionName::BRK, AddressingType::Implicit, 1, 7);
+//    m_opcodes[0x00] = Opcode(InstructionName::BRK, AddressingType::Implicit, 1, 7);
 
     // Memory
+    m_opcodes[0xA2] = Opcode(InstructionName::LDX, AddressingType::Immediate, 2, 2);
+    m_opcodes[0xA6] = Opcode(InstructionName::LDX, AddressingType::ZeroPage,  2, 3);
+    m_opcodes[0xB6] = Opcode(InstructionName::LDX, AddressingType::ZeroPageY, 2, 4);
+    m_opcodes[0xAE] = Opcode(InstructionName::LDX, AddressingType::Absolute,  3, 4);
+    m_opcodes[0xBE] = Opcode(InstructionName::LDX, AddressingType::AbsoluteY, 3, 4);
+
+//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
+//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
+//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
+//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
+//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
+//
+//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
+//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
+//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
+//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
+//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
+//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
+//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
+//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
+
     m_opcodes[0x85] = Opcode(InstructionName::STA, AddressingType::ZeroPage,  2, 3);
     m_opcodes[0x95] = Opcode(InstructionName::STA, AddressingType::ZeroPageX, 2, 4);
     m_opcodes[0x8D] = Opcode(InstructionName::STA, AddressingType::Absolute,  3, 4);
@@ -231,6 +252,15 @@ void Cpu::BranchIf(const bool condition, const Opcode & op) {
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
+        case InstructionName::LDX: {
+            const auto a = BuildAddress(op.Addressing);
+            X = Memory.GetByteAt(a.Address);
+            Z = (X == 0) ? 1 : 0;
+            N = ((X & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+            if (a.HasCrossedPage) ++Ticks;
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
         case InstructionName::EOR: {
             const auto a = BuildAddress(op.Addressing);
             A ^= Memory.GetByteAt(a.Address);
