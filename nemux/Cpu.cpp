@@ -137,15 +137,15 @@ using namespace std;
     m_opcodes[0xB4] = Opcode(InstructionName::LDY, AddressingType::ZeroPageY, 2, 4);
     m_opcodes[0xAC] = Opcode(InstructionName::LDY, AddressingType::Absolute,  3, 4);
     m_opcodes[0xBC] = Opcode(InstructionName::LDY, AddressingType::AbsoluteY, 3, 4);
-//
-//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
-//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
-//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
-//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
-//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
-//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
-//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
-//    m_opcodes[0x] = Opcode(InstructionName::LD, AddressingType::, , );
+
+    m_opcodes[0xA9] = Opcode(InstructionName::LDA, AddressingType::Immediate, 2, 2);
+    m_opcodes[0xA5] = Opcode(InstructionName::LDA, AddressingType::ZeroPage, 2, 3);
+    m_opcodes[0xB5] = Opcode(InstructionName::LDA, AddressingType::ZeroPageX, 2, 4);
+    m_opcodes[0xAD] = Opcode(InstructionName::LDA, AddressingType::Absolute, 3, 4);
+    m_opcodes[0xBD] = Opcode(InstructionName::LDA, AddressingType::AbsoluteX, 3, 4);
+    m_opcodes[0xD9] = Opcode(InstructionName::LDA, AddressingType::AbsoluteY, 3, 4);
+    m_opcodes[0xA1] = Opcode(InstructionName::LDA, AddressingType::IndexedIndirect, 2, 6);
+    m_opcodes[0xB1] = Opcode(InstructionName::LDA, AddressingType::IndirectIndexed, 2, 5);
 
     m_opcodes[0x85] = Opcode(InstructionName::STA, AddressingType::ZeroPage,  2, 3);
     m_opcodes[0x95] = Opcode(InstructionName::STA, AddressingType::ZeroPageX, 2, 4);
@@ -252,6 +252,13 @@ void Cpu::BranchIf(const bool condition, const Opcode & op) {
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
+        case InstructionName::LDA: {
+            const auto a = BuildAddress(op.Addressing);
+            Transfer(Memory.GetByteAt(a.Address), A);
+            if (a.HasCrossedPage) ++Ticks;
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
         case InstructionName::LDX: {
             const auto a = BuildAddress(op.Addressing);
             Transfer(Memory.GetByteAt(a.Address), X);
