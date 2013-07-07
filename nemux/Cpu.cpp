@@ -124,6 +124,7 @@ using namespace std;
 
     // Stack
 //    m_opcodes[0x00] = Opcode(InstructionName::BRK, AddressingType::Implicit, 1, 7);
+    m_opcodes[0x48] = Opcode(InstructionName::PHA, AddressingType::Implicit, 1, 3);
 
     // Memory
     m_opcodes[0xA2] = Opcode(InstructionName::LDX, AddressingType::Immediate, 2, 2);
@@ -252,6 +253,12 @@ void Cpu::BranchIf(const bool condition, const Opcode & op) {
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
+        case InstructionName::PHA: {
+            Memory.SetByteAt(StackPage + SP, A);
+            --SP;
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
         case InstructionName::LDA: {
             const auto a = BuildAddress(op.Addressing);
             Transfer(Memory.GetByteAt(a.Address), A);

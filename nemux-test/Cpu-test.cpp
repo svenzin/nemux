@@ -340,6 +340,22 @@ public:
     }
 };
 
+TEST_F(CpuTest, PHA) {
+    const auto op = Opcode(InstructionName::PHA, AddressingType::Implicit, 1, 3);
+
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+
+    cpu.A = 0x20;
+    cpu.StackPage = 0x0100;
+    cpu.SP = 0xF0;
+    cpu.Execute(op);
+
+    EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+    EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+    EXPECT_EQ(0x20, cpu.Memory.GetByteAt(0x01F0));
+    EXPECT_EQ(0xEF, cpu.SP);
+}
+
 TEST_F(CpuTest, LDX_Immediate) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     Test_Load(Getter(cpu.X), Setter(BASE_PC + 1),
