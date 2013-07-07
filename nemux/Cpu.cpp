@@ -29,6 +29,12 @@ using namespace std;
     m_opcodes[0x0E] = Opcode(InstructionName::ASL, AddressingType::Absolute,    3, 6);
     m_opcodes[0x1E] = Opcode(InstructionName::ASL, AddressingType::AbsoluteX,   3, 7);
 
+    m_opcodes[0x4A] = Opcode(InstructionName::LSR, AddressingType::Accumulator, 1, 2);
+    m_opcodes[0x46] = Opcode(InstructionName::LSR, AddressingType::ZeroPage,    2, 5);
+    m_opcodes[0x56] = Opcode(InstructionName::LSR, AddressingType::ZeroPageX,   2, 6);
+    m_opcodes[0x4E] = Opcode(InstructionName::LSR, AddressingType::Absolute,    3, 6);
+    m_opcodes[0x5E] = Opcode(InstructionName::LSR, AddressingType::AbsoluteX,   3, 7);
+
     // Bit operations
     m_opcodes[0x29] = Opcode(InstructionName::AND, AddressingType::Immediate, 2, 2);
     m_opcodes[0x25] = Opcode(InstructionName::AND, AddressingType::ZeroPage,  2, 3);
@@ -467,6 +473,19 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
                 auto M = Memory.GetByteAt(address);
                 C = ((M & BYTE_MASK_SIGN) == 0) ? 0 : 1;
                 Transfer(M << 1, M);
+                Memory.SetByteAt(address, M);
+            }
+            PC += op.Bytes; Ticks += op.Cycles; break;
+        }
+        case InstructionName::LSR: {
+            if (op.Addressing == AddressingType::Accumulator) {
+                C = A & 0x01;
+                Transfer(A >> 1, A);
+            } else {
+                const auto address = BuildAddress(op.Addressing).Address;
+                auto M = Memory.GetByteAt(address);
+                C = M & 0x01;
+                Transfer(M >> 1, M);
                 Memory.SetByteAt(address, M);
             }
             PC += op.Bytes; Ticks += op.Cycles; break;
