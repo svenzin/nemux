@@ -24,7 +24,7 @@ enum class InstructionName {
     AND, BIT, EOR, ORA,                     // Logical
     ADC, SBC, CMP, CPX, CPY,                // Arithmetic
     DEC, DEX, DEY, INC, INX, INY,           // Increment, Decrement
-    ASL, LSR, // Shift
+    ASL, LSR, ROL, ROR,                     // Shift
     // Jump, Call
     BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS, // Branch
     CLC, CLD, CLI, CLV, SEC, SED, SEI,      // Status Change

@@ -35,6 +35,18 @@ using namespace std;
     m_opcodes[0x4E] = Opcode(InstructionName::LSR, AddressingType::Absolute,    3, 6);
     m_opcodes[0x5E] = Opcode(InstructionName::LSR, AddressingType::AbsoluteX,   3, 7);
 
+    m_opcodes[0x2A] = Opcode(InstructionName::ROL, AddressingType::Accumulator, 1, 2);
+    m_opcodes[0x26] = Opcode(InstructionName::ROL, AddressingType::ZeroPage,    2, 5);
+    m_opcodes[0x36] = Opcode(InstructionName::ROL, AddressingType::ZeroPageX,   2, 6);
+    m_opcodes[0x2E] = Opcode(InstructionName::ROL, AddressingType::Absolute,    3, 6);
+    m_opcodes[0x3E] = Opcode(InstructionName::ROL, AddressingType::AbsoluteX,   3, 7);
+
+    m_opcodes[0x6A] = Opcode(InstructionName::ROR, AddressingType::Accumulator, 1, 2);
+    m_opcodes[0x66] = Opcode(InstructionName::ROR, AddressingType::ZeroPage,    2, 5);
+    m_opcodes[0x76] = Opcode(InstructionName::ROR, AddressingType::ZeroPageX,   2, 6);
+    m_opcodes[0x6E] = Opcode(InstructionName::ROR, AddressingType::Absolute,    3, 6);
+    m_opcodes[0x7E] = Opcode(InstructionName::ROR, AddressingType::AbsoluteX,   3, 7);
+
     // Bit operations
     m_opcodes[0x29] = Opcode(InstructionName::AND, AddressingType::Immediate, 2, 2);
     m_opcodes[0x25] = Opcode(InstructionName::AND, AddressingType::ZeroPage,  2, 3);
@@ -486,6 +498,36 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
                 auto M = Memory.GetByteAt(address);
                 C = M & 0x01;
                 Transfer(M >> 1, M);
+                Memory.SetByteAt(address, M);
+            }
+            PC += op.Bytes; Ticks += op.Cycles; break;
+        }
+        case InstructionName::ROL: {
+            if (op.Addressing == AddressingType::Accumulator) {
+                const auto c = (A & 0x80) == 0 ? 0 : 1;
+                Transfer((A << 1) + C, A);
+                C = c;
+            } else {
+                const auto address = BuildAddress(op.Addressing).Address;
+                auto M = Memory.GetByteAt(address);
+                const auto c = (M & 0x80) == 0 ? 0 : 1;
+                Transfer((M << 1) + C, M);
+                C = c;
+                Memory.SetByteAt(address, M);
+            }
+            PC += op.Bytes; Ticks += op.Cycles; break;
+        }
+        case InstructionName::ROR: {
+            if (op.Addressing == AddressingType::Accumulator) {
+                const auto c = A & 0x01;
+                Transfer((A >> 1) + 0x80 * C, A);
+                C = c;
+            } else {
+                const auto address = BuildAddress(op.Addressing).Address;
+                auto M = Memory.GetByteAt(address);
+                const auto c = M & 0x01;
+                Transfer((M >> 1) + 0x80 * C, M);
+                C = c;
                 Memory.SetByteAt(address, M);
             }
             PC += op.Bytes; Ticks += op.Cycles; break;

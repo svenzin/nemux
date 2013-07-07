@@ -175,6 +175,58 @@ public:
         tester(0x01, 0x00, 1, 1); // Carry flag
     }
 
+    template<typename Getter, typename Setter>
+    void Test_ROL(Getter get, Setter set, Opcode op) {
+        auto tester = [&] (Byte m, Byte c, Byte expM, Flag expC, Flag expZ, Flag expN) {
+            set(m);
+            cpu.C = c;
+
+            cpu.PC = BASE_PC;
+            cpu.Ticks = BASE_TICKS;
+            cpu.Execute(op);
+
+            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+            EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+            EXPECT_EQ(expM, get());
+            EXPECT_EQ(expC, cpu.C);
+            EXPECT_EQ(expZ, cpu.Z);
+            EXPECT_EQ(expN, cpu.N);
+        };
+
+        tester(0x21, 0, 0x42, 0, 0, 0); // Shift
+        tester(0x21, 1, 0x43, 0, 0, 0); // Shift w/ Carry
+        tester(0x00, 0, 0x00, 0, 1, 0); // Zero
+        tester(0x80, 0, 0x00, 1, 1, 0); // Carry
+        tester(0x88, 1, 0x11, 1, 0, 0); // Carry
+        tester(0x40, 0, 0x80, 0, 0, 1); // Negative
+    }
+
+    template<typename Getter, typename Setter>
+    void Test_ROR(Getter get, Setter set, Opcode op) {
+        auto tester = [&] (Byte m, Byte c, Byte expM, Flag expC, Flag expZ, Flag expN) {
+            set(m);
+            cpu.C = c;
+
+            cpu.PC = BASE_PC;
+            cpu.Ticks = BASE_TICKS;
+            cpu.Execute(op);
+
+            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+            EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+            EXPECT_EQ(expM, get());
+            EXPECT_EQ(expC, cpu.C);
+            EXPECT_EQ(expZ, cpu.Z);
+            EXPECT_EQ(expN, cpu.N);
+        };
+
+        tester(0x42, 0, 0x21, 0, 0, 0); // Shift
+        tester(0x02, 1, 0x81, 0, 0, 1); // Shift w/ Carry
+        tester(0x00, 0, 0x00, 0, 1, 0); // Zero
+        tester(0x01, 0, 0x00, 1, 1, 0); // Carry
+        tester(0x11, 1, 0x88, 1, 0, 1); // Carry
+        tester(0x00, 1, 0x80, 0, 0, 1); // Negative
+    }
+
     template<typename Setter>
     void Test_AND(Setter set, Opcode op, bool extra) {
         const auto expectedCycles = extra ? op.Cycles + 1 : op.Cycles;
@@ -1207,7 +1259,6 @@ TEST_F(CpuTest, ASL_AbsoluteX) {
         Opcode(InstructionName::ASL, AddressingType::AbsoluteX, 3, 7));
 }
 
-
 TEST_F(CpuTest, LSR_Accumulator) {
     Test_LSR(Getter(cpu.A), Setter(cpu.A),
              Opcode(InstructionName::LSR, AddressingType::Accumulator, 1, 2));
@@ -1241,6 +1292,76 @@ TEST_F(CpuTest, LSR_AbsoluteX) {
     cpu.X = 0x08;
     Test_LSR(Getter(0x0128), Setter(0x0128),
              Opcode(InstructionName::LSR, AddressingType::AbsoluteX, 3, 7));
+}
+
+TEST_F(CpuTest, ROL_Accumulator) {
+    Test_ROL(Getter(cpu.A), Setter(cpu.A),
+             Opcode(InstructionName::ROL, AddressingType::Accumulator, 1, 2));
+}
+
+TEST_F(CpuTest, ROL_ZeroPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    Test_ROL(Getter(0x0020), Setter(0x0020),
+             Opcode(InstructionName::ROL, AddressingType::ZeroPage, 2, 5));
+}
+
+TEST_F(CpuTest, ROL_ZeroPageX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+    Test_ROL(Getter(0x0028), Setter(0x0028),
+             Opcode(InstructionName::ROL, AddressingType::ZeroPageX, 2, 6));
+}
+
+TEST_F(CpuTest, ROL_Absolute) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    Test_ROL(Getter(0x0120), Setter(0x0120),
+             Opcode(InstructionName::ROL, AddressingType::Absolute, 3, 6));
+}
+
+TEST_F(CpuTest, ROL_AbsoluteX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0x08;
+    Test_ROL(Getter(0x0128), Setter(0x0128),
+             Opcode(InstructionName::ROL, AddressingType::AbsoluteX, 3, 7));
+}
+
+TEST_F(CpuTest, ROR_Accumulator) {
+    Test_ROR(Getter(cpu.A), Setter(cpu.A),
+             Opcode(InstructionName::ROR, AddressingType::Accumulator, 1, 2));
+}
+
+TEST_F(CpuTest, ROR_ZeroPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    Test_ROR(Getter(0x0020), Setter(0x0020),
+             Opcode(InstructionName::ROR, AddressingType::ZeroPage, 2, 5));
+}
+
+TEST_F(CpuTest, ROR_ZeroPageX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+    Test_ROR(Getter(0x0028), Setter(0x0028),
+             Opcode(InstructionName::ROR, AddressingType::ZeroPageX, 2, 6));
+}
+
+TEST_F(CpuTest, ROR_Absolute) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    Test_ROR(Getter(0x0120), Setter(0x0120),
+             Opcode(InstructionName::ROR, AddressingType::Absolute, 3, 6));
+}
+
+TEST_F(CpuTest, ROR_AbsoluteX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0x08;
+    Test_ROR(Getter(0x0128), Setter(0x0128),
+             Opcode(InstructionName::ROR, AddressingType::AbsoluteX, 3, 7));
 }
 
 TEST_F(CpuTest, AND_Immediate) {
