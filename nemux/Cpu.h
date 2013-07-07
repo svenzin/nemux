@@ -22,7 +22,7 @@ enum class InstructionName {
     TAX, TAY, TXA, TYA,                     // Register Transfer
     TSX, TXS, PHA, PLA, PHP, PLP,           // Stack
     AND, BIT, EOR, ORA,                     // Logical
-    ADC, CMP, CPX, CPY,// Arithmetic
+    ADC, SBC, CMP, CPX, CPY,                // Arithmetic
     DEC, DEX, DEY, INC, INX, INY,           // Increment, Decrement
     ASL,// Shift
     // Jump, Call

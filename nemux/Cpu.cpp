@@ -85,6 +85,15 @@ using namespace std;
     m_opcodes[0x61] = Opcode(InstructionName::ADC, AddressingType::IndexedIndirect, 2, 6);
     m_opcodes[0x71] = Opcode(InstructionName::ADC, AddressingType::IndirectIndexed, 2, 5);
 
+    m_opcodes[0xE9] = Opcode(InstructionName::SBC, AddressingType::Immediate, 2, 2);
+    m_opcodes[0xE5] = Opcode(InstructionName::SBC, AddressingType::ZeroPage,  2, 3);
+    m_opcodes[0xF5] = Opcode(InstructionName::SBC, AddressingType::ZeroPageX, 2, 4);
+    m_opcodes[0xED] = Opcode(InstructionName::SBC, AddressingType::Absolute,  3, 4);
+    m_opcodes[0xFD] = Opcode(InstructionName::SBC, AddressingType::AbsoluteX, 3, 4);
+    m_opcodes[0xF9] = Opcode(InstructionName::SBC, AddressingType::AbsoluteY, 3, 4);
+    m_opcodes[0xE1] = Opcode(InstructionName::SBC, AddressingType::IndexedIndirect, 2, 6);
+    m_opcodes[0xF1] = Opcode(InstructionName::SBC, AddressingType::IndirectIndexed, 2, 5);
+
     m_opcodes[0xC6] = Opcode(InstructionName::DEC, AddressingType::ZeroPage,  2, 5);
     m_opcodes[0xD6] = Opcode(InstructionName::DEC, AddressingType::ZeroPageX, 2, 6);
     m_opcodes[0xCE] = Opcode(InstructionName::DEC, AddressingType::Absolute,  3, 6);
@@ -432,8 +441,18 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             const auto M = Memory.GetByteAt(aa.Address);
             Word a = A + M + C;
             C = (a > BYTE_MASK) ? 1 : 0;
-//            V = (a >= BYTE_MASK_SIGN) ? 1 : 0;
             V = ((~((A ^ M) & BYTE_MASK_SIGN) & ((A ^ a) & BYTE_MASK_SIGN)) == 0) ? 0 : 1;
+            Transfer(a & BYTE_MASK, A);
+            if (aa.HasCrossedPage) ++Ticks;
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
+        case InstructionName::SBC: {
+            const auto aa = BuildAddress(op.Addressing);
+            const auto M = Memory.GetByteAt(aa.Address);
+            Word a = A - M - (1 - C);
+            C = (a > BYTE_MASK) ? 1 : 0;
+            V = ((((A ^ M) & BYTE_MASK_SIGN) & ((A ^ a) & BYTE_MASK_SIGN)) == 0) ? 0 : 1;
             Transfer(a & BYTE_MASK, A);
             if (aa.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
