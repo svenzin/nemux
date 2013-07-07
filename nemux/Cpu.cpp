@@ -51,6 +51,15 @@ using namespace std;
     m_opcodes[0x41] = Opcode(InstructionName::EOR, AddressingType::IndexedIndirect, 2, 6);
     m_opcodes[0x51] = Opcode(InstructionName::EOR, AddressingType::IndirectIndexed, 2, 5);
 
+    m_opcodes[0x09] = Opcode(InstructionName::ORA, AddressingType::Immediate, 2, 2);
+    m_opcodes[0x05] = Opcode(InstructionName::ORA, AddressingType::ZeroPage,  2, 3);
+    m_opcodes[0x15] = Opcode(InstructionName::ORA, AddressingType::ZeroPageX, 2, 4);
+    m_opcodes[0x0D] = Opcode(InstructionName::ORA, AddressingType::Absolute,  3, 4);
+    m_opcodes[0x1D] = Opcode(InstructionName::ORA, AddressingType::AbsoluteX, 3, 4);
+    m_opcodes[0x19] = Opcode(InstructionName::ORA, AddressingType::AbsoluteY, 3, 4);
+    m_opcodes[0x01] = Opcode(InstructionName::ORA, AddressingType::IndexedIndirect, 2, 6);
+    m_opcodes[0x11] = Opcode(InstructionName::ORA, AddressingType::IndirectIndexed, 2, 5);
+
     // Clear flags
     m_opcodes[0x18] = Opcode(InstructionName::CLC, AddressingType::Implicit, 1, 2);
 
@@ -315,9 +324,14 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         }
         case InstructionName::EOR: {
             const auto a = BuildAddress(op.Addressing);
-            A ^= Memory.GetByteAt(a.Address);
-            Z = (A == 0) ? 1 : 0;
-            N = ((A & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+            Transfer(A ^ Memory.GetByteAt(a.Address), A);
+            if (a.HasCrossedPage) ++Ticks;
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
+        case InstructionName::ORA: {
+            const auto a = BuildAddress(op.Addressing);
+            Transfer(A | Memory.GetByteAt(a.Address), A);
             if (a.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
             break;

@@ -311,6 +311,28 @@ public:
         tester(0x8C, 0x0C, 0x80, 0, 1); // 10001100b XOR 00001100b = 10000000b
     }
 
+    template<typename Setter>
+    void Test_ORA(Setter set, Opcode op, int extra) {
+        auto tester = [&] (Byte a, Byte m, Byte expA, Flag expZ, Flag expN) {
+            set(m);
+            cpu.A = a;
+
+            cpu.PC = BASE_PC;
+            cpu.Ticks = BASE_TICKS;
+            cpu.Execute(op);
+
+            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+            EXPECT_EQ(BASE_TICKS + op.Cycles + extra, cpu.Ticks);
+            EXPECT_EQ(expA, cpu.A);
+            EXPECT_EQ(expZ, cpu.Z);
+            EXPECT_EQ(expN, cpu.N);
+        };
+
+        tester(0x0C, 0x0A, 0x0E, 0, 0); // 1100b OR 1010b = 1110b
+        tester(0x00, 0x00, 0x00, 1, 0); // 0000b OR 0000b = 0000b
+        tester(0x8C, 0x03, 0x8F, 0, 1); // 10001100b OR 00000011b = 10001111b
+    }
+
     template<typename Getter, typename Setter>
     void Test_Load(Getter get, Setter set, Opcode op, int extra) {
         auto tester = [&] (Byte m, Flag expZ, Flag expN) {
@@ -700,6 +722,85 @@ TEST_F(CpuTest, EOR_IndirectIndexed_CrossingPage) {
     cpu.Memory.SetWordAt(0x0210, 0x0200);
     Test_EOR(Setter(0x0200), Opcode(InstructionName::EOR, AddressingType::IndirectIndexed, 2, 5), 1);
 }
+
+TEST_F(CpuTest, ORA_Immediate) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    Test_ORA(Setter(BASE_PC + 1), Opcode(InstructionName::ORA, AddressingType::Immediate, 2, 2), 0);
+}
+
+TEST_F(CpuTest, ORA_ZeroPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    Test_ORA(Setter(0x0020), Opcode(InstructionName::ORA, AddressingType::ZeroPage, 2, 3), 0);
+}
+
+TEST_F(CpuTest, ORA_ZeroPageX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+    Test_ORA(Setter(0x0028), Opcode(InstructionName::ORA, AddressingType::ZeroPageX, 2, 4), 0);
+}
+
+TEST_F(CpuTest, ORA_Absolute) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    Test_ORA(Setter(0x0120), Opcode(InstructionName::ORA, AddressingType::Absolute, 3, 4), 0);
+}
+
+TEST_F(CpuTest, ORA_AbsoluteX) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0x08;
+    Test_ORA(Setter(0x0128), Opcode(InstructionName::ORA, AddressingType::AbsoluteX, 3, 4), 0);
+}
+
+TEST_F(CpuTest, ORA_AbsoluteX_CrossingPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0xF0;
+    Test_ORA(Setter(0x0210), Opcode(InstructionName::ORA, AddressingType::AbsoluteX, 3, 4), 1);
+}
+
+TEST_F(CpuTest, ORA_AbsoluteY) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0x08;
+    Test_ORA(Setter(0x0128), Opcode(InstructionName::ORA, AddressingType::AbsoluteY, 3, 4), 0);
+}
+
+TEST_F(CpuTest, ORA_AbsoluteY_CrossingPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0xF0;
+    Test_ORA(Setter(0x0210), Opcode(InstructionName::ORA, AddressingType::AbsoluteY, 3, 4), 1);
+}
+
+TEST_F(CpuTest, ORA_IndexedIndirect) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+    cpu.Memory.SetWordAt(0x28, 0x0120);
+    Test_ORA(Setter(0x0120), Opcode(InstructionName::ORA, AddressingType::IndexedIndirect, 2, 6), 0);
+}
+
+TEST_F(CpuTest, ORA_IndirectIndexed) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.Memory.SetWordAt(0x20, 0x0120);
+    cpu.Y = 0x08;
+    cpu.Memory.SetWordAt(0x0128, 0x0200);
+    Test_ORA(Setter(0x0200), Opcode(InstructionName::ORA, AddressingType::IndirectIndexed, 2, 5), 0);
+}
+
+TEST_F(CpuTest, ORA_IndirectIndexed_CrossingPage) {
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
+    cpu.Memory.SetWordAt(0x20, 0x0120);
+    cpu.Y = 0xF0;
+    cpu.Memory.SetWordAt(0x0210, 0x0200);
+    Test_ORA(Setter(0x0200), Opcode(InstructionName::ORA, AddressingType::IndirectIndexed, 2, 5), 1);
+}
+
 
 TEST_F(CpuTest, CPX_Immediate) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
