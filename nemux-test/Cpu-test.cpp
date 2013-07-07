@@ -356,6 +356,32 @@ TEST_F(CpuTest, PHA) {
     EXPECT_EQ(0xEF, cpu.SP);
 }
 
+TEST_F(CpuTest, PLA) {
+    const auto op = Opcode(InstructionName::PLA, AddressingType::Implicit, 1, 4);
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+
+    auto tester = [&] (Byte m, Flag expZ, Flag expN) {
+        cpu.StackPage = 0x0100;
+        cpu.SP = 0xEF;
+        cpu.Memory.SetByteAt(0x01F0, m);
+
+        cpu.PC = BASE_PC;
+        cpu.Ticks = BASE_TICKS;
+        cpu.Execute(op);
+
+        EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+        EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+        EXPECT_EQ(m, cpu.A);
+        EXPECT_EQ(0xF0, cpu.SP);
+        EXPECT_EQ(expZ, cpu.Z);
+        EXPECT_EQ(expN, cpu.N);
+    };
+
+    tester(0x20, 0, 0);
+    tester(0x00, 1, 0);
+    tester(0x80, 0, 1);
+}
+
 TEST_F(CpuTest, LDX_Immediate) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     Test_Load(Getter(cpu.X), Setter(BASE_PC + 1),

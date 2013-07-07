@@ -125,6 +125,7 @@ using namespace std;
     // Stack
 //    m_opcodes[0x00] = Opcode(InstructionName::BRK, AddressingType::Implicit, 1, 7);
     m_opcodes[0x48] = Opcode(InstructionName::PHA, AddressingType::Implicit, 1, 3);
+    m_opcodes[0x68] = Opcode(InstructionName::PLA, AddressingType::Implicit, 1, 4);
 
     // Memory
     m_opcodes[0xA2] = Opcode(InstructionName::LDX, AddressingType::Immediate, 2, 2);
@@ -256,6 +257,12 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         case InstructionName::PHA: {
             Memory.SetByteAt(StackPage + SP, A);
             --SP;
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
+        case InstructionName::PLA: {
+            ++SP;
+            Transfer(Memory.GetByteAt(StackPage + SP), A);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
