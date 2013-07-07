@@ -53,6 +53,11 @@ enum class AddressingType {
     Unknown,
 };
 
+enum Bits : size_t {
+    Car, Zer, Int, Dec, Brk, Unu, Ovf, Neg,
+    Left = 7, Right = 0,
+};
+
 class Opcode {
 public:
     explicit Opcode(const InstructionName &name, const AddressingType &addr,
@@ -109,6 +114,9 @@ public:
     void Compare(const Byte lhs, const Byte rhs);
     void Transfer(const Byte & from, Byte & to);
     void BranchIf(const bool condition, const Opcode & op);
+
+    void Push(const Byte & value);
+    Byte Pull();
 
     bool CrossedPage(const Opcode & op, const Word address);
 

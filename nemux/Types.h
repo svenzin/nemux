@@ -15,7 +15,8 @@ typedef uint_fast16_t Word;
 
 #define BYTE_WIDTH      8
 #define BYTE_MASK       0xFF
-#define BYTE_MASK_SIGN  0x80
 #define WORD_MASK       0xFFFF
+#define WORD_HI_MASK    0xFF00
+#define WORD_LO_MASK    0x00FF
 
 #endif /* TYPES_H_ */

@@ -12,6 +12,13 @@
 
 using namespace std;
 
+template <size_t bit> Flag Bit(const Byte & value) {
+    return (value >> bit) & 0x01;
+}
+template <size_t bit> Byte Mask(const Flag & value = Flag{1}) {
+    return value << bit;
+}
+
 /* explicit */ Cpu::Cpu(std::string name)
     : Name{name},
       PC {0}, SP {0}, A {0}, X {0}, Y {0},
@@ -267,7 +274,7 @@ void Cpu::Increment(Byte & value) {
 void Cpu::Transfer(const Byte & from, Byte & to) {
     to = from;
     Z = (to == 0) ? 1 : 0;
-    N = ((to & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+    N = Bit<Neg>(to);
 }
 void Cpu::Compare(const Byte lhs, const Byte rhs) {
     const auto r = lhs - rhs;
@@ -279,48 +286,58 @@ void Cpu::BranchIf(const bool condition, const Opcode & op) {
     const auto basePC = PC;
     const auto M = Memory.GetByteAt(BuildAddress(AddressingType::Immediate).Address);
     if (condition) {
-        Word offset = ((M & BYTE_MASK_SIGN) >> 7) * 0xFF00 + M;
-        PC = (PC + offset) & 0xFFFF;
+        Word offset = Bit<Neg>(M) * WORD_HI_MASK | M;
+        PC = (PC + offset) & WORD_MASK;
         Ticks += op.Cycles + 1;
-        if ((PC & 0xFF00) != (basePC & 0xFF00)) {
+        if ((PC & WORD_HI_MASK) != (basePC & WORD_HI_MASK)) {
             Ticks += 2;
         }
     } else {
         PC += op.Bytes; Ticks += op.Cycles;
     }
 }
+void Cpu::Push(const Byte & value) {
+    Memory.SetByteAt(StackPage + SP, value);
+    --SP;
+}
+Byte Cpu::Pull() {
+    ++SP;
+    return Memory.GetByteAt(StackPage + SP);
+}
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
         case InstructionName::PLP: {
-            ++SP;
-            const auto status = Memory.GetByteAt(StackPage + SP);
-            N = (status >> 7) & 0x01;
-            V = (status >> 6) & 0x01;
-            B = (status >> 4) & 0x01;
-            D = (status >> 3) & 0x01;
-            I = (status >> 2) & 0x01;
-            Z = (status >> 1) & 0x01;
-            C = (status >> 0) & 0x01;
+            const auto status = Pull();
+            N = Bit<Neg>(status);
+            V = Bit<Ovf>(status);
+            B = Bit<Brk>(status);
+            D = Bit<Dec>(status);
+            I = Bit<Int>(status);
+            Z = Bit<Zer>(status);
+            C = Bit<Car>(status);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
         case InstructionName::PHP: {
-            const auto status = N * 0x80 + V * 0x40 + Unused * 0x20 + B * 0x10 +
-                                D * 0x08 + I * 0x04 + Z * 0x02 + C * 0x01;
-            Memory.SetByteAt(StackPage + SP, status);
-            --SP;
+            const auto status = Mask<Neg>(N) |
+                                Mask<Ovf>(V) |
+                                Mask<Unu>(Unused) |
+                                Mask<Brk>(B) |
+                                Mask<Dec>(D) |
+                                Mask<Int>(I) |
+                                Mask<Zer>(Z) |
+                                Mask<Car>(C);
+            Push(status);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
         case InstructionName::PHA: {
-            Memory.SetByteAt(StackPage + SP, A);
-            --SP;
+            Push(A);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
         case InstructionName::PLA: {
-            ++SP;
-            Transfer(Memory.GetByteAt(StackPage + SP), A);
+            Transfer(Pull(), A);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
@@ -459,7 +476,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             const auto M = Memory.GetByteAt(aa.Address);
             Word a = A + M + C;
             C = (a > BYTE_MASK) ? 1 : 0;
-            V = ((~((A ^ M) & BYTE_MASK_SIGN) & ((A ^ a) & BYTE_MASK_SIGN)) == 0) ? 0 : 1;
+            V = ~Bit<Neg>(A ^ M) & Bit<Neg>(A ^ a);
             Transfer(a & BYTE_MASK, A);
             if (aa.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
@@ -470,7 +487,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             const auto M = Memory.GetByteAt(aa.Address);
             Word a = A - M - (1 - C);
             C = (a > BYTE_MASK) ? 1 : 0;
-            V = ((((A ^ M) & BYTE_MASK_SIGN) & ((A ^ a) & BYTE_MASK_SIGN)) == 0) ? 0 : 1;
+            V = Bit<Neg>(A ^ M) & Bit<Neg>(A ^ a);
             Transfer(a & BYTE_MASK, A);
             if (aa.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
@@ -478,12 +495,12 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         }
         case InstructionName::ASL: {
             if (op.Addressing == AddressingType::Accumulator) {
-                C = ((A & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+                C = Bit<Left>(A);
                 Transfer(A << 1, A);
             } else {
                 const auto address = BuildAddress(op.Addressing).Address;
                 auto M = Memory.GetByteAt(address);
-                C = ((M & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+                C = Bit<Left>(M);
                 Transfer(M << 1, M);
                 Memory.SetByteAt(address, M);
             }
@@ -491,12 +508,12 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         }
         case InstructionName::LSR: {
             if (op.Addressing == AddressingType::Accumulator) {
-                C = A & 0x01;
+                C = Bit<Right>(A);
                 Transfer(A >> 1, A);
             } else {
                 const auto address = BuildAddress(op.Addressing).Address;
                 auto M = Memory.GetByteAt(address);
-                C = M & 0x01;
+                C = Bit<Right>(M);
                 Transfer(M >> 1, M);
                 Memory.SetByteAt(address, M);
             }
@@ -504,14 +521,14 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         }
         case InstructionName::ROL: {
             if (op.Addressing == AddressingType::Accumulator) {
-                const auto c = (A & 0x80) == 0 ? 0 : 1;
-                Transfer((A << 1) + C, A);
+                const auto c = Bit<Left>(A);
+                Transfer((A << 1) | Mask<Right>(C), A);
                 C = c;
             } else {
                 const auto address = BuildAddress(op.Addressing).Address;
                 auto M = Memory.GetByteAt(address);
-                const auto c = (M & 0x80) == 0 ? 0 : 1;
-                Transfer((M << 1) + C, M);
+                const auto c = Bit<Left>(M);
+                Transfer((M << 1) | Mask<Right>(C), M);
                 C = c;
                 Memory.SetByteAt(address, M);
             }
@@ -519,14 +536,14 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         }
         case InstructionName::ROR: {
             if (op.Addressing == AddressingType::Accumulator) {
-                const auto c = A & 0x01;
-                Transfer((A >> 1) + 0x80 * C, A);
+                const auto c = Bit<Right>(A);
+                Transfer((A >> 1) | Mask<Left>(C), A);
                 C = c;
             } else {
                 const auto address = BuildAddress(op.Addressing).Address;
                 auto M = Memory.GetByteAt(address);
-                const auto c = M & 0x01;
-                Transfer((M >> 1) + 0x80 * C, M);
+                const auto c = Bit<Right>(M);
+                Transfer((M >> 1) | Mask<Left>(C), M);
                 C = c;
                 Memory.SetByteAt(address, M);
             }
@@ -535,9 +552,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         case InstructionName::AND: {
             const auto a = BuildAddress(op.Addressing);
             const auto M = Memory.GetByteAt(a.Address);
-            A = A & M;
-            Z = A == 0 ? 1 : 0;
-            N = (A & 0x80) == 0 ? 0 : 1;
+            Transfer(A & M, A);
             if (a.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
@@ -545,8 +560,8 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         case InstructionName::BIT: {
             const auto mask = Memory.GetByteAt(BuildAddress(op.Addressing).Address);
             Z = (mask & A) == 0 ? 1 : 0;
-            V = (mask & 0x40) == 0 ? 0 : 1;
-            N = (mask & 0x80) == 0 ? 0 : 1;
+            V = Bit<Ovf>(mask);
+            N = Bit<Neg>(mask);
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
         case InstructionName::CLC: {
