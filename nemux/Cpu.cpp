@@ -15,7 +15,7 @@ using namespace std;
 /* explicit */ Cpu::Cpu(std::string name)
     : Name{name},
       PC {0}, SP {0}, A {0}, X {0}, Y {0},
-      C {0}, Z {0}, I {0}, D {0}, B {0}, V {0}, N {0},
+      C {0}, Z {0}, I {0}, D {0}, B {0}, V {0}, N {0}, Unused{1},
       Ticks{0}, Memory{"", 0} {
     m_opcodes.resize(
         OPCODES_COUNT,
@@ -125,7 +125,12 @@ using namespace std;
     // Stack
 //    m_opcodes[0x00] = Opcode(InstructionName::BRK, AddressingType::Implicit, 1, 7);
     m_opcodes[0x48] = Opcode(InstructionName::PHA, AddressingType::Implicit, 1, 3);
+
     m_opcodes[0x68] = Opcode(InstructionName::PLA, AddressingType::Implicit, 1, 4);
+
+    m_opcodes[0x08] = Opcode(InstructionName::PHP, AddressingType::Implicit, 1, 3);
+
+    m_opcodes[0x28] = Opcode(InstructionName::PLP, AddressingType::Implicit, 1, 4);
 
     // Memory
     m_opcodes[0xA2] = Opcode(InstructionName::LDX, AddressingType::Immediate, 2, 2);
@@ -254,6 +259,27 @@ void Cpu::BranchIf(const bool condition, const Opcode & op) {
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
+        case InstructionName::PLP: {
+            ++SP;
+            const auto status = Memory.GetByteAt(StackPage + SP);
+            N = (status >> 7) & 0x01;
+            V = (status >> 6) & 0x01;
+            B = (status >> 4) & 0x01;
+            D = (status >> 3) & 0x01;
+            I = (status >> 2) & 0x01;
+            Z = (status >> 1) & 0x01;
+            C = (status >> 0) & 0x01;
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
+        case InstructionName::PHP: {
+            const auto status = N * 0x80 + V * 0x40 + Unused * 0x20 + B * 0x10 +
+                                D * 0x08 + I * 0x04 + Z * 0x02 + C * 0x01;
+            Memory.SetByteAt(StackPage + SP, status);
+            --SP;
+            PC += op.Bytes; Ticks += op.Cycles;
+            break;
+        }
         case InstructionName::PHA: {
             Memory.SetByteAt(StackPage + SP, A);
             --SP;

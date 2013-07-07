@@ -20,7 +20,7 @@ typedef Byte Flag;
 enum class InstructionName {
     LDA, LDX, LDY, STA, STX, STY,           // Load, Store
     TAX, TAY, TXA, TYA,                     // Register Transfer
-    TSX, TXS, PHA, PLA, // Stack
+    TSX, TXS, PHA, PLA, PHP, PLP, // Stack
     AND, BIT, EOR,// Logical
     ADC, CMP, CPX, CPY,// Arithmetic
     DEC, DEX, DEY, INC, INX, INY,           // Increment, Decrement
@@ -91,6 +91,7 @@ public:
     Flag B; // Break Command
     Flag V; // Overflow Flag
     Flag N; // Negative Flag
+    const Flag Unused;
 
     Word StackPage = 0x0100;
 
