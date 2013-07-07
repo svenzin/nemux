@@ -232,14 +232,10 @@ address_t Cpu::BuildAddress(const AddressingType & type) const {
 }
 
 void Cpu::Decrement(Byte & value) {
-    value = (value - 1) & BYTE_MASK;//((value + 0x180 - 1) % 0x100) - 0x80;
-    Z = (value == 0) ? 1 : 0;
-    N = ((value & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+    Transfer(value - 1, value);
 }
 void Cpu::Increment(Byte & value) {
-    value = (value + 1) & BYTE_MASK;//((value + 0x180 - 1) % 0x100) - 0x80;
-    Z = (value == 0) ? 1 : 0;
-    N = ((value & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+    Transfer(value + 1, value);
 }
 void Cpu::Transfer(const Byte & from, Byte & to) {
     to = from;
@@ -438,9 +434,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             C = (a > BYTE_MASK) ? 1 : 0;
 //            V = (a >= BYTE_MASK_SIGN) ? 1 : 0;
             V = ((~((A ^ M) & BYTE_MASK_SIGN) & ((A ^ a) & BYTE_MASK_SIGN)) == 0) ? 0 : 1;
-            Z = ((a & BYTE_MASK) == 0) ? 1 : 0;
-            N = ((a & BYTE_MASK_SIGN) == 0) ? 0 : 1;
-            A = a & BYTE_MASK;
+            Transfer(a & BYTE_MASK, A);
             if (aa.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
@@ -448,16 +442,12 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         case InstructionName::ASL: {
             if (op.Addressing == AddressingType::Accumulator) {
                 C = ((A & BYTE_MASK_SIGN) == 0) ? 0 : 1;
-                A <<= 1;
-                Z = (A == 0) ? 1 : 0;
-                N = ((A & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+                Transfer(A << 1, A);
             } else {
                 const auto address = BuildAddress(op.Addressing).Address;
                 auto M = Memory.GetByteAt(address);
                 C = ((M & BYTE_MASK_SIGN) == 0) ? 0 : 1;
-                M <<= 1;
-                Z = (M == 0) ? 1 : 0;
-                N = ((M & BYTE_MASK_SIGN) == 0) ? 0 : 1;
+                Transfer(M << 1, M);
                 Memory.SetByteAt(address, M);
             }
             PC += op.Bytes; Ticks += op.Cycles; break;
