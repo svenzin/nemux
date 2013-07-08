@@ -474,6 +474,52 @@ public:
     }
 };
 
+TEST_F(CpuTest, JMP_Absolute) {
+    auto op = Opcode(InstructionName::JMP, AddressingType::Absolute, 3, 3);
+
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+
+    cpu.PC = BASE_PC;
+    cpu.Ticks = BASE_TICKS;
+    cpu.Execute(op);
+
+    EXPECT_EQ(0x0120, cpu.PC);
+    EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+}
+
+TEST_F(CpuTest, JMP_Indirect) {
+    auto op = Opcode(InstructionName::JMP, AddressingType::Indirect, 3, 5);
+
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.Memory.SetWordAt(0x0120, 0x0200);
+
+    cpu.PC = BASE_PC;
+    cpu.Ticks = BASE_TICKS;
+    cpu.Execute(op);
+
+    EXPECT_EQ(0x200, cpu.PC);
+    EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+}
+
+TEST_F(CpuTest, JMP_Indirect_Bug) {
+    auto op = Opcode(InstructionName::JMP, AddressingType::Indirect, 3, 5);
+
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x01FF);
+    cpu.Memory.SetByteAt(0x01FF, 0xF0);
+    cpu.Memory.SetByteAt(0x0200, 0x02);
+    cpu.Memory.SetByteAt(0x0100, 0x01);
+
+    cpu.PC = BASE_PC;
+    cpu.Ticks = BASE_TICKS;
+    cpu.Execute(op);
+
+    EXPECT_EQ(0x01F0, cpu.PC);
+    EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+}
+
 TEST_F(CpuTest, PHA) {
     const auto op = Opcode(InstructionName::PHA, AddressingType::Implicit, 1, 3);
 

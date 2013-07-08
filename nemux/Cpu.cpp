@@ -227,6 +227,10 @@ template <size_t bit> Byte Mask(const Flag & value = Flag{1}) {
 
     // Nop
     m_opcodes[0xEA] = Opcode(InstructionName::NOP, AddressingType::Implicit, 1, 2);
+
+    // Jump, Call
+    m_opcodes[0x4C] = Opcode(InstructionName::JMP, AddressingType::Absolute, 3, 3);
+    m_opcodes[0x6C] = Opcode(InstructionName::JMP, AddressingType::Indirect, 3, 5);
 }
 
 address_t Cpu::BuildAddress(const AddressingType & type) const {
@@ -260,6 +264,12 @@ address_t Cpu::BuildAddress(const AddressingType & type) const {
         case AddressingType::IndirectIndexed: {
             const auto base = Memory.GetWordAt(Memory.GetByteAt(PC + 1)) + Y;
             return { Memory.GetWordAt(base), (Y > (base & BYTE_MASK)) };
+        }
+        case AddressingType::Indirect: {
+            const Word base = Memory.GetWordAt(PC + 1);
+            const Word lo = base;
+            const Word hi = (base & WORD_HI_MASK) | ((base + 1) & WORD_LO_MASK);
+            return { Memory.GetByteAt(hi) << 8 | Memory.GetByteAt(lo), false };
         }
         default: return { -1, false };
     }
@@ -306,6 +316,11 @@ Byte Cpu::Pull() {
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
+        case InstructionName::JMP: {
+            PC = BuildAddress(op.Addressing).Address;
+            Ticks += op.Cycles;
+            break;
+        }
         case InstructionName::PLP: {
             const auto status = Pull();
             N = Bit<Neg>(status);
