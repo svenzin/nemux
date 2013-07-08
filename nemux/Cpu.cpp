@@ -233,6 +233,8 @@ template <size_t bit> Byte Mask(const Flag & value = Flag{1}) {
     m_opcodes[0x6C] = Opcode(InstructionName::JMP, AddressingType::Indirect, 3, 5);
 
     m_opcodes[0x20] = Opcode(InstructionName::JSR, AddressingType::Absolute, 3, 6);
+
+    m_opcodes[0x60] = Opcode(InstructionName::RTS, AddressingType::Implicit, 1, 6);
 }
 
 address_t Cpu::BuildAddress(const AddressingType & type) const {
@@ -333,6 +335,11 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         case InstructionName::JSR: {
             PushWord(PC + 2);
             PC = BuildAddress(op.Addressing).Address;
+            Ticks += op.Cycles;
+            break;
+        }
+        case InstructionName::RTS: {
+            PC = PullWord() + 1;
             Ticks += op.Cycles;
             break;
         }

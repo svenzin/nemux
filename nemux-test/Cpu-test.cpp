@@ -535,7 +535,24 @@ TEST_F(CpuTest, JSR) {
     EXPECT_EQ(0x0120, cpu.PC);
     EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
     EXPECT_EQ(0xEE, cpu.SP);
-    EXPECT_EQ(BASE_PC + 2, cpu.Pull() + (cpu.Pull() << 8));
+    EXPECT_EQ(BASE_PC + 2, cpu.PullWord());
+}
+
+TEST_F(CpuTest, RTS) {
+    auto op = Opcode(InstructionName::RTS, AddressingType::Implicit, 1, 6);
+
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.StackPage = 0x100;
+    cpu.SP = 0xF0;
+    cpu.PushWord(0x0120);
+
+    cpu.PC = BASE_PC;
+    cpu.Ticks = BASE_TICKS;
+    cpu.Execute(op);
+
+    EXPECT_EQ(0x0121, cpu.PC);
+    EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+    EXPECT_EQ(0xF0, cpu.SP);
 }
 
 TEST_F(CpuTest, PHA) {
