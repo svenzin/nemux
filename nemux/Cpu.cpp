@@ -228,6 +228,8 @@ template <size_t bit> Byte Mask(const Flag & value = Flag{1}) {
     // Nop
     m_opcodes[0xEA] = Opcode(InstructionName::NOP, AddressingType::Implicit, 1, 2);
 
+    m_opcodes[0x40] = Opcode(InstructionName::RTI, AddressingType::Implicit, 1, 6);
+
     // Jump, Call
     m_opcodes[0x4C] = Opcode(InstructionName::JMP, AddressingType::Absolute, 3, 3);
     m_opcodes[0x6C] = Opcode(InstructionName::JMP, AddressingType::Indirect, 3, 5);
@@ -325,6 +327,21 @@ void Cpu::PushWord(const Word & value) {
 Word Cpu::PullWord() {
     return Pull() | (Pull() << BYTE_WIDTH);
 }
+void Cpu::SetStatus(const Byte & status) {
+    N = Bit<Neg>(status);
+    V = Bit<Ovf>(status);
+    B = Bit<Brk>(status);
+    D = Bit<Dec>(status);
+    I = Bit<Int>(status);
+    Z = Bit<Zer>(status);
+    C = Bit<Car>(status);
+}
+Byte Cpu::GetStatus() {
+    return Mask<Neg>(N)      | Mask<Ovf>(V) |
+           Mask<Unu>(Unused) | Mask<Brk>(B) |
+           Mask<Dec>(D)      | Mask<Int>(I) |
+           Mask<Zer>(Z)      | Mask<Car>(C);
+}
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
         case InstructionName::JMP: {
@@ -343,28 +360,19 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             Ticks += op.Cycles;
             break;
         }
+        case InstructionName::RTI: {
+            SetStatus(Pull());
+            PC = PullWord();
+            Ticks += op.Cycles;
+            break;
+        }
         case InstructionName::PLP: {
-            const auto status = Pull();
-            N = Bit<Neg>(status);
-            V = Bit<Ovf>(status);
-            B = Bit<Brk>(status);
-            D = Bit<Dec>(status);
-            I = Bit<Int>(status);
-            Z = Bit<Zer>(status);
-            C = Bit<Car>(status);
+            SetStatus(Pull());
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
         case InstructionName::PHP: {
-            const auto status = Mask<Neg>(N) |
-                                Mask<Ovf>(V) |
-                                Mask<Unu>(Unused) |
-                                Mask<Brk>(B) |
-                                Mask<Dec>(D) |
-                                Mask<Int>(I) |
-                                Mask<Zer>(Z) |
-                                Mask<Car>(C);
-            Push(status);
+            Push(GetStatus());
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }

@@ -28,7 +28,7 @@ enum class InstructionName {
     JMP, JSR, RTS,                          // Jump, Call
     BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS, // Branch
     CLC, CLD, CLI, CLV, SEC, SED, SEI,      // Status Change
-    NOP, // System
+    NOP, RTI, // System
 
     UNK,
 };
@@ -120,6 +120,9 @@ public:
 
     void PushWord(const Word & value);
     Word PullWord();
+
+    void SetStatus(const Byte & status);
+    Byte GetStatus();
 
     bool CrossedPage(const Opcode & op, const Word address);
 

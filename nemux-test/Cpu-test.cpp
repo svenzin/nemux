@@ -555,6 +555,36 @@ TEST_F(CpuTest, RTS) {
     EXPECT_EQ(0xF0, cpu.SP);
 }
 
+TEST_F(CpuTest, RTI) {
+    auto op = Opcode(InstructionName::RTI, AddressingType::Implicit, 1, 6);
+
+    auto tester = [&] (Byte status, Flag expN, Flag expV, Flag expB, Flag expD, Flag expI, Flag expZ, Flag expC) {
+        cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+        cpu.StackPage = 0x100;
+        cpu.SP = 0xF0;
+        cpu.PushWord(0x0120);
+        cpu.Push(status); // All status set
+
+        cpu.PC = BASE_PC;
+        cpu.Ticks = BASE_TICKS;
+        cpu.Execute(op);
+
+        EXPECT_EQ(0x0120, cpu.PC);
+        EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+        EXPECT_EQ(0xF0, cpu.SP);
+        EXPECT_EQ(expN, cpu.N);
+        EXPECT_EQ(expV, cpu.V);
+        EXPECT_EQ(expB, cpu.B);
+        EXPECT_EQ(expD, cpu.D);
+        EXPECT_EQ(expI, cpu.I);
+        EXPECT_EQ(expZ, cpu.Z);
+        EXPECT_EQ(expC, cpu.C);
+    };
+
+    tester(0xFF, 1, 1, 1, 1, 1, 1, 1);
+    tester(0x00, 0, 0, 0, 0, 0, 0, 0);
+}
+
 TEST_F(CpuTest, PHA) {
     const auto op = Opcode(InstructionName::PHA, AddressingType::Implicit, 1, 3);
 
