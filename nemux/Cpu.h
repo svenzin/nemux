@@ -25,7 +25,7 @@ enum class InstructionName {
     ADC, SBC, CMP, CPX, CPY,                // Arithmetic
     DEC, DEX, DEY, INC, INX, INY,           // Increment, Decrement
     ASL, LSR, ROL, ROR,                     // Shift
-    JMP, // Jump, Call
+    JMP, JSR, // Jump, Call
     BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS, // Branch
     CLC, CLD, CLI, CLV, SEC, SED, SEI,      // Status Change
     NOP, // System
@@ -117,6 +117,9 @@ public:
 
     void Push(const Byte & value);
     Byte Pull();
+
+    void PushWord(const Word & value);
+    Word PullWord();
 
     bool CrossedPage(const Opcode & op, const Word address);
 

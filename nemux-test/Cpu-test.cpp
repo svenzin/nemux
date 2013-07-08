@@ -520,6 +520,24 @@ TEST_F(CpuTest, JMP_Indirect_Bug) {
     EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
 }
 
+TEST_F(CpuTest, JSR) {
+    auto op = Opcode(InstructionName::JSR, AddressingType::Absolute, 3, 6);
+
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.StackPage = 0x100;
+    cpu.SP = 0xF0;
+
+    cpu.PC = BASE_PC;
+    cpu.Ticks = BASE_TICKS;
+    cpu.Execute(op);
+
+    EXPECT_EQ(0x0120, cpu.PC);
+    EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+    EXPECT_EQ(0xEE, cpu.SP);
+    EXPECT_EQ(BASE_PC + 2, cpu.Pull() + (cpu.Pull() << 8));
+}
+
 TEST_F(CpuTest, PHA) {
     const auto op = Opcode(InstructionName::PHA, AddressingType::Implicit, 1, 3);
 

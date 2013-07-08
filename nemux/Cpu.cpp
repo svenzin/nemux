@@ -231,6 +231,8 @@ template <size_t bit> Byte Mask(const Flag & value = Flag{1}) {
     // Jump, Call
     m_opcodes[0x4C] = Opcode(InstructionName::JMP, AddressingType::Absolute, 3, 3);
     m_opcodes[0x6C] = Opcode(InstructionName::JMP, AddressingType::Indirect, 3, 5);
+
+    m_opcodes[0x20] = Opcode(InstructionName::JSR, AddressingType::Absolute, 3, 6);
 }
 
 address_t Cpu::BuildAddress(const AddressingType & type) const {
@@ -269,7 +271,7 @@ address_t Cpu::BuildAddress(const AddressingType & type) const {
             const Word base = Memory.GetWordAt(PC + 1);
             const Word lo = base;
             const Word hi = (base & WORD_HI_MASK) | ((base + 1) & WORD_LO_MASK);
-            return { Memory.GetByteAt(hi) << 8 | Memory.GetByteAt(lo), false };
+            return { Memory.GetByteAt(hi) << BYTE_WIDTH | Memory.GetByteAt(lo), false };
         }
         default: return { -1, false };
     }
@@ -314,9 +316,22 @@ Byte Cpu::Pull() {
     ++SP;
     return Memory.GetByteAt(StackPage + SP);
 }
+void Cpu::PushWord(const Word & value) {
+    Push((value >> BYTE_WIDTH) & BYTE_MASK);
+    Push(value & BYTE_MASK);
+}
+Word Cpu::PullWord() {
+    return Pull() | (Pull() << BYTE_WIDTH);
+}
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
         case InstructionName::JMP: {
+            PC = BuildAddress(op.Addressing).Address;
+            Ticks += op.Cycles;
+            break;
+        }
+        case InstructionName::JSR: {
+            PushWord(PC + 2);
             PC = BuildAddress(op.Addressing).Address;
             Ticks += op.Cycles;
             break;
