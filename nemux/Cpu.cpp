@@ -344,14 +344,23 @@ Byte Cpu::GetStatus() {
            Mask<Dec>(D)      | Mask<Int>(I) |
            Mask<Zer>(Z)      | Mask<Car>(C);
 }
+void Cpu::Interrupt(const Flag & isSoft,
+                    const Word & returnAddress,
+                    const Word & vector) {
+    B = isSoft;
+    PushWord(returnAddress);
+    Push(GetStatus());
+    I = 1;
+    PC = Memory.GetWordAt(vector);
+}
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
         case InstructionName::BRK: {
-            PushWord(PC + op.Bytes);
-            B = 1;
-            Push(GetStatus());
-            PC = Memory.GetWordAt(VectorIRQ);
-            Ticks += op.Cycles;
+            PC += op.Bytes;
+            if (I == 0) {
+                Interrupt(1, PC, VectorIRQ);
+                Ticks += op.Cycles;
+            }
             break;
         }
         case InstructionName::JMP: {

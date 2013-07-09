@@ -58,6 +58,10 @@ enum Bits : size_t {
     Left = 7, Right = 0,
 };
 
+enum class Interrupt {
+    Brk, Irq, Nmi, Rst,
+};
+
 class Opcode {
 public:
     explicit Opcode(const InstructionName &name, const AddressingType &addr,
@@ -128,6 +132,8 @@ public:
     Byte GetStatus();
 
     bool CrossedPage(const Opcode & op, const Word address);
+
+    void Interrupt(const Flag & isSoft, const Word & returnAddress, const Word & vector);
 
 private:
 //    std::vector<Instruction> m_opcodes;
