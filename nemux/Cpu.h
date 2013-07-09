@@ -28,7 +28,7 @@ enum class InstructionName {
     JMP, JSR, RTS,                          // Jump, Call
     BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS, // Branch
     CLC, CLD, CLI, CLV, SEC, SED, SEI,      // Status Change
-    NOP, RTI, // System
+    BRK, NOP, RTI,                          // System
 
     UNK,
 };
@@ -99,6 +99,9 @@ public:
     const Flag Unused;
 
     Word StackPage = 0x0100;
+    Word VectorRST;
+    Word VectorNMI;
+    Word VectorIRQ;
 
     int Ticks;
 

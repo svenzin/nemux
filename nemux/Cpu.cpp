@@ -226,6 +226,8 @@ template <size_t bit> Byte Mask(const Flag & value = Flag{1}) {
     m_opcodes[0x98] = Opcode(InstructionName::TYA, AddressingType::Implicit, 1, 2);
 
     // Nop
+    m_opcodes[0x00] = Opcode(InstructionName::BRK, AddressingType::Implicit, 2, 7);
+
     m_opcodes[0xEA] = Opcode(InstructionName::NOP, AddressingType::Implicit, 1, 2);
 
     m_opcodes[0x40] = Opcode(InstructionName::RTI, AddressingType::Implicit, 1, 6);
@@ -344,6 +346,14 @@ Byte Cpu::GetStatus() {
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
+        case InstructionName::BRK: {
+            PushWord(PC + op.Bytes);
+            B = 1;
+            Push(GetStatus());
+            PC = Memory.GetWordAt(VectorIRQ);
+            Ticks += op.Cycles;
+            break;
+        }
         case InstructionName::JMP: {
             PC = BuildAddress(op.Addressing).Address;
             Ticks += op.Cycles;
@@ -368,10 +378,12 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         }
         case InstructionName::PLP: {
             SetStatus(Pull());
+//            B = 0;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
         case InstructionName::PHP: {
+            B = 1;
             Push(GetStatus());
             PC += op.Bytes; Ticks += op.Cycles;
             break;
