@@ -15,6 +15,8 @@
 #include <functional>
 
 using namespace std;
+using namespace Instructions;
+using namespace Addressing;
 
 class CpuTestShift : public ::testing::Test {
 public:
@@ -151,7 +153,7 @@ TEST_F(CpuTestShift, ASL_Accumulator) {
     Test_ASL(
         [&]              { return cpu.A; },
         [&] (Byte value) { cpu.A = value; },
-        Opcode(InstructionName::ASL, AddressingType::Accumulator, 1, 2));
+        Opcode(ASL, Accumulator, 1, 2));
 }
 
 TEST_F(CpuTestShift, ASL_ZeroPage) {
@@ -161,7 +163,7 @@ TEST_F(CpuTestShift, ASL_ZeroPage) {
     Test_ASL(
         [&]              { return cpu.Memory.GetByteAt(0x20); },
         [&] (Byte value) { cpu.Memory.SetByteAt(0x20, value); },
-        Opcode(InstructionName::ASL, AddressingType::ZeroPage, 2, 5));
+        Opcode(ASL, ZeroPage, 2, 5));
 }
 
 TEST_F(CpuTestShift, ASL_ZeroPageX) {
@@ -172,7 +174,7 @@ TEST_F(CpuTestShift, ASL_ZeroPageX) {
     Test_ASL(
         [&]              { return cpu.Memory.GetByteAt(0x28); },
         [&] (Byte value) { cpu.Memory.SetByteAt(0x28, value); },
-        Opcode(InstructionName::ASL, AddressingType::ZeroPageX, 2, 6));
+        Opcode(ASL, ZeroPageX, 2, 6));
 }
 
 TEST_F(CpuTestShift, ASL_Absolute) {
@@ -182,7 +184,7 @@ TEST_F(CpuTestShift, ASL_Absolute) {
     Test_ASL(
         [&]              { return cpu.Memory.GetByteAt(0x0120); },
         [&] (Byte value) { cpu.Memory.SetByteAt(0x0120, value); },
-        Opcode(InstructionName::ASL, AddressingType::Absolute, 3, 6));
+        Opcode(ASL, Absolute, 3, 6));
 }
 
 TEST_F(CpuTestShift, ASL_AbsoluteX) {
@@ -193,19 +195,19 @@ TEST_F(CpuTestShift, ASL_AbsoluteX) {
     Test_ASL(
         [&]              { return cpu.Memory.GetByteAt(0x0128); },
         [&] (Byte value) { cpu.Memory.SetByteAt(0x0128, value); },
-        Opcode(InstructionName::ASL, AddressingType::AbsoluteX, 3, 7));
+        Opcode(ASL, AbsoluteX, 3, 7));
 }
 
 TEST_F(CpuTestShift, LSR_Accumulator) {
     Test_LSR(Getter(cpu.A), Setter(cpu.A),
-             Opcode(InstructionName::LSR, AddressingType::Accumulator, 1, 2));
+             Opcode(LSR, Accumulator, 1, 2));
 }
 
 TEST_F(CpuTestShift, LSR_ZeroPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     Test_LSR(Getter(0x0020), Setter(0x0020),
-             Opcode(InstructionName::LSR, AddressingType::ZeroPage, 2, 5));
+             Opcode(LSR, ZeroPage, 2, 5));
 }
 
 TEST_F(CpuTestShift, LSR_ZeroPageX) {
@@ -213,14 +215,14 @@ TEST_F(CpuTestShift, LSR_ZeroPageX) {
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
     Test_LSR(Getter(0x0028), Setter(0x0028),
-             Opcode(InstructionName::LSR, AddressingType::ZeroPageX, 2, 6));
+             Opcode(LSR, ZeroPageX, 2, 6));
 }
 
 TEST_F(CpuTestShift, LSR_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     Test_LSR(Getter(0x0120), Setter(0x0120),
-             Opcode(InstructionName::LSR, AddressingType::Absolute, 3, 6));
+             Opcode(LSR, Absolute, 3, 6));
 }
 
 TEST_F(CpuTestShift, LSR_AbsoluteX) {
@@ -228,19 +230,19 @@ TEST_F(CpuTestShift, LSR_AbsoluteX) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
     Test_LSR(Getter(0x0128), Setter(0x0128),
-             Opcode(InstructionName::LSR, AddressingType::AbsoluteX, 3, 7));
+             Opcode(LSR, AbsoluteX, 3, 7));
 }
 
 TEST_F(CpuTestShift, ROL_Accumulator) {
     Test_ROL(Getter(cpu.A), Setter(cpu.A),
-             Opcode(InstructionName::ROL, AddressingType::Accumulator, 1, 2));
+             Opcode(ROL, Accumulator, 1, 2));
 }
 
 TEST_F(CpuTestShift, ROL_ZeroPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     Test_ROL(Getter(0x0020), Setter(0x0020),
-             Opcode(InstructionName::ROL, AddressingType::ZeroPage, 2, 5));
+             Opcode(ROL, ZeroPage, 2, 5));
 }
 
 TEST_F(CpuTestShift, ROL_ZeroPageX) {
@@ -248,14 +250,14 @@ TEST_F(CpuTestShift, ROL_ZeroPageX) {
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
     Test_ROL(Getter(0x0028), Setter(0x0028),
-             Opcode(InstructionName::ROL, AddressingType::ZeroPageX, 2, 6));
+             Opcode(ROL, ZeroPageX, 2, 6));
 }
 
 TEST_F(CpuTestShift, ROL_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     Test_ROL(Getter(0x0120), Setter(0x0120),
-             Opcode(InstructionName::ROL, AddressingType::Absolute, 3, 6));
+             Opcode(ROL, Absolute, 3, 6));
 }
 
 TEST_F(CpuTestShift, ROL_AbsoluteX) {
@@ -263,19 +265,19 @@ TEST_F(CpuTestShift, ROL_AbsoluteX) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
     Test_ROL(Getter(0x0128), Setter(0x0128),
-             Opcode(InstructionName::ROL, AddressingType::AbsoluteX, 3, 7));
+             Opcode(ROL, AbsoluteX, 3, 7));
 }
 
 TEST_F(CpuTestShift, ROR_Accumulator) {
     Test_ROR(Getter(cpu.A), Setter(cpu.A),
-             Opcode(InstructionName::ROR, AddressingType::Accumulator, 1, 2));
+             Opcode(ROR, Accumulator, 1, 2));
 }
 
 TEST_F(CpuTestShift, ROR_ZeroPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     Test_ROR(Getter(0x0020), Setter(0x0020),
-             Opcode(InstructionName::ROR, AddressingType::ZeroPage, 2, 5));
+             Opcode(ROR, ZeroPage, 2, 5));
 }
 
 TEST_F(CpuTestShift, ROR_ZeroPageX) {
@@ -283,14 +285,14 @@ TEST_F(CpuTestShift, ROR_ZeroPageX) {
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
     Test_ROR(Getter(0x0028), Setter(0x0028),
-             Opcode(InstructionName::ROR, AddressingType::ZeroPageX, 2, 6));
+             Opcode(ROR, ZeroPageX, 2, 6));
 }
 
 TEST_F(CpuTestShift, ROR_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     Test_ROR(Getter(0x0120), Setter(0x0120),
-             Opcode(InstructionName::ROR, AddressingType::Absolute, 3, 6));
+             Opcode(ROR, Absolute, 3, 6));
 }
 
 TEST_F(CpuTestShift, ROR_AbsoluteX) {
@@ -298,5 +300,5 @@ TEST_F(CpuTestShift, ROR_AbsoluteX) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
     Test_ROR(Getter(0x0128), Setter(0x0128),
-             Opcode(InstructionName::ROR, AddressingType::AbsoluteX, 3, 7));
+             Opcode(ROR, AbsoluteX, 3, 7));
 }

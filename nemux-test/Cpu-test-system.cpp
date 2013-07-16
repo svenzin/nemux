@@ -16,6 +16,8 @@
 #include <functional>
 
 using namespace std;
+using namespace Instructions;
+using namespace Addressing;
 
 class CpuTestSystem : public ::testing::Test {
 public:
@@ -47,7 +49,7 @@ public:
 };
 
 TEST_F(CpuTestSystem, BRK) {
-    auto op = Opcode(InstructionName::BRK, AddressingType::Implicit, 2, 7);
+    auto op = Opcode(BRK, Implicit, 2, 0);
 
     cpu.VectorIRQ = 0x0380;
     cpu.Memory.SetWordAt(0x0380, 0x0120);
@@ -60,7 +62,7 @@ TEST_F(CpuTestSystem, BRK) {
     cpu.Execute(op);
 
     EXPECT_EQ(0x0120, cpu.PC);
-    EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+    EXPECT_EQ(BASE_TICKS + op.Cycles + cpu.InterruptCycles, cpu.Ticks);
     EXPECT_EQ(0xED, cpu.SP);
     EXPECT_EQ(0x30, cpu.Pull()); // BRK pushes B flag set, Unused is always 1
     EXPECT_EQ(1, cpu.I); // BRK sets the I flag
@@ -68,7 +70,7 @@ TEST_F(CpuTestSystem, BRK) {
 }
 
 TEST_F(CpuTestSystem, BRK_FlagI) {
-    auto op = Opcode(InstructionName::BRK, AddressingType::Implicit, 2, 7);
+    auto op = Opcode(BRK, Implicit, 2, 7);
 
     cpu.VectorIRQ = 0x0380;
     cpu.Memory.SetWordAt(0x0380, 0x0120);
@@ -86,14 +88,14 @@ TEST_F(CpuTestSystem, BRK_FlagI) {
 }
 
 TEST_F(CpuTestSystem, NOP) {
-    cpu.Execute(Opcode(InstructionName::NOP, AddressingType::Implicit, 1, 2));
+    cpu.Execute(Opcode(NOP, Implicit, 1, 2));
 
     EXPECT_EQ(BASE_PC + 1, cpu.PC);
     EXPECT_EQ(BASE_TICKS + 2, cpu.Ticks);
 }
 
 TEST_F(CpuTestSystem, RTI) {
-    auto op = Opcode(InstructionName::RTI, AddressingType::Implicit, 1, 6);
+    auto op = Opcode(RTI, Implicit, 1, 6);
 
     auto tester = [&] (Byte status, Flag expN, Flag expV, Flag expB, Flag expD, Flag expI, Flag expZ, Flag expC) {
         cpu.Memory.SetByteAt(BASE_PC, 0xFF);

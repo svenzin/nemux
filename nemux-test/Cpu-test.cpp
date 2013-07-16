@@ -69,20 +69,20 @@ public:
 //    };
 //}
 //TEST_F(CpuTest, Opcode_Addressing) {
-//    const auto IMP = AddressingType::Implicit;
-//    const auto ACC = AddressingType::Accumulator;
-//    const auto IMM = AddressingType::Immediate;
-//    const auto ZPG = AddressingType::ZeroPage;
-//    const auto ZPX = AddressingType::ZeroPageX;
-//    const auto ZPY = AddressingType::ZeroPageY;
-//    const auto REL = AddressingType::Relative;
-//    const auto ABS = AddressingType::Absolute;
-//    const auto ABX = AddressingType::AbsoluteX;
-//    const auto ABY = AddressingType::AbsoluteY;
-//    const auto IND = AddressingType::Indirect;
-//    const auto IDX = AddressingType::IndexedIndirect;
-//    const auto IDY = AddressingType::IndirectIndexed;
-//    const auto UNK = AddressingType::Unknown;
+//    const auto IMP = Implicit;
+//    const auto ACC = Accumulator;
+//    const auto IMM = Immediate;
+//    const auto ZPG = ZeroPage;
+//    const auto ZPX = ZeroPageX;
+//    const auto ZPY = ZeroPageY;
+//    const auto REL = Relative;
+//    const auto ABS = Absolute;
+//    const auto ABX = AbsoluteX;
+//    const auto ABY = AbsoluteY;
+//    const auto IND = Indirect;
+//    const auto IDX = IndexedIndirect;
+//    const auto IDY = IndirectIndexed;
+//    const auto UNK = Unknown;
 //
 //    std::array<AddressingType, 0x100> opcodes {
 ///*           x0   x1   x2   x3   x4   x5   x6   x7   x8   x9   xA   xB   xC   xD   xE   xF */

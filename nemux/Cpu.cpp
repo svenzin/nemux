@@ -25,7 +25,7 @@ template <size_t bit> Byte Mask(const Flag & value = Flag{1}) {
     : Name{name},
       PC {0}, SP {0}, A {0}, X {0}, Y {0},
       C {0}, Z {0}, I {0}, D {0}, B {0}, V {0}, N {0}, Unused{1},
-      Ticks{0}, Memory{"", 0} {
+      Ticks{0}, InterruptCycles{7}, Memory{"", 0} {
     m_opcodes.resize(
         OPCODES_COUNT,
         Opcode(UNK, Unknown, 0, 0)
@@ -228,7 +228,7 @@ template <size_t bit> Byte Mask(const Flag & value = Flag{1}) {
     m_opcodes[0x98] = Opcode(TYA, Implicit, 1, 2);
 
     // Nop
-    m_opcodes[0x00] = Opcode(BRK, Implicit, 2, 7);
+    m_opcodes[0x00] = Opcode(BRK, Implicit, 2, 0);
 
     m_opcodes[0xEA] = Opcode(NOP, Implicit, 1, 2);
 
@@ -354,6 +354,7 @@ void Cpu::Interrupt(const Flag & isSoft,
     Push(GetStatus());
     I = 1;
     PC = Memory.GetWordAt(vector);
+    Ticks += InterruptCycles;
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {

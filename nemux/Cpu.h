@@ -114,6 +114,7 @@ public:
     Word VectorIRQ;
 
     int Ticks;
+    int InterruptCycles;
 
     address_t BuildAddress(const Addressing::Type & type) const;
     void Execute(const Opcode &op);//, const std::vector<Byte> &data);

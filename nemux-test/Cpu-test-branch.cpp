@@ -15,6 +15,8 @@
 #include <functional>
 
 using namespace std;
+using namespace Instructions;
+using namespace Addressing;
 
 class CpuTestBranch : public ::testing::Test {
 public:
@@ -69,40 +71,40 @@ public:
 
 TEST_F(CpuTestBranch, BCC) {
     Test_Branch(Setter(cpu.C), 0, 1,
-        Opcode(InstructionName::BCC, AddressingType::Relative, 2, 2));
+        Opcode(BCC, Relative, 2, 2));
 }
 
 TEST_F(CpuTestBranch, BCS) {
     Test_Branch(Setter(cpu.C), 1, 0,
-        Opcode(InstructionName::BCS, AddressingType::Relative, 2, 2));
+        Opcode(BCS, Relative, 2, 2));
 }
 
 TEST_F(CpuTestBranch, BEQ) {
     Test_Branch(Setter(cpu.Z), 1, 0,
-        Opcode(InstructionName::BEQ, AddressingType::Relative, 2, 2));
+        Opcode(BEQ, Relative, 2, 2));
 }
 
 TEST_F(CpuTestBranch, BMI) {
     Test_Branch(Setter(cpu.N), 1, 0,
-        Opcode(InstructionName::BMI, AddressingType::Relative, 2, 2));
+        Opcode(BMI, Relative, 2, 2));
 }
 
 TEST_F(CpuTestBranch, BNE) {
     Test_Branch(Setter(cpu.Z), 0, 1,
-        Opcode(InstructionName::BNE, AddressingType::Relative, 2, 2));
+        Opcode(BNE, Relative, 2, 2));
 }
 
 TEST_F(CpuTestBranch, BPL) {
     Test_Branch(Setter(cpu.N), 0, 1,
-        Opcode(InstructionName::BPL, AddressingType::Relative, 2, 2));
+        Opcode(BPL, Relative, 2, 2));
 }
 
 TEST_F(CpuTestBranch, BVC) {
     Test_Branch(Setter(cpu.V), 0, 1,
-        Opcode(InstructionName::BVC, AddressingType::Relative, 2, 2));
+        Opcode(BVC, Relative, 2, 2));
 }
 
 TEST_F(CpuTestBranch, BVS) {
     Test_Branch(Setter(cpu.V), 1, 0,
-        Opcode(InstructionName::BVS, AddressingType::Relative, 2, 2));
+        Opcode(BVS, Relative, 2, 2));
 }

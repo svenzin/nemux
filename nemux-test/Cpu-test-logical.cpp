@@ -15,6 +15,8 @@
 #include <functional>
 
 using namespace std;
+using namespace Instructions;
+using namespace Addressing;
 
 class CpuTestLogical : public ::testing::Test {
 public:
@@ -114,54 +116,54 @@ public:
 
 TEST_F(CpuTestLogical, EOR_Immediate) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    Test_EOR(Setter(BASE_PC + 1), Opcode(InstructionName::EOR, AddressingType::Immediate, 2, 2), 0);
+    Test_EOR(Setter(BASE_PC + 1), Opcode(EOR, Immediate, 2, 2), 0);
 }
 
 TEST_F(CpuTestLogical, EOR_ZeroPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
-    Test_EOR(Setter(0x0020), Opcode(InstructionName::EOR, AddressingType::ZeroPage, 2, 3), 0);
+    Test_EOR(Setter(0x0020), Opcode(EOR, ZeroPage, 2, 3), 0);
 }
 
 TEST_F(CpuTestLogical, EOR_ZeroPageX) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
-    Test_EOR(Setter(0x0028), Opcode(InstructionName::EOR, AddressingType::ZeroPageX, 2, 4), 0);
+    Test_EOR(Setter(0x0028), Opcode(EOR, ZeroPageX, 2, 4), 0);
 }
 
 TEST_F(CpuTestLogical, EOR_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
-    Test_EOR(Setter(0x0120), Opcode(InstructionName::EOR, AddressingType::Absolute, 3, 4), 0);
+    Test_EOR(Setter(0x0120), Opcode(EOR, Absolute, 3, 4), 0);
 }
 
 TEST_F(CpuTestLogical, EOR_AbsoluteX) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
-    Test_EOR(Setter(0x0128), Opcode(InstructionName::EOR, AddressingType::AbsoluteX, 3, 4), 0);
+    Test_EOR(Setter(0x0128), Opcode(EOR, AbsoluteX, 3, 4), 0);
 }
 
 TEST_F(CpuTestLogical, EOR_AbsoluteX_CrossingPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0xF0;
-    Test_EOR(Setter(0x0210), Opcode(InstructionName::EOR, AddressingType::AbsoluteX, 3, 4), 1);
+    Test_EOR(Setter(0x0210), Opcode(EOR, AbsoluteX, 3, 4), 1);
 }
 
 TEST_F(CpuTestLogical, EOR_AbsoluteY) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.Y = 0x08;
-    Test_EOR(Setter(0x0128), Opcode(InstructionName::EOR, AddressingType::AbsoluteY, 3, 4), 0);
+    Test_EOR(Setter(0x0128), Opcode(EOR, AbsoluteY, 3, 4), 0);
 }
 
 TEST_F(CpuTestLogical, EOR_AbsoluteY_CrossingPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.Y = 0xF0;
-    Test_EOR(Setter(0x0210), Opcode(InstructionName::EOR, AddressingType::AbsoluteY, 3, 4), 1);
+    Test_EOR(Setter(0x0210), Opcode(EOR, AbsoluteY, 3, 4), 1);
 }
 
 TEST_F(CpuTestLogical, EOR_IndexedIndirect) {
@@ -169,7 +171,7 @@ TEST_F(CpuTestLogical, EOR_IndexedIndirect) {
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
     cpu.Memory.SetWordAt(0x28, 0x0120);
-    Test_EOR(Setter(0x0120), Opcode(InstructionName::EOR, AddressingType::IndexedIndirect, 2, 6), 0);
+    Test_EOR(Setter(0x0120), Opcode(EOR, IndexedIndirect, 2, 6), 0);
 }
 
 TEST_F(CpuTestLogical, EOR_IndirectIndexed) {
@@ -178,7 +180,7 @@ TEST_F(CpuTestLogical, EOR_IndirectIndexed) {
     cpu.Memory.SetWordAt(0x20, 0x0120);
     cpu.Y = 0x08;
     cpu.Memory.SetWordAt(0x0128, 0x0200);
-    Test_EOR(Setter(0x0200), Opcode(InstructionName::EOR, AddressingType::IndirectIndexed, 2, 5), 0);
+    Test_EOR(Setter(0x0200), Opcode(EOR, IndirectIndexed, 2, 5), 0);
 }
 
 TEST_F(CpuTestLogical, EOR_IndirectIndexed_CrossingPage) {
@@ -187,59 +189,59 @@ TEST_F(CpuTestLogical, EOR_IndirectIndexed_CrossingPage) {
     cpu.Memory.SetWordAt(0x20, 0x0120);
     cpu.Y = 0xF0;
     cpu.Memory.SetWordAt(0x0210, 0x0200);
-    Test_EOR(Setter(0x0200), Opcode(InstructionName::EOR, AddressingType::IndirectIndexed, 2, 5), 1);
+    Test_EOR(Setter(0x0200), Opcode(EOR, IndirectIndexed, 2, 5), 1);
 }
 
 TEST_F(CpuTestLogical, ORA_Immediate) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    Test_ORA(Setter(BASE_PC + 1), Opcode(InstructionName::ORA, AddressingType::Immediate, 2, 2), 0);
+    Test_ORA(Setter(BASE_PC + 1), Opcode(ORA, Immediate, 2, 2), 0);
 }
 
 TEST_F(CpuTestLogical, ORA_ZeroPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
-    Test_ORA(Setter(0x0020), Opcode(InstructionName::ORA, AddressingType::ZeroPage, 2, 3), 0);
+    Test_ORA(Setter(0x0020), Opcode(ORA, ZeroPage, 2, 3), 0);
 }
 
 TEST_F(CpuTestLogical, ORA_ZeroPageX) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
-    Test_ORA(Setter(0x0028), Opcode(InstructionName::ORA, AddressingType::ZeroPageX, 2, 4), 0);
+    Test_ORA(Setter(0x0028), Opcode(ORA, ZeroPageX, 2, 4), 0);
 }
 
 TEST_F(CpuTestLogical, ORA_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
-    Test_ORA(Setter(0x0120), Opcode(InstructionName::ORA, AddressingType::Absolute, 3, 4), 0);
+    Test_ORA(Setter(0x0120), Opcode(ORA, Absolute, 3, 4), 0);
 }
 
 TEST_F(CpuTestLogical, ORA_AbsoluteX) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
-    Test_ORA(Setter(0x0128), Opcode(InstructionName::ORA, AddressingType::AbsoluteX, 3, 4), 0);
+    Test_ORA(Setter(0x0128), Opcode(ORA, AbsoluteX, 3, 4), 0);
 }
 
 TEST_F(CpuTestLogical, ORA_AbsoluteX_CrossingPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0xF0;
-    Test_ORA(Setter(0x0210), Opcode(InstructionName::ORA, AddressingType::AbsoluteX, 3, 4), 1);
+    Test_ORA(Setter(0x0210), Opcode(ORA, AbsoluteX, 3, 4), 1);
 }
 
 TEST_F(CpuTestLogical, ORA_AbsoluteY) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.Y = 0x08;
-    Test_ORA(Setter(0x0128), Opcode(InstructionName::ORA, AddressingType::AbsoluteY, 3, 4), 0);
+    Test_ORA(Setter(0x0128), Opcode(ORA, AbsoluteY, 3, 4), 0);
 }
 
 TEST_F(CpuTestLogical, ORA_AbsoluteY_CrossingPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.Y = 0xF0;
-    Test_ORA(Setter(0x0210), Opcode(InstructionName::ORA, AddressingType::AbsoluteY, 3, 4), 1);
+    Test_ORA(Setter(0x0210), Opcode(ORA, AbsoluteY, 3, 4), 1);
 }
 
 TEST_F(CpuTestLogical, ORA_IndexedIndirect) {
@@ -247,7 +249,7 @@ TEST_F(CpuTestLogical, ORA_IndexedIndirect) {
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
     cpu.Memory.SetWordAt(0x28, 0x0120);
-    Test_ORA(Setter(0x0120), Opcode(InstructionName::ORA, AddressingType::IndexedIndirect, 2, 6), 0);
+    Test_ORA(Setter(0x0120), Opcode(ORA, IndexedIndirect, 2, 6), 0);
 }
 
 TEST_F(CpuTestLogical, ORA_IndirectIndexed) {
@@ -256,7 +258,7 @@ TEST_F(CpuTestLogical, ORA_IndirectIndexed) {
     cpu.Memory.SetWordAt(0x20, 0x0120);
     cpu.Y = 0x08;
     cpu.Memory.SetWordAt(0x0128, 0x0200);
-    Test_ORA(Setter(0x0200), Opcode(InstructionName::ORA, AddressingType::IndirectIndexed, 2, 5), 0);
+    Test_ORA(Setter(0x0200), Opcode(ORA, IndirectIndexed, 2, 5), 0);
 }
 
 TEST_F(CpuTestLogical, ORA_IndirectIndexed_CrossingPage) {
@@ -265,7 +267,7 @@ TEST_F(CpuTestLogical, ORA_IndirectIndexed_CrossingPage) {
     cpu.Memory.SetWordAt(0x20, 0x0120);
     cpu.Y = 0xF0;
     cpu.Memory.SetWordAt(0x0210, 0x0200);
-    Test_ORA(Setter(0x0200), Opcode(InstructionName::ORA, AddressingType::IndirectIndexed, 2, 5), 1);
+    Test_ORA(Setter(0x0200), Opcode(ORA, IndirectIndexed, 2, 5), 1);
 }
 
 
@@ -273,7 +275,7 @@ TEST_F(CpuTestLogical, AND_Immediate) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
 
     Test_AND(Setter(BASE_PC + 1),
-             Opcode(InstructionName::AND, AddressingType::Immediate, 2, 2),
+             Opcode(AND, Immediate, 2, 2),
              false);
 }
 
@@ -282,7 +284,7 @@ TEST_F(CpuTestLogical, AND_ZeroPage) {
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
 
     Test_AND(Setter(0x0020),
-             Opcode(InstructionName::AND, AddressingType::ZeroPage, 2, 3),
+             Opcode(AND, ZeroPage, 2, 3),
              false);
 }
 
@@ -292,7 +294,7 @@ TEST_F(CpuTestLogical, AND_ZeroPageX) {
     cpu.X = 0x08;
 
     Test_AND(Setter(0x0028),
-             Opcode(InstructionName::AND, AddressingType::ZeroPageX, 2, 4),
+             Opcode(AND, ZeroPageX, 2, 4),
              false);
 }
 
@@ -301,7 +303,7 @@ TEST_F(CpuTestLogical, AND_Absolute) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
 
     Test_AND(Setter(0x0120),
-             Opcode(InstructionName::AND, AddressingType::Absolute, 3, 4),
+             Opcode(AND, Absolute, 3, 4),
              false);
 }
 
@@ -312,7 +314,7 @@ TEST_F(CpuTestLogical, AND_AbsoluteX) {
     cpu.X = 0x08;
 
     Test_AND(Setter(0x0128),
-             Opcode(InstructionName::AND, AddressingType::AbsoluteX, 3, 4),
+             Opcode(AND, AbsoluteX, 3, 4),
              false);
 }
 
@@ -323,7 +325,7 @@ TEST_F(CpuTestLogical, AND_AbsoluteX_CrossingPage) {
     cpu.X = 0xF0;
 
     Test_AND(Setter(0x0210),
-             Opcode(InstructionName::AND, AddressingType::AbsoluteX, 3, 4),
+             Opcode(AND, AbsoluteX, 3, 4),
              true);
 }
 
@@ -334,7 +336,7 @@ TEST_F(CpuTestLogical, AND_AbsoluteY) {
     cpu.Y = 0x08;
 
     Test_AND(Setter(0x0128),
-             Opcode(InstructionName::AND, AddressingType::AbsoluteY, 3, 4),
+             Opcode(AND, AbsoluteY, 3, 4),
              false);
 }
 
@@ -345,7 +347,7 @@ TEST_F(CpuTestLogical, AND_AbsoluteY_CrossingPage) {
     cpu.Y = 0xF0;
 
     Test_AND(Setter(0x0210),
-             Opcode(InstructionName::AND, AddressingType::AbsoluteY, 3, 4),
+             Opcode(AND, AbsoluteY, 3, 4),
              true);
 }
 
@@ -356,7 +358,7 @@ TEST_F(CpuTestLogical, AND_IndexedIndirect) {
     cpu.Memory.SetWordAt(0x28, 0x0120);
 
     Test_AND(Setter(0x0120),
-             Opcode(InstructionName::AND, AddressingType::IndexedIndirect, 2, 6),
+             Opcode(AND, IndexedIndirect, 2, 6),
              false);
 }
 
@@ -369,7 +371,7 @@ TEST_F(CpuTestLogical, AND_IndirectIndexed) {
     cpu.Memory.SetWordAt(0x0128, 0x0200);
 
     Test_AND(Setter(0x0200),
-             Opcode(InstructionName::AND, AddressingType::IndirectIndexed, 2, 5),
+             Opcode(AND, IndirectIndexed, 2, 5),
              false);
 }
 
@@ -382,7 +384,7 @@ TEST_F(CpuTestLogical, AND_IndirectIndexed_CrossingPage) {
     cpu.Memory.SetWordAt(0x0210, 0x0200);
 
     Test_AND(Setter(0x0200),
-             Opcode(InstructionName::AND, AddressingType::IndirectIndexed, 2, 5),
+             Opcode(AND, IndirectIndexed, 2, 5),
              true);
 }
 
@@ -401,7 +403,7 @@ TEST_F(CpuTestLogical, BIT_ZeroPage) {
 
             cpu.A = a;
             cpu.Ticks = BASE_TICKS;
-            cpu.Execute(Opcode(InstructionName::BIT, AddressingType::ZeroPage, 2, 3));
+            cpu.Execute(Opcode(BIT, ZeroPage, 2, 3));
 
             EXPECT_EQ(0x200 + 2, cpu.PC);
             EXPECT_EQ(BASE_TICKS + 3, cpu.Ticks);
@@ -426,7 +428,7 @@ TEST_F(CpuTestLogical, BIT_Absolute) {
 
             cpu.A = a;
             cpu.Ticks = BASE_TICKS;
-            cpu.Execute(Opcode(InstructionName::BIT, AddressingType::Absolute, 3, 4));
+            cpu.Execute(Opcode(BIT, Absolute, 3, 4));
 
             EXPECT_EQ(0x200 + 3, cpu.PC);
             EXPECT_EQ(BASE_TICKS + 4, cpu.Ticks);

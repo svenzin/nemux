@@ -15,6 +15,8 @@
 #include <functional>
 
 using namespace std;
+using namespace Instructions;
+using namespace Addressing;
 
 class CpuTestLoadStore : public ::testing::Test {
 public:
@@ -79,14 +81,14 @@ public:
 TEST_F(CpuTestLoadStore, LDX_Immediate) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     Test_Load(Getter(cpu.X), Setter(BASE_PC + 1),
-              Opcode(InstructionName::LDX, AddressingType::Immediate, 2, 2), 0);
+              Opcode(LDX, Immediate, 2, 2), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDX_ZeroPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     Test_Load(Getter(cpu.X), Setter(0x0020),
-              Opcode(InstructionName::LDX, AddressingType::ZeroPage, 2, 3), 0);
+              Opcode(LDX, ZeroPage, 2, 3), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDX_ZeroPageY) {
@@ -94,14 +96,14 @@ TEST_F(CpuTestLoadStore, LDX_ZeroPageY) {
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     cpu.Y = 0x08;
     Test_Load(Getter(cpu.X), Setter(0x0028),
-              Opcode(InstructionName::LDX, AddressingType::ZeroPageY, 2, 4), 0);
+              Opcode(LDX, ZeroPageY, 2, 4), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDX_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     Test_Load(Getter(cpu.X), Setter(0x0120),
-              Opcode(InstructionName::LDX, AddressingType::Absolute, 3, 4), 0);
+              Opcode(LDX, Absolute, 3, 4), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDX_AbsoluteY) {
@@ -109,7 +111,7 @@ TEST_F(CpuTestLoadStore, LDX_AbsoluteY) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.Y = 0x08;
     Test_Load(Getter(cpu.X), Setter(0x0128),
-              Opcode(InstructionName::LDX, AddressingType::AbsoluteY, 3, 4), 0);
+              Opcode(LDX, AbsoluteY, 3, 4), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDX_AbsoluteY_CrossingPage) {
@@ -117,21 +119,21 @@ TEST_F(CpuTestLoadStore, LDX_AbsoluteY_CrossingPage) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.Y = 0xF0;
     Test_Load(Getter(cpu.X), Setter(0x0210),
-              Opcode(InstructionName::LDX, AddressingType::AbsoluteY, 3, 4), 1);
+              Opcode(LDX, AbsoluteY, 3, 4), 1);
 }
 
 
 TEST_F(CpuTestLoadStore, LDY_Immediate) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     Test_Load(Getter(cpu.Y), Setter(BASE_PC + 1),
-              Opcode(InstructionName::LDY, AddressingType::Immediate, 2, 2), 0);
+              Opcode(LDY, Immediate, 2, 2), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDY_ZeroPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     Test_Load(Getter(cpu.Y), Setter(0x0020),
-              Opcode(InstructionName::LDY, AddressingType::ZeroPage, 2, 3), 0);
+              Opcode(LDY, ZeroPage, 2, 3), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDY_ZeroPageX) {
@@ -139,14 +141,14 @@ TEST_F(CpuTestLoadStore, LDY_ZeroPageX) {
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
     Test_Load(Getter(cpu.Y), Setter(0x0028),
-              Opcode(InstructionName::LDY, AddressingType::ZeroPageX, 2, 4), 0);
+              Opcode(LDY, ZeroPageX, 2, 4), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDY_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     Test_Load(Getter(cpu.Y), Setter(0x0120),
-              Opcode(InstructionName::LDY, AddressingType::Absolute, 3, 4), 0);
+              Opcode(LDY, Absolute, 3, 4), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDY_AbsoluteX) {
@@ -154,7 +156,7 @@ TEST_F(CpuTestLoadStore, LDY_AbsoluteX) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
     Test_Load(Getter(cpu.Y), Setter(0x0128),
-              Opcode(InstructionName::LDY, AddressingType::AbsoluteX, 3, 4), 0);
+              Opcode(LDY, AbsoluteX, 3, 4), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDY_AbsoluteX_CrossingPage) {
@@ -162,20 +164,20 @@ TEST_F(CpuTestLoadStore, LDY_AbsoluteX_CrossingPage) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0xF0;
     Test_Load(Getter(cpu.Y), Setter(0x0210),
-              Opcode(InstructionName::LDY, AddressingType::AbsoluteX, 3, 4), 1);
+              Opcode(LDY, AbsoluteX, 3, 4), 1);
 }
 
 TEST_F(CpuTestLoadStore, LDA_Immediate) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     Test_Load(Getter(cpu.A), Setter(BASE_PC + 1),
-              Opcode(InstructionName::LDA, AddressingType::Immediate, 2, 2), 0);
+              Opcode(LDA, Immediate, 2, 2), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDA_ZeroPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     Test_Load(Getter(cpu.A), Setter(0x0020),
-              Opcode(InstructionName::LDA, AddressingType::ZeroPage, 2, 3), 0);
+              Opcode(LDA, ZeroPage, 2, 3), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDA_ZeroPageX) {
@@ -183,14 +185,14 @@ TEST_F(CpuTestLoadStore, LDA_ZeroPageX) {
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
     Test_Load(Getter(cpu.A), Setter(0x0028),
-              Opcode(InstructionName::LDA, AddressingType::ZeroPageX, 2, 4), 0);
+              Opcode(LDA, ZeroPageX, 2, 4), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDA_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     Test_Load(Getter(cpu.A), Setter(0x0120),
-              Opcode(InstructionName::LDA, AddressingType::Absolute, 3, 4), 0);
+              Opcode(LDA, Absolute, 3, 4), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDA_AbsoluteX) {
@@ -198,7 +200,7 @@ TEST_F(CpuTestLoadStore, LDA_AbsoluteX) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
     Test_Load(Getter(cpu.A), Setter(0x0128),
-              Opcode(InstructionName::LDA, AddressingType::AbsoluteX, 3, 4), 0);
+              Opcode(LDA, AbsoluteX, 3, 4), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDA_AbsoluteX_CrossingPage) {
@@ -206,7 +208,7 @@ TEST_F(CpuTestLoadStore, LDA_AbsoluteX_CrossingPage) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0xF0;
     Test_Load(Getter(cpu.A), Setter(0x0210),
-              Opcode(InstructionName::LDA, AddressingType::AbsoluteX, 3, 4), 1);
+              Opcode(LDA, AbsoluteX, 3, 4), 1);
 }
 
 TEST_F(CpuTestLoadStore, LDA_AbsoluteY) {
@@ -214,7 +216,7 @@ TEST_F(CpuTestLoadStore, LDA_AbsoluteY) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.Y = 0x08;
     Test_Load(Getter(cpu.A), Setter(0x0128),
-              Opcode(InstructionName::LDA, AddressingType::AbsoluteY, 3, 4), 0);
+              Opcode(LDA, AbsoluteY, 3, 4), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDA_AbsoluteY_CrossingPage) {
@@ -222,7 +224,7 @@ TEST_F(CpuTestLoadStore, LDA_AbsoluteY_CrossingPage) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
     cpu.Y = 0xF0;
     Test_Load(Getter(cpu.A), Setter(0x0210),
-              Opcode(InstructionName::LDA, AddressingType::AbsoluteY, 3, 4), 1);
+              Opcode(LDA, AbsoluteY, 3, 4), 1);
 }
 
 TEST_F(CpuTestLoadStore, LDA_IndexedIndirect) {
@@ -231,7 +233,7 @@ TEST_F(CpuTestLoadStore, LDA_IndexedIndirect) {
     cpu.X = 0x08;
     cpu.Memory.SetWordAt(0x28, 0x0120);
     Test_Load(Getter(cpu.A), Setter(0x0120),
-              Opcode(InstructionName::LDA, AddressingType::IndexedIndirect, 2, 6), 0);
+              Opcode(LDA, IndexedIndirect, 2, 6), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDA_IndirectIndexed) {
@@ -241,7 +243,7 @@ TEST_F(CpuTestLoadStore, LDA_IndirectIndexed) {
     cpu.Y = 0x08;
     cpu.Memory.SetWordAt(0x0128, 0x0200);
     Test_Load(Getter(cpu.A), Setter(0x0200),
-              Opcode(InstructionName::LDA, AddressingType::IndirectIndexed, 2, 5), 0);
+              Opcode(LDA, IndirectIndexed, 2, 5), 0);
 }
 
 TEST_F(CpuTestLoadStore, LDA_IndirectIndexed_CrossingPage) {
@@ -251,7 +253,7 @@ TEST_F(CpuTestLoadStore, LDA_IndirectIndexed_CrossingPage) {
     cpu.Y = 0xF0;
     cpu.Memory.SetWordAt(0x0210, 0x0200);
     Test_Load(Getter(cpu.A), Setter(0x0200),
-              Opcode(InstructionName::LDA, AddressingType::IndirectIndexed, 2, 5), 1);
+              Opcode(LDA, IndirectIndexed, 2, 5), 1);
 }
 
 TEST_F(CpuTestLoadStore, STX_ZeroPage) {
@@ -259,7 +261,7 @@ TEST_F(CpuTestLoadStore, STX_ZeroPage) {
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
 
     Test_Set(Getter(0x0020), Setter(cpu.X),
-             Opcode(InstructionName::STX, AddressingType::ZeroPage, 2, 3));
+             Opcode(STX, ZeroPage, 2, 3));
 }
 
 TEST_F(CpuTestLoadStore, STX_ZeroPageY) {
@@ -268,7 +270,7 @@ TEST_F(CpuTestLoadStore, STX_ZeroPageY) {
     cpu.Y = 0x08;
 
     Test_Set(Getter(0x0028), Setter(cpu.X),
-             Opcode(InstructionName::STX, AddressingType::ZeroPageY, 2, 4));
+             Opcode(STX, ZeroPageY, 2, 4));
 }
 
 TEST_F(CpuTestLoadStore, STX_Absolute) {
@@ -276,7 +278,7 @@ TEST_F(CpuTestLoadStore, STX_Absolute) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
 
     Test_Set(Getter(0x0120), Setter(cpu.X),
-             Opcode(InstructionName::STX, AddressingType::Absolute, 3, 4));
+             Opcode(STX, Absolute, 3, 4));
 }
 
 TEST_F(CpuTestLoadStore, STY_ZeroPage) {
@@ -284,7 +286,7 @@ TEST_F(CpuTestLoadStore, STY_ZeroPage) {
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
 
     Test_Set(Getter(0x0020), Setter(cpu.Y),
-             Opcode(InstructionName::STY, AddressingType::ZeroPage, 2, 3));
+             Opcode(STY, ZeroPage, 2, 3));
 }
 
 TEST_F(CpuTestLoadStore, STY_ZeroPageX) {
@@ -293,7 +295,7 @@ TEST_F(CpuTestLoadStore, STY_ZeroPageX) {
     cpu.X = 0x08;
 
     Test_Set(Getter(0x0028), Setter(cpu.Y),
-             Opcode(InstructionName::STY, AddressingType::ZeroPageX, 2, 4));
+             Opcode(STY, ZeroPageX, 2, 4));
 }
 
 TEST_F(CpuTestLoadStore, STY_Absolute) {
@@ -301,7 +303,7 @@ TEST_F(CpuTestLoadStore, STY_Absolute) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
 
     Test_Set(Getter(0x0120), Setter(cpu.Y),
-             Opcode(InstructionName::STY, AddressingType::Absolute, 3, 4));
+             Opcode(STY, Absolute, 3, 4));
 }
 
 TEST_F(CpuTestLoadStore, STA_ZeroPage) {
@@ -309,7 +311,7 @@ TEST_F(CpuTestLoadStore, STA_ZeroPage) {
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
 
     Test_Set(Getter(0x0020), Setter(cpu.A),
-             Opcode(InstructionName::STA, AddressingType::ZeroPage, 2, 3));
+             Opcode(STA, ZeroPage, 2, 3));
 }
 
 TEST_F(CpuTestLoadStore, STA_ZeroPageX) {
@@ -318,7 +320,7 @@ TEST_F(CpuTestLoadStore, STA_ZeroPageX) {
     cpu.X = 0x08;
 
     Test_Set(Getter(0x0028), Setter(cpu.A),
-             Opcode(InstructionName::STA, AddressingType::ZeroPageX, 2, 4));
+             Opcode(STA, ZeroPageX, 2, 4));
 }
 
 TEST_F(CpuTestLoadStore, STA_Absolute) {
@@ -326,7 +328,7 @@ TEST_F(CpuTestLoadStore, STA_Absolute) {
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
 
     Test_Set(Getter(0x0120), Setter(cpu.A),
-             Opcode(InstructionName::STA, AddressingType::Absolute, 3, 4));
+             Opcode(STA, Absolute, 3, 4));
 }
 
 TEST_F(CpuTestLoadStore, STA_AbsoluteX) {
@@ -336,7 +338,7 @@ TEST_F(CpuTestLoadStore, STA_AbsoluteX) {
     cpu.X = 0x08;
 
     Test_Set(Getter(0x0128), Setter(cpu.A),
-             Opcode(InstructionName::STA, AddressingType::AbsoluteX, 3, 4));
+             Opcode(STA, AbsoluteX, 3, 4));
 }
 
 TEST_F(CpuTestLoadStore, STA_AbsoluteY) {
@@ -346,7 +348,7 @@ TEST_F(CpuTestLoadStore, STA_AbsoluteY) {
     cpu.Y = 0x08;
 
     Test_Set(Getter(0x0128), Setter(cpu.A),
-             Opcode(InstructionName::STA, AddressingType::AbsoluteY, 3, 4));
+             Opcode(STA, AbsoluteY, 3, 4));
 }
 
 TEST_F(CpuTestLoadStore, STA_IndexedIndirect) {
@@ -356,7 +358,7 @@ TEST_F(CpuTestLoadStore, STA_IndexedIndirect) {
     cpu.Memory.SetWordAt(0x28, 0x0120);
 
     Test_Set(Getter(0x0120), Setter(cpu.A),
-             Opcode(InstructionName::STA, AddressingType::IndexedIndirect, 2, 6));
+             Opcode(STA, IndexedIndirect, 2, 6));
 }
 
 TEST_F(CpuTestLoadStore, STA_IndirectIndexed) {
@@ -368,5 +370,5 @@ TEST_F(CpuTestLoadStore, STA_IndirectIndexed) {
     cpu.Memory.SetWordAt(0x0128, 0x0200);
 
     Test_Set(Getter(0x0200), Setter(cpu.A),
-             Opcode(InstructionName::STA, AddressingType::IndirectIndexed, 2, 6));
+             Opcode(STA, IndirectIndexed, 2, 6));
 }

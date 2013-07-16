@@ -15,6 +15,8 @@
 #include <functional>
 
 using namespace std;
+using namespace Instructions;
+using namespace Addressing;
 
 class CpuTestStack : public ::testing::Test {
 public:
@@ -70,13 +72,13 @@ TEST_F(CpuTestStack, TSX) {
     Test_Transfer(
         [&]              { return cpu.X; },
         [&] (Byte value) { cpu.SP = value; },
-        Opcode(InstructionName::TSX, AddressingType::Implicit, 1, 2)
+        Opcode(TSX, Implicit, 1, 2)
     );
 }
 
 TEST_F(CpuTestStack, TXS) {
     // TXS does not change the flags
-    auto op = Opcode(InstructionName::TXS, AddressingType::Implicit, 1, 2);
+    auto op = Opcode(TXS, Implicit, 1, 2);
     cpu.X = 0x20;
 
     cpu.PC = BASE_PC;
@@ -90,7 +92,7 @@ TEST_F(CpuTestStack, TXS) {
 
 TEST_F(CpuTestStack, PHP_FlagB) {
     // PHP is software instruction pushing the Status -> B is set
-    const auto op = Opcode(InstructionName::PHP, AddressingType::Implicit, 1, 3);
+    const auto op = Opcode(PHP, Implicit, 1, 3);
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
 
     cpu.B = 0;
@@ -108,7 +110,7 @@ TEST_F(CpuTestStack, PHP_FlagB) {
 }
 
 //TEST_F(CpuTestStack, PLP_FlagB) {
-//    const auto op = Opcode(InstructionName::PLP, AddressingType::Implicit, 1, 4);
+//    const auto op = Opcode(PLP, Implicit, 1, 4);
 //    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
 //
 //    cpu.B = 1;
@@ -127,7 +129,7 @@ TEST_F(CpuTestStack, PHP_FlagB) {
 //}
 
 TEST_F(CpuTestStack, PHA) {
-    const auto op = Opcode(InstructionName::PHA, AddressingType::Implicit, 1, 3);
+    const auto op = Opcode(PHA, Implicit, 1, 3);
 
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
 
@@ -146,7 +148,7 @@ TEST_F(CpuTestStack, PHA) {
 }
 
 TEST_F(CpuTestStack, PLA) {
-    const auto op = Opcode(InstructionName::PLA, AddressingType::Implicit, 1, 4);
+    const auto op = Opcode(PLA, Implicit, 1, 4);
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
 
     auto tester = [&] (Byte m, Flag expZ, Flag expN) {
@@ -172,7 +174,7 @@ TEST_F(CpuTestStack, PLA) {
 }
 
 TEST_F(CpuTestStack, PLP) {
-    const auto op = Opcode(InstructionName::PLP, AddressingType::Implicit, 1, 4);
+    const auto op = Opcode(PLP, Implicit, 1, 4);
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
 
     auto tester = [&] (Byte m, Flag expN, Flag expV, Flag expD, Flag expI, Flag expZ, Flag expC) {
@@ -200,7 +202,7 @@ TEST_F(CpuTestStack, PLP) {
 }
 
 TEST_F(CpuTestStack, PHP) {
-    const auto op = Opcode(InstructionName::PHP, AddressingType::Implicit, 1, 3);
+    const auto op = Opcode(PHP, Implicit, 1, 3);
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
 
     auto tester = [&] (Flag n, Flag v, Flag d, Flag i, Flag z, Flag c) {

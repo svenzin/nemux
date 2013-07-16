@@ -15,6 +15,8 @@
 #include <functional>
 
 using namespace std;
+using namespace Instructions;
+using namespace Addressing;
 
 class CpuTestJumpCall : public ::testing::Test {
 public:
@@ -46,7 +48,7 @@ public:
 };
 
 TEST_F(CpuTestJumpCall, JMP_Absolute) {
-    auto op = Opcode(InstructionName::JMP, AddressingType::Absolute, 3, 3);
+    auto op = Opcode(JMP, Absolute, 3, 3);
 
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
@@ -60,7 +62,7 @@ TEST_F(CpuTestJumpCall, JMP_Absolute) {
 }
 
 TEST_F(CpuTestJumpCall, JMP_Indirect) {
-    auto op = Opcode(InstructionName::JMP, AddressingType::Indirect, 3, 5);
+    auto op = Opcode(JMP, Indirect, 3, 5);
 
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
@@ -75,7 +77,7 @@ TEST_F(CpuTestJumpCall, JMP_Indirect) {
 }
 
 TEST_F(CpuTestJumpCall, JMP_Indirect_Bug) {
-    auto op = Opcode(InstructionName::JMP, AddressingType::Indirect, 3, 5);
+    auto op = Opcode(JMP, Indirect, 3, 5);
 
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x01FF);
@@ -92,7 +94,7 @@ TEST_F(CpuTestJumpCall, JMP_Indirect_Bug) {
 }
 
 TEST_F(CpuTestJumpCall, JSR) {
-    auto op = Opcode(InstructionName::JSR, AddressingType::Absolute, 3, 6);
+    auto op = Opcode(JSR, Absolute, 3, 6);
 
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
@@ -110,7 +112,7 @@ TEST_F(CpuTestJumpCall, JSR) {
 }
 
 TEST_F(CpuTestJumpCall, RTS) {
-    auto op = Opcode(InstructionName::RTS, AddressingType::Implicit, 1, 6);
+    auto op = Opcode(RTS, Implicit, 1, 6);
 
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.StackPage = 0x100;

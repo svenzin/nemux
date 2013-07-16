@@ -15,6 +15,8 @@
 #include <functional>
 
 using namespace std;
+using namespace Instructions;
+using namespace Addressing;
 
 class CpuTestRegisterTransfer : public ::testing::Test {
 public:
@@ -68,20 +70,20 @@ public:
 
 TEST_F(CpuTestRegisterTransfer, TAX) {
     Test_Transfer(Getter(cpu.X), Setter(cpu.A),
-                  Opcode(InstructionName::TAX, AddressingType::Implicit, 1, 2));
+                  Opcode(TAX, Implicit, 1, 2));
 }
 
 TEST_F(CpuTestRegisterTransfer, TAY) {
     Test_Transfer(Getter(cpu.Y), Setter(cpu.A),
-                  Opcode(InstructionName::TAY, AddressingType::Implicit, 1, 2));
+                  Opcode(TAY, Implicit, 1, 2));
 }
 
 TEST_F(CpuTestRegisterTransfer, TXA) {
     Test_Transfer(Getter(cpu.A), Setter(cpu.X),
-                  Opcode(InstructionName::TXA, AddressingType::Implicit, 1, 2));
+                  Opcode(TXA, Implicit, 1, 2));
 }
 
 TEST_F(CpuTestRegisterTransfer, TYA) {
     Test_Transfer(Getter(cpu.A), Setter(cpu.Y),
-                  Opcode(InstructionName::TYA, AddressingType::Implicit, 1, 2));
+                  Opcode(TYA, Implicit, 1, 2));
 }
