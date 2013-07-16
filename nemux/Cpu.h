@@ -17,7 +17,9 @@
 static const auto OPCODES_COUNT = 0x0100;
 
 typedef Byte Flag;
-enum class InstructionName {
+
+namespace Instructions {
+enum Name {
     LDA, LDX, LDY, STA, STX, STY,           // Load, Store
     TAX, TAY, TXA, TYA,                     // Register Transfer
     TSX, TXS, PHA, PLA, PHP, PLP,           // Stack
@@ -32,10 +34,13 @@ enum class InstructionName {
 
     UNK,
 };
+}
+
 typedef int Opsize;
 typedef int Optime;
 
-enum class AddressingType {
+namespace Addressing {
+enum Type {
     Implicit,
     Accumulator,
     Immediate,
@@ -52,6 +57,7 @@ enum class AddressingType {
 
     Unknown,
 };
+}
 
 enum Bits : size_t {
     Car, Zer, Int, Dec, Brk, Unu, Ovf, Neg,
@@ -64,14 +70,14 @@ enum class Interrupt {
 
 class Opcode {
 public:
-    explicit Opcode(const InstructionName &name, const AddressingType &addr,
+    explicit Opcode(const Instructions::Name &name, const Addressing::Type &addr,
                     const Opsize &bytes, const Optime &cycles)
         : Instruction(name), Addressing(addr), Bytes(bytes),
           Cycles(cycles) {
     }
 
-    InstructionName Instruction;
-    AddressingType Addressing;
+    Instructions::Name Instruction;
+    Addressing::Type Addressing;
     Opsize Bytes;
     Optime Cycles;
 };
@@ -109,7 +115,7 @@ public:
 
     int Ticks;
 
-    address_t BuildAddress(const AddressingType & type) const;
+    address_t BuildAddress(const Addressing::Type & type) const;
     void Execute(const Opcode &op);//, const std::vector<Byte> &data);
 
     Mapper Memory;

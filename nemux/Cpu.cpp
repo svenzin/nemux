@@ -11,6 +11,8 @@
 #include <iostream>
 
 using namespace std;
+using namespace Instructions;
+using namespace Addressing;
 
 template <size_t bit> Flag Bit(const Byte & value) {
     return (value >> bit) & 0x01;
@@ -26,254 +28,254 @@ template <size_t bit> Byte Mask(const Flag & value = Flag{1}) {
       Ticks{0}, Memory{"", 0} {
     m_opcodes.resize(
         OPCODES_COUNT,
-        Opcode(InstructionName::UNK, AddressingType::Unknown, 0, 0)
+        Opcode(UNK, Unknown, 0, 0)
     );
 
     // Shift
-    m_opcodes[0x0A] = Opcode(InstructionName::ASL, AddressingType::Accumulator, 1, 2);
-    m_opcodes[0x06] = Opcode(InstructionName::ASL, AddressingType::ZeroPage,    2, 5);
-    m_opcodes[0x16] = Opcode(InstructionName::ASL, AddressingType::ZeroPageX,   2, 6);
-    m_opcodes[0x0E] = Opcode(InstructionName::ASL, AddressingType::Absolute,    3, 6);
-    m_opcodes[0x1E] = Opcode(InstructionName::ASL, AddressingType::AbsoluteX,   3, 7);
+    m_opcodes[0x0A] = Opcode(ASL, Accumulator, 1, 2);
+    m_opcodes[0x06] = Opcode(ASL, ZeroPage,    2, 5);
+    m_opcodes[0x16] = Opcode(ASL, ZeroPageX,   2, 6);
+    m_opcodes[0x0E] = Opcode(ASL, Absolute,    3, 6);
+    m_opcodes[0x1E] = Opcode(ASL, AbsoluteX,   3, 7);
 
-    m_opcodes[0x4A] = Opcode(InstructionName::LSR, AddressingType::Accumulator, 1, 2);
-    m_opcodes[0x46] = Opcode(InstructionName::LSR, AddressingType::ZeroPage,    2, 5);
-    m_opcodes[0x56] = Opcode(InstructionName::LSR, AddressingType::ZeroPageX,   2, 6);
-    m_opcodes[0x4E] = Opcode(InstructionName::LSR, AddressingType::Absolute,    3, 6);
-    m_opcodes[0x5E] = Opcode(InstructionName::LSR, AddressingType::AbsoluteX,   3, 7);
+    m_opcodes[0x4A] = Opcode(LSR, Accumulator, 1, 2);
+    m_opcodes[0x46] = Opcode(LSR, ZeroPage,    2, 5);
+    m_opcodes[0x56] = Opcode(LSR, ZeroPageX,   2, 6);
+    m_opcodes[0x4E] = Opcode(LSR, Absolute,    3, 6);
+    m_opcodes[0x5E] = Opcode(LSR, AbsoluteX,   3, 7);
 
-    m_opcodes[0x2A] = Opcode(InstructionName::ROL, AddressingType::Accumulator, 1, 2);
-    m_opcodes[0x26] = Opcode(InstructionName::ROL, AddressingType::ZeroPage,    2, 5);
-    m_opcodes[0x36] = Opcode(InstructionName::ROL, AddressingType::ZeroPageX,   2, 6);
-    m_opcodes[0x2E] = Opcode(InstructionName::ROL, AddressingType::Absolute,    3, 6);
-    m_opcodes[0x3E] = Opcode(InstructionName::ROL, AddressingType::AbsoluteX,   3, 7);
+    m_opcodes[0x2A] = Opcode(ROL, Accumulator, 1, 2);
+    m_opcodes[0x26] = Opcode(ROL, ZeroPage,    2, 5);
+    m_opcodes[0x36] = Opcode(ROL, ZeroPageX,   2, 6);
+    m_opcodes[0x2E] = Opcode(ROL, Absolute,    3, 6);
+    m_opcodes[0x3E] = Opcode(ROL, AbsoluteX,   3, 7);
 
-    m_opcodes[0x6A] = Opcode(InstructionName::ROR, AddressingType::Accumulator, 1, 2);
-    m_opcodes[0x66] = Opcode(InstructionName::ROR, AddressingType::ZeroPage,    2, 5);
-    m_opcodes[0x76] = Opcode(InstructionName::ROR, AddressingType::ZeroPageX,   2, 6);
-    m_opcodes[0x6E] = Opcode(InstructionName::ROR, AddressingType::Absolute,    3, 6);
-    m_opcodes[0x7E] = Opcode(InstructionName::ROR, AddressingType::AbsoluteX,   3, 7);
+    m_opcodes[0x6A] = Opcode(ROR, Accumulator, 1, 2);
+    m_opcodes[0x66] = Opcode(ROR, ZeroPage,    2, 5);
+    m_opcodes[0x76] = Opcode(ROR, ZeroPageX,   2, 6);
+    m_opcodes[0x6E] = Opcode(ROR, Absolute,    3, 6);
+    m_opcodes[0x7E] = Opcode(ROR, AbsoluteX,   3, 7);
 
     // Bit operations
-    m_opcodes[0x29] = Opcode(InstructionName::AND, AddressingType::Immediate, 2, 2);
-    m_opcodes[0x25] = Opcode(InstructionName::AND, AddressingType::ZeroPage,  2, 3);
-    m_opcodes[0x35] = Opcode(InstructionName::AND, AddressingType::ZeroPageX, 2, 4);
-    m_opcodes[0x2D] = Opcode(InstructionName::AND, AddressingType::Absolute,  3, 4);
-    m_opcodes[0x3D] = Opcode(InstructionName::AND, AddressingType::AbsoluteX, 3, 4);
-    m_opcodes[0x39] = Opcode(InstructionName::AND, AddressingType::AbsoluteY, 3, 4);
-    m_opcodes[0x21] = Opcode(InstructionName::AND, AddressingType::IndexedIndirect, 2, 6);
-    m_opcodes[0x31] = Opcode(InstructionName::AND, AddressingType::IndirectIndexed, 2, 5);
+    m_opcodes[0x29] = Opcode(AND, Immediate, 2, 2);
+    m_opcodes[0x25] = Opcode(AND, ZeroPage,  2, 3);
+    m_opcodes[0x35] = Opcode(AND, ZeroPageX, 2, 4);
+    m_opcodes[0x2D] = Opcode(AND, Absolute,  3, 4);
+    m_opcodes[0x3D] = Opcode(AND, AbsoluteX, 3, 4);
+    m_opcodes[0x39] = Opcode(AND, AbsoluteY, 3, 4);
+    m_opcodes[0x21] = Opcode(AND, IndexedIndirect, 2, 6);
+    m_opcodes[0x31] = Opcode(AND, IndirectIndexed, 2, 5);
 
-    m_opcodes[0x24] = Opcode(InstructionName::BIT, AddressingType::ZeroPage, 2, 3);
-    m_opcodes[0x2C] = Opcode(InstructionName::BIT, AddressingType::Absolute, 3, 4);
+    m_opcodes[0x24] = Opcode(BIT, ZeroPage, 2, 3);
+    m_opcodes[0x2C] = Opcode(BIT, Absolute, 3, 4);
 
-    m_opcodes[0x49] = Opcode(InstructionName::EOR, AddressingType::Immediate, 2, 2);
-    m_opcodes[0x45] = Opcode(InstructionName::EOR, AddressingType::ZeroPage,  2, 3);
-    m_opcodes[0x55] = Opcode(InstructionName::EOR, AddressingType::ZeroPageX, 2, 4);
-    m_opcodes[0x40] = Opcode(InstructionName::EOR, AddressingType::Absolute,  3, 4);
-    m_opcodes[0x50] = Opcode(InstructionName::EOR, AddressingType::AbsoluteX, 3, 4);
-    m_opcodes[0x59] = Opcode(InstructionName::EOR, AddressingType::AbsoluteY, 3, 4);
-    m_opcodes[0x41] = Opcode(InstructionName::EOR, AddressingType::IndexedIndirect, 2, 6);
-    m_opcodes[0x51] = Opcode(InstructionName::EOR, AddressingType::IndirectIndexed, 2, 5);
+    m_opcodes[0x49] = Opcode(EOR, Immediate, 2, 2);
+    m_opcodes[0x45] = Opcode(EOR, ZeroPage,  2, 3);
+    m_opcodes[0x55] = Opcode(EOR, ZeroPageX, 2, 4);
+    m_opcodes[0x40] = Opcode(EOR, Absolute,  3, 4);
+    m_opcodes[0x50] = Opcode(EOR, AbsoluteX, 3, 4);
+    m_opcodes[0x59] = Opcode(EOR, AbsoluteY, 3, 4);
+    m_opcodes[0x41] = Opcode(EOR, IndexedIndirect, 2, 6);
+    m_opcodes[0x51] = Opcode(EOR, IndirectIndexed, 2, 5);
 
-    m_opcodes[0x09] = Opcode(InstructionName::ORA, AddressingType::Immediate, 2, 2);
-    m_opcodes[0x05] = Opcode(InstructionName::ORA, AddressingType::ZeroPage,  2, 3);
-    m_opcodes[0x15] = Opcode(InstructionName::ORA, AddressingType::ZeroPageX, 2, 4);
-    m_opcodes[0x0D] = Opcode(InstructionName::ORA, AddressingType::Absolute,  3, 4);
-    m_opcodes[0x1D] = Opcode(InstructionName::ORA, AddressingType::AbsoluteX, 3, 4);
-    m_opcodes[0x19] = Opcode(InstructionName::ORA, AddressingType::AbsoluteY, 3, 4);
-    m_opcodes[0x01] = Opcode(InstructionName::ORA, AddressingType::IndexedIndirect, 2, 6);
-    m_opcodes[0x11] = Opcode(InstructionName::ORA, AddressingType::IndirectIndexed, 2, 5);
+    m_opcodes[0x09] = Opcode(ORA, Immediate, 2, 2);
+    m_opcodes[0x05] = Opcode(ORA, ZeroPage,  2, 3);
+    m_opcodes[0x15] = Opcode(ORA, ZeroPageX, 2, 4);
+    m_opcodes[0x0D] = Opcode(ORA, Absolute,  3, 4);
+    m_opcodes[0x1D] = Opcode(ORA, AbsoluteX, 3, 4);
+    m_opcodes[0x19] = Opcode(ORA, AbsoluteY, 3, 4);
+    m_opcodes[0x01] = Opcode(ORA, IndexedIndirect, 2, 6);
+    m_opcodes[0x11] = Opcode(ORA, IndirectIndexed, 2, 5);
 
     // Clear flags
-    m_opcodes[0x18] = Opcode(InstructionName::CLC, AddressingType::Implicit, 1, 2);
+    m_opcodes[0x18] = Opcode(CLC, Implicit, 1, 2);
 
-    m_opcodes[0xD8] = Opcode(InstructionName::CLD, AddressingType::Implicit, 1, 2);
+    m_opcodes[0xD8] = Opcode(CLD, Implicit, 1, 2);
 
-    m_opcodes[0x58] = Opcode(InstructionName::CLI, AddressingType::Implicit, 1, 2);
+    m_opcodes[0x58] = Opcode(CLI, Implicit, 1, 2);
 
-    m_opcodes[0xB8] = Opcode(InstructionName::CLV, AddressingType::Implicit, 1, 2);
+    m_opcodes[0xB8] = Opcode(CLV, Implicit, 1, 2);
 
-    m_opcodes[0x38] = Opcode(InstructionName::SEC, AddressingType::Implicit, 1, 2);
+    m_opcodes[0x38] = Opcode(SEC, Implicit, 1, 2);
 
-    m_opcodes[0xF8] = Opcode(InstructionName::SED, AddressingType::Implicit, 1, 2);
+    m_opcodes[0xF8] = Opcode(SED, Implicit, 1, 2);
 
-    m_opcodes[0x78] = Opcode(InstructionName::SEI, AddressingType::Implicit, 1, 2);
+    m_opcodes[0x78] = Opcode(SEI, Implicit, 1, 2);
 
     // Arithmetic
-    m_opcodes[0x69] = Opcode(InstructionName::ADC, AddressingType::Immediate, 2, 2);
-    m_opcodes[0x65] = Opcode(InstructionName::ADC, AddressingType::ZeroPage,  2, 3);
-    m_opcodes[0x75] = Opcode(InstructionName::ADC, AddressingType::ZeroPageX, 2, 4);
-    m_opcodes[0x6D] = Opcode(InstructionName::ADC, AddressingType::Absolute,  3, 4);
-    m_opcodes[0x7D] = Opcode(InstructionName::ADC, AddressingType::AbsoluteX, 3, 4);
-    m_opcodes[0x79] = Opcode(InstructionName::ADC, AddressingType::AbsoluteY, 3, 4);
-    m_opcodes[0x61] = Opcode(InstructionName::ADC, AddressingType::IndexedIndirect, 2, 6);
-    m_opcodes[0x71] = Opcode(InstructionName::ADC, AddressingType::IndirectIndexed, 2, 5);
+    m_opcodes[0x69] = Opcode(ADC, Immediate, 2, 2);
+    m_opcodes[0x65] = Opcode(ADC, ZeroPage,  2, 3);
+    m_opcodes[0x75] = Opcode(ADC, ZeroPageX, 2, 4);
+    m_opcodes[0x6D] = Opcode(ADC, Absolute,  3, 4);
+    m_opcodes[0x7D] = Opcode(ADC, AbsoluteX, 3, 4);
+    m_opcodes[0x79] = Opcode(ADC, AbsoluteY, 3, 4);
+    m_opcodes[0x61] = Opcode(ADC, IndexedIndirect, 2, 6);
+    m_opcodes[0x71] = Opcode(ADC, IndirectIndexed, 2, 5);
 
-    m_opcodes[0xE9] = Opcode(InstructionName::SBC, AddressingType::Immediate, 2, 2);
-    m_opcodes[0xE5] = Opcode(InstructionName::SBC, AddressingType::ZeroPage,  2, 3);
-    m_opcodes[0xF5] = Opcode(InstructionName::SBC, AddressingType::ZeroPageX, 2, 4);
-    m_opcodes[0xED] = Opcode(InstructionName::SBC, AddressingType::Absolute,  3, 4);
-    m_opcodes[0xFD] = Opcode(InstructionName::SBC, AddressingType::AbsoluteX, 3, 4);
-    m_opcodes[0xF9] = Opcode(InstructionName::SBC, AddressingType::AbsoluteY, 3, 4);
-    m_opcodes[0xE1] = Opcode(InstructionName::SBC, AddressingType::IndexedIndirect, 2, 6);
-    m_opcodes[0xF1] = Opcode(InstructionName::SBC, AddressingType::IndirectIndexed, 2, 5);
+    m_opcodes[0xE9] = Opcode(SBC, Immediate, 2, 2);
+    m_opcodes[0xE5] = Opcode(SBC, ZeroPage,  2, 3);
+    m_opcodes[0xF5] = Opcode(SBC, ZeroPageX, 2, 4);
+    m_opcodes[0xED] = Opcode(SBC, Absolute,  3, 4);
+    m_opcodes[0xFD] = Opcode(SBC, AbsoluteX, 3, 4);
+    m_opcodes[0xF9] = Opcode(SBC, AbsoluteY, 3, 4);
+    m_opcodes[0xE1] = Opcode(SBC, IndexedIndirect, 2, 6);
+    m_opcodes[0xF1] = Opcode(SBC, IndirectIndexed, 2, 5);
 
-    m_opcodes[0xC6] = Opcode(InstructionName::DEC, AddressingType::ZeroPage,  2, 5);
-    m_opcodes[0xD6] = Opcode(InstructionName::DEC, AddressingType::ZeroPageX, 2, 6);
-    m_opcodes[0xCE] = Opcode(InstructionName::DEC, AddressingType::Absolute,  3, 6);
-    m_opcodes[0xDE] = Opcode(InstructionName::DEC, AddressingType::AbsoluteX, 3, 7);
+    m_opcodes[0xC6] = Opcode(DEC, ZeroPage,  2, 5);
+    m_opcodes[0xD6] = Opcode(DEC, ZeroPageX, 2, 6);
+    m_opcodes[0xCE] = Opcode(DEC, Absolute,  3, 6);
+    m_opcodes[0xDE] = Opcode(DEC, AbsoluteX, 3, 7);
 
-    m_opcodes[0xCA] = Opcode(InstructionName::DEX, AddressingType::Implicit, 1, 2);
+    m_opcodes[0xCA] = Opcode(DEX, Implicit, 1, 2);
 
-    m_opcodes[0x88] = Opcode(InstructionName::DEY, AddressingType::Implicit, 1, 2);
+    m_opcodes[0x88] = Opcode(DEY, Implicit, 1, 2);
 
-    m_opcodes[0xE6] = Opcode(InstructionName::INC, AddressingType::ZeroPage,  2, 5);
-    m_opcodes[0xF6] = Opcode(InstructionName::INC, AddressingType::ZeroPageX, 2, 6);
-    m_opcodes[0xEE] = Opcode(InstructionName::INC, AddressingType::Absolute,  3, 6);
-    m_opcodes[0xFE] = Opcode(InstructionName::INC, AddressingType::AbsoluteX, 3, 7);
+    m_opcodes[0xE6] = Opcode(INC, ZeroPage,  2, 5);
+    m_opcodes[0xF6] = Opcode(INC, ZeroPageX, 2, 6);
+    m_opcodes[0xEE] = Opcode(INC, Absolute,  3, 6);
+    m_opcodes[0xFE] = Opcode(INC, AbsoluteX, 3, 7);
 
-    m_opcodes[0xE8] = Opcode(InstructionName::INX, AddressingType::Implicit, 1, 2);
+    m_opcodes[0xE8] = Opcode(INX, Implicit, 1, 2);
 
-    m_opcodes[0xC8] = Opcode(InstructionName::INY, AddressingType::Implicit, 1, 2);
+    m_opcodes[0xC8] = Opcode(INY, Implicit, 1, 2);
 
     // Branch
-    m_opcodes[0x90] = Opcode(InstructionName::BCC, AddressingType::Relative, 2, 2);
-    m_opcodes[0xB0] = Opcode(InstructionName::BCS, AddressingType::Relative, 2, 2);
-    m_opcodes[0xF0] = Opcode(InstructionName::BEQ, AddressingType::Relative, 2, 2);
-    m_opcodes[0x30] = Opcode(InstructionName::BMI, AddressingType::Relative, 2, 2);
-    m_opcodes[0xD0] = Opcode(InstructionName::BNE, AddressingType::Relative, 2, 2);
-    m_opcodes[0x10] = Opcode(InstructionName::BPL, AddressingType::Relative, 2, 2);
-    m_opcodes[0x50] = Opcode(InstructionName::BVC, AddressingType::Relative, 2, 2);
-    m_opcodes[0x70] = Opcode(InstructionName::BVS, AddressingType::Relative, 2, 2);
+    m_opcodes[0x90] = Opcode(BCC, Relative, 2, 2);
+    m_opcodes[0xB0] = Opcode(BCS, Relative, 2, 2);
+    m_opcodes[0xF0] = Opcode(BEQ, Relative, 2, 2);
+    m_opcodes[0x30] = Opcode(BMI, Relative, 2, 2);
+    m_opcodes[0xD0] = Opcode(BNE, Relative, 2, 2);
+    m_opcodes[0x10] = Opcode(BPL, Relative, 2, 2);
+    m_opcodes[0x50] = Opcode(BVC, Relative, 2, 2);
+    m_opcodes[0x70] = Opcode(BVS, Relative, 2, 2);
 
     // Comparisons
-    m_opcodes[0xC9] = Opcode(InstructionName::CMP, AddressingType::Immediate, 2, 2);
-    m_opcodes[0xC5] = Opcode(InstructionName::CMP, AddressingType::ZeroPage,  2, 3);
-    m_opcodes[0xD5] = Opcode(InstructionName::CMP, AddressingType::ZeroPageX, 2, 4);
-    m_opcodes[0xCD] = Opcode(InstructionName::CMP, AddressingType::Absolute,  3, 4);
-    m_opcodes[0xDD] = Opcode(InstructionName::CMP, AddressingType::AbsoluteX, 3, 4);
-    m_opcodes[0xD9] = Opcode(InstructionName::CMP, AddressingType::AbsoluteY, 3, 4);
-    m_opcodes[0xC1] = Opcode(InstructionName::CMP, AddressingType::IndexedIndirect, 2, 6);
-    m_opcodes[0xD1] = Opcode(InstructionName::CMP, AddressingType::IndirectIndexed, 2, 5);
+    m_opcodes[0xC9] = Opcode(CMP, Immediate, 2, 2);
+    m_opcodes[0xC5] = Opcode(CMP, ZeroPage,  2, 3);
+    m_opcodes[0xD5] = Opcode(CMP, ZeroPageX, 2, 4);
+    m_opcodes[0xCD] = Opcode(CMP, Absolute,  3, 4);
+    m_opcodes[0xDD] = Opcode(CMP, AbsoluteX, 3, 4);
+    m_opcodes[0xD9] = Opcode(CMP, AbsoluteY, 3, 4);
+    m_opcodes[0xC1] = Opcode(CMP, IndexedIndirect, 2, 6);
+    m_opcodes[0xD1] = Opcode(CMP, IndirectIndexed, 2, 5);
 
-    m_opcodes[0xE0] = Opcode(InstructionName::CPX, AddressingType::Immediate, 2, 2);
-    m_opcodes[0xE4] = Opcode(InstructionName::CPX, AddressingType::ZeroPage,  2, 3);
-    m_opcodes[0xEC] = Opcode(InstructionName::CPX, AddressingType::Absolute,  3, 4);
+    m_opcodes[0xE0] = Opcode(CPX, Immediate, 2, 2);
+    m_opcodes[0xE4] = Opcode(CPX, ZeroPage,  2, 3);
+    m_opcodes[0xEC] = Opcode(CPX, Absolute,  3, 4);
 
-    m_opcodes[0xC0] = Opcode(InstructionName::CPY, AddressingType::Immediate, 2, 2);
-    m_opcodes[0xC4] = Opcode(InstructionName::CPY, AddressingType::ZeroPage,  2, 3);
-    m_opcodes[0xCC] = Opcode(InstructionName::CPY, AddressingType::Absolute,  3, 4);
+    m_opcodes[0xC0] = Opcode(CPY, Immediate, 2, 2);
+    m_opcodes[0xC4] = Opcode(CPY, ZeroPage,  2, 3);
+    m_opcodes[0xCC] = Opcode(CPY, Absolute,  3, 4);
 
     // Stack
-//    m_opcodes[0x00] = Opcode(InstructionName::BRK, AddressingType::Implicit, 1, 7);
-    m_opcodes[0x48] = Opcode(InstructionName::PHA, AddressingType::Implicit, 1, 3);
+//    m_opcodes[0x00] = Opcode(BRK, Implicit, 1, 7);
+    m_opcodes[0x48] = Opcode(PHA, Implicit, 1, 3);
 
-    m_opcodes[0x68] = Opcode(InstructionName::PLA, AddressingType::Implicit, 1, 4);
+    m_opcodes[0x68] = Opcode(PLA, Implicit, 1, 4);
 
-    m_opcodes[0x08] = Opcode(InstructionName::PHP, AddressingType::Implicit, 1, 3);
+    m_opcodes[0x08] = Opcode(PHP, Implicit, 1, 3);
 
-    m_opcodes[0x28] = Opcode(InstructionName::PLP, AddressingType::Implicit, 1, 4);
+    m_opcodes[0x28] = Opcode(PLP, Implicit, 1, 4);
 
     // Memory
-    m_opcodes[0xA2] = Opcode(InstructionName::LDX, AddressingType::Immediate, 2, 2);
-    m_opcodes[0xA6] = Opcode(InstructionName::LDX, AddressingType::ZeroPage,  2, 3);
-    m_opcodes[0xB6] = Opcode(InstructionName::LDX, AddressingType::ZeroPageY, 2, 4);
-    m_opcodes[0xAE] = Opcode(InstructionName::LDX, AddressingType::Absolute,  3, 4);
-    m_opcodes[0xBE] = Opcode(InstructionName::LDX, AddressingType::AbsoluteY, 3, 4);
+    m_opcodes[0xA2] = Opcode(LDX, Immediate, 2, 2);
+    m_opcodes[0xA6] = Opcode(LDX, ZeroPage,  2, 3);
+    m_opcodes[0xB6] = Opcode(LDX, ZeroPageY, 2, 4);
+    m_opcodes[0xAE] = Opcode(LDX, Absolute,  3, 4);
+    m_opcodes[0xBE] = Opcode(LDX, AbsoluteY, 3, 4);
 
-    m_opcodes[0xA0] = Opcode(InstructionName::LDY, AddressingType::Immediate, 2, 2);
-    m_opcodes[0xA4] = Opcode(InstructionName::LDY, AddressingType::ZeroPage,  2, 3);
-    m_opcodes[0xB4] = Opcode(InstructionName::LDY, AddressingType::ZeroPageY, 2, 4);
-    m_opcodes[0xAC] = Opcode(InstructionName::LDY, AddressingType::Absolute,  3, 4);
-    m_opcodes[0xBC] = Opcode(InstructionName::LDY, AddressingType::AbsoluteY, 3, 4);
+    m_opcodes[0xA0] = Opcode(LDY, Immediate, 2, 2);
+    m_opcodes[0xA4] = Opcode(LDY, ZeroPage,  2, 3);
+    m_opcodes[0xB4] = Opcode(LDY, ZeroPageY, 2, 4);
+    m_opcodes[0xAC] = Opcode(LDY, Absolute,  3, 4);
+    m_opcodes[0xBC] = Opcode(LDY, AbsoluteY, 3, 4);
 
-    m_opcodes[0xA9] = Opcode(InstructionName::LDA, AddressingType::Immediate, 2, 2);
-    m_opcodes[0xA5] = Opcode(InstructionName::LDA, AddressingType::ZeroPage, 2, 3);
-    m_opcodes[0xB5] = Opcode(InstructionName::LDA, AddressingType::ZeroPageX, 2, 4);
-    m_opcodes[0xAD] = Opcode(InstructionName::LDA, AddressingType::Absolute, 3, 4);
-    m_opcodes[0xBD] = Opcode(InstructionName::LDA, AddressingType::AbsoluteX, 3, 4);
-    m_opcodes[0xD9] = Opcode(InstructionName::LDA, AddressingType::AbsoluteY, 3, 4);
-    m_opcodes[0xA1] = Opcode(InstructionName::LDA, AddressingType::IndexedIndirect, 2, 6);
-    m_opcodes[0xB1] = Opcode(InstructionName::LDA, AddressingType::IndirectIndexed, 2, 5);
+    m_opcodes[0xA9] = Opcode(LDA, Immediate, 2, 2);
+    m_opcodes[0xA5] = Opcode(LDA, ZeroPage, 2, 3);
+    m_opcodes[0xB5] = Opcode(LDA, ZeroPageX, 2, 4);
+    m_opcodes[0xAD] = Opcode(LDA, Absolute, 3, 4);
+    m_opcodes[0xBD] = Opcode(LDA, AbsoluteX, 3, 4);
+    m_opcodes[0xD9] = Opcode(LDA, AbsoluteY, 3, 4);
+    m_opcodes[0xA1] = Opcode(LDA, IndexedIndirect, 2, 6);
+    m_opcodes[0xB1] = Opcode(LDA, IndirectIndexed, 2, 5);
 
-    m_opcodes[0x85] = Opcode(InstructionName::STA, AddressingType::ZeroPage,  2, 3);
-    m_opcodes[0x95] = Opcode(InstructionName::STA, AddressingType::ZeroPageX, 2, 4);
-    m_opcodes[0x8D] = Opcode(InstructionName::STA, AddressingType::Absolute,  3, 4);
-    m_opcodes[0x9D] = Opcode(InstructionName::STA, AddressingType::AbsoluteX, 3, 5);
-    m_opcodes[0x99] = Opcode(InstructionName::STA, AddressingType::AbsoluteY, 3, 5);
-    m_opcodes[0x81] = Opcode(InstructionName::STA, AddressingType::IndexedIndirect, 2, 6);
-    m_opcodes[0x91] = Opcode(InstructionName::STA, AddressingType::IndirectIndexed, 2, 6);
+    m_opcodes[0x85] = Opcode(STA, ZeroPage,  2, 3);
+    m_opcodes[0x95] = Opcode(STA, ZeroPageX, 2, 4);
+    m_opcodes[0x8D] = Opcode(STA, Absolute,  3, 4);
+    m_opcodes[0x9D] = Opcode(STA, AbsoluteX, 3, 5);
+    m_opcodes[0x99] = Opcode(STA, AbsoluteY, 3, 5);
+    m_opcodes[0x81] = Opcode(STA, IndexedIndirect, 2, 6);
+    m_opcodes[0x91] = Opcode(STA, IndirectIndexed, 2, 6);
 
-    m_opcodes[0x86] = Opcode(InstructionName::STX, AddressingType::ZeroPage,  2, 3);
-    m_opcodes[0x96] = Opcode(InstructionName::STX, AddressingType::ZeroPageY, 2, 4);
-    m_opcodes[0x8E] = Opcode(InstructionName::STX, AddressingType::Absolute,  3, 4);
+    m_opcodes[0x86] = Opcode(STX, ZeroPage,  2, 3);
+    m_opcodes[0x96] = Opcode(STX, ZeroPageY, 2, 4);
+    m_opcodes[0x8E] = Opcode(STX, Absolute,  3, 4);
 
-    m_opcodes[0x84] = Opcode(InstructionName::STY, AddressingType::ZeroPage,  2, 3);
-    m_opcodes[0x94] = Opcode(InstructionName::STY, AddressingType::ZeroPageX, 2, 4);
-    m_opcodes[0x8C] = Opcode(InstructionName::STY, AddressingType::Absolute,  3, 4);
+    m_opcodes[0x84] = Opcode(STY, ZeroPage,  2, 3);
+    m_opcodes[0x94] = Opcode(STY, ZeroPageX, 2, 4);
+    m_opcodes[0x8C] = Opcode(STY, Absolute,  3, 4);
 
-    m_opcodes[0xAA] = Opcode(InstructionName::TAX, AddressingType::Implicit, 1, 2);
+    m_opcodes[0xAA] = Opcode(TAX, Implicit, 1, 2);
 
-    m_opcodes[0xA8] = Opcode(InstructionName::TAY, AddressingType::Implicit, 1, 2);
+    m_opcodes[0xA8] = Opcode(TAY, Implicit, 1, 2);
 
-    m_opcodes[0xBA] = Opcode(InstructionName::TSX, AddressingType::Implicit, 1, 2);
+    m_opcodes[0xBA] = Opcode(TSX, Implicit, 1, 2);
 
-    m_opcodes[0x8A] = Opcode(InstructionName::TXA, AddressingType::Implicit, 1, 2);
+    m_opcodes[0x8A] = Opcode(TXA, Implicit, 1, 2);
 
-    m_opcodes[0x9A] = Opcode(InstructionName::TXS, AddressingType::Implicit, 1, 2);
+    m_opcodes[0x9A] = Opcode(TXS, Implicit, 1, 2);
 
-    m_opcodes[0x98] = Opcode(InstructionName::TYA, AddressingType::Implicit, 1, 2);
+    m_opcodes[0x98] = Opcode(TYA, Implicit, 1, 2);
 
     // Nop
-    m_opcodes[0x00] = Opcode(InstructionName::BRK, AddressingType::Implicit, 2, 7);
+    m_opcodes[0x00] = Opcode(BRK, Implicit, 2, 7);
 
-    m_opcodes[0xEA] = Opcode(InstructionName::NOP, AddressingType::Implicit, 1, 2);
+    m_opcodes[0xEA] = Opcode(NOP, Implicit, 1, 2);
 
-    m_opcodes[0x40] = Opcode(InstructionName::RTI, AddressingType::Implicit, 1, 6);
+    m_opcodes[0x40] = Opcode(RTI, Implicit, 1, 6);
 
     // Jump, Call
-    m_opcodes[0x4C] = Opcode(InstructionName::JMP, AddressingType::Absolute, 3, 3);
-    m_opcodes[0x6C] = Opcode(InstructionName::JMP, AddressingType::Indirect, 3, 5);
+    m_opcodes[0x4C] = Opcode(JMP, Absolute, 3, 3);
+    m_opcodes[0x6C] = Opcode(JMP, Indirect, 3, 5);
 
-    m_opcodes[0x20] = Opcode(InstructionName::JSR, AddressingType::Absolute, 3, 6);
+    m_opcodes[0x20] = Opcode(JSR, Absolute, 3, 6);
 
-    m_opcodes[0x60] = Opcode(InstructionName::RTS, AddressingType::Implicit, 1, 6);
+    m_opcodes[0x60] = Opcode(RTS, Implicit, 1, 6);
 }
 
-address_t Cpu::BuildAddress(const AddressingType & type) const {
+address_t Cpu::BuildAddress(const Addressing::Type & type) const {
     switch (type) {
-        case AddressingType::Immediate: {
+        case Immediate: {
             return { PC + 1, false };
         }
-        case AddressingType::ZeroPage: {
+        case ZeroPage: {
             return { Memory.GetByteAt(PC + 1), false };
         }
-        case AddressingType::ZeroPageX: {
+        case ZeroPageX: {
             return { Memory.GetByteAt(PC + 1) + X, false };
         }
-        case AddressingType::ZeroPageY: {
+        case ZeroPageY: {
             return { Memory.GetByteAt(PC + 1) + Y, false };
         }
-        case AddressingType::Absolute: {
+        case Absolute: {
             return { Memory.GetWordAt(PC + 1), false };
         }
-        case AddressingType::AbsoluteX: {
+        case AbsoluteX: {
             const auto address = Memory.GetWordAt(PC + 1) + X;
             return { address, (X > (address & BYTE_MASK)) };
         }
-        case AddressingType::AbsoluteY: {
+        case AbsoluteY: {
             const auto address = Memory.GetWordAt(PC + 1) + Y;
             return { address, (Y > (address & BYTE_MASK)) };
         }
-        case AddressingType::IndexedIndirect: {
+        case IndexedIndirect: {
             return { Memory.GetWordAt(Memory.GetByteAt(PC + 1) + X), false };
         }
-        case AddressingType::IndirectIndexed: {
+        case IndirectIndexed: {
             const auto base = Memory.GetWordAt(Memory.GetByteAt(PC + 1)) + Y;
             return { Memory.GetWordAt(base), (Y > (base & BYTE_MASK)) };
         }
-        case AddressingType::Indirect: {
+        case Indirect: {
             const Word base = Memory.GetWordAt(PC + 1);
             const Word lo = base;
             const Word hi = (base & WORD_HI_MASK) | ((base + 1) & WORD_LO_MASK);
@@ -302,7 +304,7 @@ void Cpu::Compare(const Byte lhs, const Byte rhs) {
 }
 void Cpu::BranchIf(const bool condition, const Opcode & op) {
     const auto basePC = PC;
-    const auto M = Memory.GetByteAt(BuildAddress(AddressingType::Immediate).Address);
+    const auto M = Memory.GetByteAt(BuildAddress(Immediate).Address);
     if (condition) {
         Word offset = Bit<Neg>(M) * WORD_HI_MASK | M;
         PC = (PC + offset) & WORD_MASK;
@@ -355,7 +357,7 @@ void Cpu::Interrupt(const Flag & isSoft,
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
-        case InstructionName::BRK: {
+        case BRK: {
             PC += op.Bytes;
             if (I == 0) {
                 Interrupt(1, PC, VectorIRQ);
@@ -363,181 +365,181 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             }
             break;
         }
-        case InstructionName::JMP: {
+        case JMP: {
             PC = BuildAddress(op.Addressing).Address;
             Ticks += op.Cycles;
             break;
         }
-        case InstructionName::JSR: {
+        case JSR: {
             PushWord(PC + 2);
             PC = BuildAddress(op.Addressing).Address;
             Ticks += op.Cycles;
             break;
         }
-        case InstructionName::RTS: {
+        case RTS: {
             PC = PullWord() + 1;
             Ticks += op.Cycles;
             break;
         }
-        case InstructionName::RTI: {
+        case RTI: {
             SetStatus(Pull());
             PC = PullWord();
             Ticks += op.Cycles;
             break;
         }
-        case InstructionName::PLP: {
+        case PLP: {
             SetStatus(Pull());
 //            B = 0;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::PHP: {
+        case PHP: {
             B = 1;
             Push(GetStatus());
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::PHA: {
+        case PHA: {
             Push(A);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::PLA: {
+        case PLA: {
             Transfer(Pull(), A);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::LDA: {
+        case LDA: {
             const auto a = BuildAddress(op.Addressing);
             Transfer(Memory.GetByteAt(a.Address), A);
             if (a.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::LDX: {
+        case LDX: {
             const auto a = BuildAddress(op.Addressing);
             Transfer(Memory.GetByteAt(a.Address), X);
             if (a.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::LDY: {
+        case LDY: {
             const auto a = BuildAddress(op.Addressing);
             Transfer(Memory.GetByteAt(a.Address), Y);
             if (a.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::EOR: {
+        case EOR: {
             const auto a = BuildAddress(op.Addressing);
             Transfer(A ^ Memory.GetByteAt(a.Address), A);
             if (a.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::ORA: {
+        case ORA: {
             const auto a = BuildAddress(op.Addressing);
             Transfer(A | Memory.GetByteAt(a.Address), A);
             if (a.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::CMP: {
+        case CMP: {
             const auto a = BuildAddress(op.Addressing);
             Compare(A, Memory.GetByteAt(a.Address));
             if (a.HasCrossedPage) ++Ticks;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::CPX: {
+        case CPX: {
             Compare(X, Memory.GetByteAt(BuildAddress(op.Addressing).Address));
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::CPY: {
+        case CPY: {
             Compare(Y, Memory.GetByteAt(BuildAddress(op.Addressing).Address));
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::TAX: {
+        case TAX: {
             Transfer(A, X);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::TAY: {
+        case TAY: {
             Transfer(A, Y);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::TSX: {
+        case TSX: {
             Transfer(SP, X);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::TXA: {
+        case TXA: {
             Transfer(X, A);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::TXS: {
+        case TXS: {
             // TXS does not change the flags
             SP = X;
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::TYA: {
+        case TYA: {
             Transfer(Y, A);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::STA: {
+        case STA: {
             Memory.SetByteAt(BuildAddress(op.Addressing).Address, A);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::STX: {
+        case STX: {
             Memory.SetByteAt(BuildAddress(op.Addressing).Address, X);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::STY: {
+        case STY: {
             Memory.SetByteAt(BuildAddress(op.Addressing).Address, Y);
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::BCC: {
+        case BCC: {
             BranchIf(C == 0, op);
             break;
         }
-        case InstructionName::BCS: {
+        case BCS: {
             BranchIf(C == 1, op);
             break;
         }
-        case InstructionName::BEQ: {
+        case BEQ: {
             BranchIf(Z == 1, op);
             break;
         }
-        case InstructionName::BMI: {
+        case BMI: {
             BranchIf(N == 1, op);
             break;
         }
-        case InstructionName::BNE: {
+        case BNE: {
             BranchIf(Z == 0, op);
             break;
         }
-        case InstructionName::BPL: {
+        case BPL: {
             BranchIf(N == 0, op);
             break;
         }
-        case InstructionName::BVC: {
+        case BVC: {
             BranchIf(V == 0, op);
             break;
         }
-        case InstructionName::BVS: {
+        case BVS: {
             BranchIf(V == 1, op);
             break;
         }
-        case InstructionName::ADC: {
+        case ADC: {
             const auto aa = BuildAddress(op.Addressing);
             const auto M = Memory.GetByteAt(aa.Address);
             Word a = A + M + C;
@@ -548,7 +550,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::SBC: {
+        case SBC: {
             const auto aa = BuildAddress(op.Addressing);
             const auto M = Memory.GetByteAt(aa.Address);
             Word a = A - M - (1 - C);
@@ -559,8 +561,8 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::ASL: {
-            if (op.Addressing == AddressingType::Accumulator) {
+        case ASL: {
+            if (op.Addressing == Accumulator) {
                 C = Bit<Left>(A);
                 Transfer(A << 1, A);
             } else {
@@ -572,8 +574,8 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             }
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::LSR: {
-            if (op.Addressing == AddressingType::Accumulator) {
+        case LSR: {
+            if (op.Addressing == Accumulator) {
                 C = Bit<Right>(A);
                 Transfer(A >> 1, A);
             } else {
@@ -585,8 +587,8 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             }
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::ROL: {
-            if (op.Addressing == AddressingType::Accumulator) {
+        case ROL: {
+            if (op.Addressing == Accumulator) {
                 const auto c = Bit<Left>(A);
                 Transfer((A << 1) | Mask<Right>(C), A);
                 C = c;
@@ -600,8 +602,8 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             }
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::ROR: {
-            if (op.Addressing == AddressingType::Accumulator) {
+        case ROR: {
+            if (op.Addressing == Accumulator) {
                 const auto c = Bit<Right>(A);
                 Transfer((A >> 1) | Mask<Left>(C), A);
                 C = c;
@@ -615,7 +617,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             }
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::AND: {
+        case AND: {
             const auto a = BuildAddress(op.Addressing);
             const auto M = Memory.GetByteAt(a.Address);
             Transfer(A & M, A);
@@ -623,42 +625,42 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::BIT: {
+        case BIT: {
             const auto mask = Memory.GetByteAt(BuildAddress(op.Addressing).Address);
             Z = (mask & A) == 0 ? 1 : 0;
             V = Bit<Ovf>(mask);
             N = Bit<Neg>(mask);
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::CLC: {
+        case CLC: {
             C = 0;
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::CLD: {
+        case CLD: {
             D = 0;
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::CLI: {
+        case CLI: {
             I = 0;
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::CLV: {
+        case CLV: {
             V = 0;
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::SEC: {
+        case SEC: {
             C = 1;
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::SED: {
+        case SED: {
             D = 1;
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::SEI: {
+        case SEI: {
             I = 1;
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::DEC: {
+        case DEC: {
             const auto address = BuildAddress(op.Addressing).Address;
             auto M = Memory.GetByteAt(address);
             Decrement(M);
@@ -666,15 +668,15 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::DEX: {
+        case DEX: {
             Decrement(X);
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::DEY: {
+        case DEY: {
             Decrement(Y);
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::INC: {
+        case INC: {
             const auto address = BuildAddress(op.Addressing).Address;
             auto M = Memory.GetByteAt(address);
             Increment(M);
@@ -682,18 +684,18 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             PC += op.Bytes; Ticks += op.Cycles;
             break;
         }
-        case InstructionName::INX: {
+        case INX: {
             Increment(X);
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::INY: {
+        case INY: {
             Increment(Y);
             PC += op.Bytes; Ticks += op.Cycles; break;
         }
-        case InstructionName::NOP: { PC += op.Bytes; Ticks += op.Cycles; break; }
+        case NOP: { PC += op.Bytes; Ticks += op.Cycles; break; }
 
         default:
-        case InstructionName::UNK:
+        case UNK:
             break;
     }
 }
