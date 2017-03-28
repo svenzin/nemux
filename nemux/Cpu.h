@@ -116,6 +116,7 @@ public:
     int Ticks;
     int InterruptCycles;
 
+    Opcode Decode(const Byte &byte) const;
     address_t BuildAddress(const Addressing::Type & type) const;
     void Execute(const Opcode &op);//, const std::vector<Byte> &data);
 

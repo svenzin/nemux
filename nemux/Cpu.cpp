@@ -186,16 +186,16 @@ template <size_t bit> Byte Mask(const Flag & value = Flag{1}) {
 
     m_opcodes[0xA0] = Opcode(LDY, Immediate, 2, 2);
     m_opcodes[0xA4] = Opcode(LDY, ZeroPage,  2, 3);
-    m_opcodes[0xB4] = Opcode(LDY, ZeroPageY, 2, 4);
+    m_opcodes[0xB4] = Opcode(LDY, ZeroPageX, 2, 4);
     m_opcodes[0xAC] = Opcode(LDY, Absolute,  3, 4);
-    m_opcodes[0xBC] = Opcode(LDY, AbsoluteY, 3, 4);
+    m_opcodes[0xBC] = Opcode(LDY, AbsoluteX, 3, 4);
 
     m_opcodes[0xA9] = Opcode(LDA, Immediate, 2, 2);
     m_opcodes[0xA5] = Opcode(LDA, ZeroPage, 2, 3);
     m_opcodes[0xB5] = Opcode(LDA, ZeroPageX, 2, 4);
     m_opcodes[0xAD] = Opcode(LDA, Absolute, 3, 4);
     m_opcodes[0xBD] = Opcode(LDA, AbsoluteX, 3, 4);
-    m_opcodes[0xD9] = Opcode(LDA, AbsoluteY, 3, 4);
+    m_opcodes[0xB9] = Opcode(LDA, AbsoluteY, 3, 4);
     m_opcodes[0xA1] = Opcode(LDA, IndexedIndirect, 2, 6);
     m_opcodes[0xB1] = Opcode(LDA, IndirectIndexed, 2, 5);
 
@@ -243,6 +243,12 @@ template <size_t bit> Byte Mask(const Flag & value = Flag{1}) {
     m_opcodes[0x60] = Opcode(RTS, Implicit, 1, 6);
 }
 
+Opcode Cpu::Decode(const Byte &byte) const {
+    if (0 <= byte && byte < OPCODES_COUNT)
+        return m_opcodes[byte];
+    return Opcode(UNK, Unknown, 0, 0);
+}
+
 address_t Cpu::BuildAddress(const Addressing::Type & type) const {
     switch (type) {
         case Immediate: {
@@ -252,10 +258,10 @@ address_t Cpu::BuildAddress(const Addressing::Type & type) const {
             return { Memory.GetByteAt(PC + 1), false };
         }
         case ZeroPageX: {
-            return { Memory.GetByteAt(PC + 1) + X, false };
+            return { static_cast<Word>(Memory.GetByteAt(PC + 1) + X), false };
         }
         case ZeroPageY: {
-            return { Memory.GetByteAt(PC + 1) + Y, false };
+            return { static_cast<Word>(Memory.GetByteAt(PC + 1) + Y), false };
         }
         case Absolute: {
             return { Memory.GetWordAt(PC + 1), false };
@@ -279,9 +285,10 @@ address_t Cpu::BuildAddress(const Addressing::Type & type) const {
             const Word base = Memory.GetWordAt(PC + 1);
             const Word lo = base;
             const Word hi = (base & WORD_HI_MASK) | ((base + 1) & WORD_LO_MASK);
-            return { Memory.GetByteAt(hi) << BYTE_WIDTH | Memory.GetByteAt(lo), false };
+			const Word addr = Memory.GetByteAt(hi) << BYTE_WIDTH | Memory.GetByteAt(lo);
+            return { addr, false };
         }
-        default: return { -1, false };
+        default: return { Word(-1), false };
     }
 }
 
