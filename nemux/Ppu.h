@@ -1,0 +1,66 @@
+/*
+* Cpu.h
+*
+*  Created on: 03 Apr 2017
+*      Author: scorder
+*/
+
+#ifndef PPU_H_
+#define PPU_H_
+
+#include "Types.h"
+
+typedef Byte Flag;
+
+template <size_t bit> Flag Bit(const Byte & value) {
+    return (value >> bit) & 0x01;
+}
+
+template <size_t bit> bool IsBitSet(const Byte & value) {
+    return Bit<bit>(value) == 1;
+}
+
+template <size_t bit> bool IsBitClear(const Byte & value) {
+    return !IsBitSet<bit>(value);
+}
+
+class Ppu {
+public:
+    void WriteControl1(Byte value) {
+        const auto bank = (value & 0x03);
+        NameTable = 0x2000 + (bank * 0x0400);
+
+        AddressIncrement = IsBitSet<2>(value) ? 0x0020 : 0x0001;
+        SpriteTable      = IsBitSet<3>(value) ? 0x1000 : 0x0000;
+        BackgroundTable  = IsBitSet<4>(value) ? 0x1000 : 0x0000;
+        SpriteHeight     = IsBitSet<5>(value) ?     16 :      8;
+        //Mode             = IsBitSet<6>(value) ? Master :  Slave;
+        NMIOnVBlank      = Bit<7>(value);
+    }
+
+    void WriteControl2(Byte value) {
+        IsColour       = IsBitClear<0>(value);
+        ClipBackground = IsBitClear<1>(value);
+        ClipSprite     = IsBitClear<2>(value);
+        ShowBackground = IsBitSet<3>(value);
+        ShowSprite     = IsBitSet<4>(value);
+        ColourIntensity = ((value >> 5) & 0x07);
+    }
+
+    bool IsColour;
+    bool ClipBackground;
+    bool ClipSprite;
+    bool ShowBackground;
+    bool ShowSprite;
+    Byte ColourIntensity;
+
+    int SpriteHeight;
+    
+    Word NameTable;
+    Word SpriteTable;
+    Word BackgroundTable;
+    Word AddressIncrement;
+    Flag NMIOnVBlank;
+};
+
+#endif /* PPU_H_ */
