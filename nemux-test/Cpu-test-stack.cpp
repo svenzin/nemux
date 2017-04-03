@@ -109,24 +109,24 @@ TEST_F(CpuTestStack, PHP_FlagB) {
     EXPECT_EQ(0xEF, cpu.SP);
 }
 
-//TEST_F(CpuTestStack, PLP_FlagB) {
-//    const auto op = Opcode(PLP, Implicit, 1, 4);
-//    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-//
-//    cpu.B = 1;
-//    cpu.StackPage = 0x0100;
-//    cpu.SP = 0xEF;
-//    cpu.Memory.SetByteAt(0x01F0, 0xFF);
-//
-//    cpu.PC = BASE_PC;
-//    cpu.Ticks = BASE_TICKS;
-//    cpu.Execute(op);
-//
-//    EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
-//    EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
-//    EXPECT_EQ(0xF0, cpu.SP);
-//    EXPECT_EQ(0, cpu.B);
-//}
+TEST_F(CpuTestStack, PLP_FlagB) {
+    const auto op = Opcode(PLP, Implicit, 1, 4);
+    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+
+    cpu.B = 1;
+    cpu.StackPage = 0x0100;
+    cpu.SP = 0xEF;
+    cpu.Memory.SetByteAt(0x01F0, 0xFF);
+
+    cpu.PC = BASE_PC;
+    cpu.Ticks = BASE_TICKS;
+    cpu.Execute(op);
+
+    EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+    EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+    EXPECT_EQ(0xF0, cpu.SP);
+    EXPECT_EQ(0, cpu.B);
+}
 
 TEST_F(CpuTestStack, PHA) {
     const auto op = Opcode(PHA, Implicit, 1, 3);
