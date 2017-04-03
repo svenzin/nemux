@@ -117,3 +117,31 @@ TEST_F(PpuTest, WriteCtrl2_Intensity) {
         EXPECT_EQ(b, ppu.ColourIntensity);
     }
 }
+
+TEST_F(PpuTest, ReadStatus_IgnoreVramWrites) {
+    ppu.IgnoreVramWrites = false;
+    EXPECT_EQ(0x00, ppu.ReadStatus() & 0x10);
+    ppu.IgnoreVramWrites = true;
+    EXPECT_EQ(0x10, ppu.ReadStatus() & 0x10);
+}
+
+TEST_F(PpuTest, ReadStatus_SpriteOverflow) {
+    ppu.SpriteOverflow = false;
+    EXPECT_EQ(0x00, ppu.ReadStatus() & 0x20);
+    ppu.SpriteOverflow = true;
+    EXPECT_EQ(0x20, ppu.ReadStatus() & 0x20);
+}
+
+TEST_F(PpuTest, ReadStatus_SpriteZeroHit) {
+    ppu.SpriteZeroHit = false;
+    EXPECT_EQ(0x00, ppu.ReadStatus() & 0x40);
+    ppu.SpriteZeroHit = true;
+    EXPECT_EQ(0x40, ppu.ReadStatus() & 0x40);
+}
+
+TEST_F(PpuTest, ReadStatus_VBlank) {
+    ppu.VBlank = false;
+    EXPECT_EQ(0x00, ppu.ReadStatus() & 0x80);
+    ppu.VBlank = true;
+    EXPECT_EQ(0x80, ppu.ReadStatus() & 0x80);
+}

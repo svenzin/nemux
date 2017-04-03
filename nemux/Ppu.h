@@ -12,6 +12,10 @@
 
 typedef Byte Flag;
 
+template <size_t bit> Byte Mask(const bool & isset) {
+    return isset ? 0x01 << bit : 0x00;
+}
+
 template <size_t bit> Flag Bit(const Byte & value) {
     return (value >> bit) & 0x01;
 }
@@ -46,6 +50,18 @@ public:
         ShowSprite     = IsBitSet<4>(value);
         ColourIntensity = ((value >> 5) & 0x07);
     }
+
+    Byte ReadStatus() const {
+        return Mask<4>(IgnoreVramWrites)
+            | Mask<5>(SpriteOverflow)
+            | Mask<6>(SpriteZeroHit)
+            | Mask<7>(VBlank);
+    }
+
+    bool IgnoreVramWrites;
+    bool SpriteOverflow;
+    bool SpriteZeroHit;
+    bool VBlank;
 
     bool IsColour;
     bool ClipBackground;
