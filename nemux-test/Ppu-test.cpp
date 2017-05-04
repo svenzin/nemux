@@ -167,4 +167,56 @@ TEST_F(PpuTest, PowerUpState) {
     EXPECT_EQ(true, ppu.SpriteOverflow);
     EXPECT_EQ(false, ppu.SpriteZeroHit);
     EXPECT_EQ(true, ppu.VBlank);
+
+    // OAM address
+    EXPECT_EQ(0x00, ppu.OAMAddress);
+}
+
+TEST_F(PpuTest, WriteOAMAdress) {
+    ppu.WriteOAMAddress(0x00);
+    EXPECT_EQ(0x00, ppu.OAMAddress);
+
+    ppu.WriteOAMAddress(0xA5);
+    EXPECT_EQ(0xA5, ppu.OAMAddress);
+}
+
+TEST_F(PpuTest, ReadWriteOAM_SingleData) {
+    ppu.WriteOAMAddress(0xA5);
+    ppu.WriteOAMData(0xBE);
+    
+    ppu.WriteOAMAddress(0xA5);
+    EXPECT_EQ(0xBE, ppu.ReadOAMData());
+}
+
+TEST_F(PpuTest, ReadWriteOAM_IncreaseAddressOnWrite) {
+    ppu.WriteOAMAddress(0xA5);
+    ppu.WriteOAMData(0xBE);
+    ppu.WriteOAMData(0xEF);
+
+    ppu.WriteOAMAddress(0xA5);
+    EXPECT_EQ(0xBE, ppu.ReadOAMData());
+    ppu.WriteOAMAddress(0xA6);
+    EXPECT_EQ(0xEF, ppu.ReadOAMData());
+}
+
+TEST_F(PpuTest, ReadWriteOAM_DontIncreaseAddressOnRead) {
+    ppu.WriteOAMAddress(0xA5);
+    ppu.WriteOAMData(0xBE);
+    ppu.WriteOAMData(0xEF);
+
+    ppu.WriteOAMAddress(0xA5);
+    EXPECT_EQ(0xBE, ppu.ReadOAMData());
+    EXPECT_EQ(0xBE, ppu.ReadOAMData());
+}
+
+TEST_F(PpuTest, ReadWriteOAM_WrapAroundOnWrite) {
+    ppu.WriteOAMAddress(0xFF);
+    ppu.WriteOAMData(0xBE);
+    ppu.WriteOAMData(0xEF);
+
+    ppu.WriteOAMAddress(0xFF);
+    EXPECT_EQ(0xBE, ppu.ReadOAMData());
+    ppu.WriteOAMAddress(0x00);
+    EXPECT_EQ(0xEF, ppu.ReadOAMData());
+}
 }

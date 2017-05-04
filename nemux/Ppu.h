@@ -10,6 +10,8 @@
 
 #include "Types.h"
 
+#include <array>
+
 typedef Byte Flag;
 
 template <size_t bit> Byte Mask(const bool & isset) {
@@ -58,7 +60,21 @@ public:
             | Mask<7>(VBlank);
     }
 
+    void WriteOAMAddress(Byte value) {
+        OAMAddress = value;
+    }
+
+    Byte ReadOAMData() const {
+        return SprRam[OAMAddress];
+    }
+
+    void WriteOAMData(Byte value) {
+        SprRam[OAMAddress] = value;
+        ++OAMAddress;
+    }
     explicit Ppu() {
+        OAMAddress = 0x00;
+
         //IgnoreVramWrites;
         SpriteOverflow = true;
         SpriteZeroHit = false;
@@ -79,6 +95,9 @@ public:
         AddressIncrement = 0x0001;
         NMIOnVBlank = 0;
     }
+
+    std::array<Byte, 0x0100> SprRam;
+    Byte OAMAddress;
 
     bool IgnoreVramWrites;
     bool SpriteOverflow;
