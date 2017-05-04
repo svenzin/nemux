@@ -53,7 +53,8 @@ public:
         ColourIntensity = ((value >> 5) & 0x07);
     }
 
-    Byte ReadStatus() const {
+    Byte ReadStatus() {
+        Latch.Reset();
         return Mask<4>(IgnoreVramWrites)
             | Mask<5>(SpriteOverflow)
             | Mask<6>(SpriteZeroHit)
@@ -72,6 +73,16 @@ public:
         SprRam[OAMAddress] = value;
         ++OAMAddress;
     }
+
+    void WriteScroll(Byte value) {
+        if (Latch) {
+            ScrollX = value;
+        } else {
+            ScrollY = value;
+        }
+        Latch.Step();
+    }
+
     explicit Ppu() {
         OAMAddress = 0x00;
 
@@ -94,7 +105,17 @@ public:
         BackgroundTable = 0x0000;
         AddressIncrement = 0x0001;
         NMIOnVBlank = 0;
+
+        ScrollX = 0x00;
+        ScrollY = 0x00;
     }
+
+    struct {
+        bool Status = true;
+        operator bool() const { return Status; }
+        void Reset() { Status = true; }
+        void Step() { Status = !Status; }
+    } Latch;
 
     std::array<Byte, 0x0100> SprRam;
     Byte OAMAddress;
@@ -118,6 +139,9 @@ public:
     Word BackgroundTable;
     Word AddressIncrement;
     Flag NMIOnVBlank;
+
+    Byte ScrollX;
+    Byte ScrollY;
 };
 
 #endif /* PPU_H_ */

@@ -170,6 +170,10 @@ TEST_F(PpuTest, PowerUpState) {
 
     // OAM address
     EXPECT_EQ(0x00, ppu.OAMAddress);
+
+    // Scroll
+    EXPECT_EQ(0x00, ppu.ScrollX);
+    EXPECT_EQ(0x00, ppu.ScrollY);
 }
 
 TEST_F(PpuTest, WriteOAMAdress) {
@@ -218,5 +222,38 @@ TEST_F(PpuTest, ReadWriteOAM_WrapAroundOnWrite) {
     EXPECT_EQ(0xBE, ppu.ReadOAMData());
     ppu.WriteOAMAddress(0x00);
     EXPECT_EQ(0xEF, ppu.ReadOAMData());
+}
+
+TEST_F(PpuTest, WriteScroll_XandY) {
+    ppu.WriteScroll(0xAB);
+    EXPECT_EQ(0xAB, ppu.ScrollX);
+
+    ppu.WriteScroll(0xCD);
+    EXPECT_EQ(0xCD, ppu.ScrollY);
+}
+
+TEST_F(PpuTest, WriteScroll_FlipFlop) {
+    ppu.WriteScroll(0xAB);
+    ppu.WriteScroll(0xCD);
+    EXPECT_EQ(0xAB, ppu.ScrollX);
+    EXPECT_EQ(0xCD, ppu.ScrollY);
+
+    ppu.WriteScroll(0x21);
+    ppu.WriteScroll(0x84);
+    EXPECT_EQ(0x21, ppu.ScrollX);
+    EXPECT_EQ(0x84, ppu.ScrollY);
+}
+
+TEST_F(PpuTest, WriteScroll_ResetLatch) {
+    ppu.WriteScroll(0xAB);
+    ppu.WriteScroll(0xCD);
+    EXPECT_EQ(0xAB, ppu.ScrollX);
+    EXPECT_EQ(0xCD, ppu.ScrollY);
+
+    ppu.WriteScroll(0x21);
+    ppu.ReadStatus();
+    ppu.WriteScroll(0x84);
+    EXPECT_EQ(0x84, ppu.ScrollX);
+    EXPECT_EQ(0xCD, ppu.ScrollY);
 }
 }
