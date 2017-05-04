@@ -145,3 +145,26 @@ TEST_F(PpuTest, ReadStatus_VBlank) {
     ppu.VBlank = true;
     EXPECT_EQ(0x80, ppu.ReadStatus() & 0x80);
 }
+
+TEST_F(PpuTest, PowerUpState) {
+    // Ctrl1
+    EXPECT_EQ(0x2000, ppu.NameTable);
+    EXPECT_EQ(0x0001, ppu.AddressIncrement);
+    EXPECT_EQ(0x0000, ppu.SpriteTable);
+    EXPECT_EQ(0x0000, ppu.BackgroundTable);
+    EXPECT_EQ(8, ppu.SpriteHeight);
+    EXPECT_EQ(Flag(0), ppu.NMIOnVBlank);
+    
+    // Ctrl2
+    EXPECT_EQ(true, ppu.IsColour);
+    EXPECT_EQ(true, ppu.ClipBackground);
+    EXPECT_EQ(true, ppu.ClipSprite);
+    EXPECT_EQ(false, ppu.ShowBackground);
+    EXPECT_EQ(false, ppu.ShowSprite);
+    EXPECT_EQ(0, ppu.ColourIntensity);
+    
+    // Status
+    EXPECT_EQ(true, ppu.SpriteOverflow);
+    EXPECT_EQ(false, ppu.SpriteZeroHit);
+    EXPECT_EQ(true, ppu.VBlank);
+}

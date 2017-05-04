@@ -58,6 +58,28 @@ public:
             | Mask<7>(VBlank);
     }
 
+    explicit Ppu() {
+        //IgnoreVramWrites;
+        SpriteOverflow = true;
+        SpriteZeroHit = false;
+        VBlank = true;
+
+        IsColour = true;
+        ClipBackground = true;
+        ClipSprite = true;
+        ShowBackground = false;
+        ShowSprite = false;
+        ColourIntensity = 0x00;
+
+        SpriteHeight = 8;
+
+        NameTable = 0x2000;
+        SpriteTable = 0x0000;
+        BackgroundTable = 0x0000;
+        AddressIncrement = 0x0001;
+        NMIOnVBlank = 0;
+    }
+
     bool IgnoreVramWrites;
     bool SpriteOverflow;
     bool SpriteZeroHit;
