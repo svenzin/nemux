@@ -174,6 +174,9 @@ TEST_F(PpuTest, PowerUpState) {
     // Scroll
     EXPECT_EQ(0x00, ppu.ScrollX);
     EXPECT_EQ(0x00, ppu.ScrollY);
+
+    // Address
+    EXPECT_EQ(0x0000, ppu.Address);
 }
 
 TEST_F(PpuTest, WriteOAMAdress) {
@@ -256,4 +259,48 @@ TEST_F(PpuTest, WriteScroll_ResetLatch) {
     EXPECT_EQ(0x84, ppu.ScrollX);
     EXPECT_EQ(0xCD, ppu.ScrollY);
 }
+
+TEST_F(PpuTest, WriteAddress_Address) {
+    ppu.WriteAddress(0x12);
+    ppu.WriteAddress(0x34);
+    EXPECT_EQ(0x1234, ppu.Address);
+}
+
+TEST_F(PpuTest, WriteAddress_FlipFlop) {
+    ppu.WriteAddress(0x12);
+    ppu.WriteAddress(0x34);
+    EXPECT_EQ(0x1234, ppu.Address);
+
+    ppu.WriteAddress(0x01);
+    ppu.WriteAddress(0x23);
+    EXPECT_EQ(0x0123, ppu.Address);
+}
+
+TEST_F(PpuTest, WriteAddress_ResetLatch) {
+    ppu.WriteAddress(0x12);
+    ppu.WriteAddress(0x34);
+    EXPECT_EQ(0x1234, ppu.Address);
+
+    ppu.WriteAddress(0x01);
+    ppu.ReadStatus();
+    ppu.WriteAddress(0x23);
+    EXPECT_EQ(0x2334, ppu.Address);
+}
+
+TEST_F(PpuTest, WriteAddress_Mirroring) {
+    ppu.WriteAddress(0x12);
+    ppu.WriteAddress(0x34);
+    EXPECT_EQ(0x1234, ppu.Address);
+
+    ppu.WriteAddress(0x52);
+    ppu.WriteAddress(0x34);
+    EXPECT_EQ(0x1234, ppu.Address);
+
+    ppu.WriteAddress(0x92);
+    ppu.WriteAddress(0x34);
+    EXPECT_EQ(0x1234, ppu.Address);
+
+    ppu.WriteAddress(0xD2);
+    ppu.WriteAddress(0x34);
+    EXPECT_EQ(0x1234, ppu.Address);
 }

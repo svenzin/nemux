@@ -83,6 +83,17 @@ public:
         Latch.Step();
     }
 
+    void WriteAddress(Byte value) {
+        if (Latch) {
+            Address = ((Address & WORD_LO_MASK)
+                      | (value << BYTE_WIDTH)
+                      & 0x3FFF);
+        } else {
+            Address = (Address & WORD_HI_MASK) | value;
+        }
+        Latch.Step();
+    }
+
     explicit Ppu() {
         OAMAddress = 0x00;
 
@@ -108,6 +119,8 @@ public:
 
         ScrollX = 0x00;
         ScrollY = 0x00;
+
+        Address = 0x0000;
     }
 
     struct {
@@ -142,6 +155,8 @@ public:
 
     Byte ScrollX;
     Byte ScrollY;
+
+    Word Address;
 };
 
 #endif /* PPU_H_ */
