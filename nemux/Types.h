@@ -13,6 +13,8 @@
 typedef uint_fast8_t  Byte;
 typedef uint_fast16_t Word;
 
+typedef Byte Flag;
+
 #define BYTE_WIDTH      8
 #define BYTE_MASK       0xFF
 #define WORD_MASK       0xFFFF

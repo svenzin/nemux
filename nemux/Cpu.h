@@ -16,8 +16,6 @@
 
 static const auto OPCODES_COUNT = 0x0100;
 
-typedef Byte Flag;
-
 namespace Instructions {
 enum Name {
     LDA, LDX, LDY, STA, STX, STY,           // Load, Store
@@ -89,6 +87,9 @@ struct address_t {
 
 class Cpu {
 public:
+    Word ReadWordAt(const Word address) const;
+    void WriteWordAt(const Word address, const Word value);
+
     explicit Cpu(std::string name);
 
     std::string Name;

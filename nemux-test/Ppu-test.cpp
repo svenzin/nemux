@@ -177,6 +177,7 @@ TEST_F(PpuTest, PowerUpState) {
 
     // Address
     EXPECT_EQ(0x0000, ppu.Address);
+    EXPECT_EQ(0x00, ppu.ReadData());
 }
 
 TEST_F(PpuTest, WriteOAMAdress) {
@@ -303,4 +304,109 @@ TEST_F(PpuTest, WriteAddress_Mirroring) {
     ppu.WriteAddress(0xD2);
     ppu.WriteAddress(0x34);
     EXPECT_EQ(0x1234, ppu.Address);
+}
+
+TEST_F(PpuTest, ReadData_IncrementAddress) {
+    ppu.WriteControl1(0x00);
+    ppu.WriteAddress(0x12);
+    ppu.WriteAddress(0x34);
+    ppu.ReadData();
+    EXPECT_EQ(0x1234 + 1, ppu.Address);
+
+    ppu.WriteControl1(0x04);
+    ppu.WriteAddress(0x12);
+    ppu.WriteAddress(0x34);
+    ppu.ReadData();
+    EXPECT_EQ(0x1234 + 32, ppu.Address);
+}
+
+TEST_F(PpuTest, ReadData_IncrementAddress_Mirroring) {
+    ppu.WriteControl1(0x00);
+    ppu.WriteAddress(0x3F);
+    ppu.WriteAddress(0xFF);
+    ppu.ReadData();
+    EXPECT_EQ(0x0000, ppu.Address);
+
+    ppu.WriteControl1(0x04);
+    ppu.WriteAddress(0x3F);
+    ppu.WriteAddress(0xFF);
+    ppu.ReadData();
+    EXPECT_EQ(0x001F, ppu.Address);
+}
+
+TEST_F(PpuTest, WriteData_IncrementAddress) {
+    ppu.WriteControl1(0x00);
+    ppu.WriteAddress(0x12);
+    ppu.WriteAddress(0x34);
+    ppu.WriteData(0x00);
+    EXPECT_EQ(0x1234 + 1, ppu.Address);
+
+    ppu.WriteControl1(0x04);
+    ppu.WriteAddress(0x12);
+    ppu.WriteAddress(0x34);
+    ppu.WriteData(0x00);
+    EXPECT_EQ(0x1234 + 32, ppu.Address);
+}
+
+TEST_F(PpuTest, WriteData_IncrementAddress_Mirroring) {
+    ppu.WriteControl1(0x00);
+    ppu.WriteAddress(0x3F);
+    ppu.WriteAddress(0xFF);
+    ppu.WriteData(0x00);
+    EXPECT_EQ(0x0000, ppu.Address);
+
+    ppu.WriteControl1(0x04);
+    ppu.WriteAddress(0x3F);
+    ppu.WriteAddress(0xFF);
+    ppu.WriteData(0x00);
+    EXPECT_EQ(0x001F, ppu.Address);
+}
+
+TEST_F(PpuTest, ReadData_ReadBuffer) {
+    ppu.WriteAddress(0x10);
+    ppu.WriteAddress(0x00);
+    ppu.WriteData(0xA5);
+    ppu.WriteData(0xAA);
+
+    // At power up, the buffer is 0x00 (already tested)
+    // When reading, the buffer is returned
+    // and re-filled with the data at the current address.
+    // Then the address is increased
+    ppu.WriteAddress(0x10);
+    ppu.WriteAddress(0x00);
+    ppu.ReadData(); // Expected to be 0x00
+    EXPECT_EQ(0x1001, ppu.Address);
+    EXPECT_EQ(0xA5, ppu.ReadData());
+    EXPECT_EQ(0x1002, ppu.Address);
+    EXPECT_EQ(0xAA, ppu.ReadData());
+    EXPECT_EQ(0x1003, ppu.Address);
+}
+
+TEST_F(PpuTest, ReadData_ReadBufferOnHighAddress) {
+    ppu.WriteAddress(0x2F);
+    ppu.WriteAddress(0x00);
+    ppu.WriteData(0xBE);
+    
+    ppu.WriteAddress(0x3F);
+    ppu.WriteAddress(0x00);
+    ppu.WriteData(0xA5);
+    ppu.WriteData(0xAA);
+
+    // At power up, the buffer is 0x00 (already tested)
+    // When reading in addresses > 0x3EFF, the data in memory is returned
+    ppu.WriteAddress(0x3F);
+    ppu.WriteAddress(0x00);
+    EXPECT_EQ(0xA5, ppu.ReadData());
+    EXPECT_EQ(0x3F01, ppu.Address);
+    EXPECT_EQ(0xAA, ppu.ReadData());
+    EXPECT_EQ(0x3F02, ppu.Address);
+
+    // The buffer is still filled based on mirrored-down address
+    ppu.WriteAddress(0x3F);
+    ppu.WriteAddress(0x00);
+    EXPECT_EQ(0xA5, ppu.ReadData());
+    EXPECT_EQ(0x3F01, ppu.Address);
+    ppu.WriteAddress(0x00);
+    ppu.WriteAddress(0x00);
+    EXPECT_EQ(0xBE, ppu.ReadData());
 }

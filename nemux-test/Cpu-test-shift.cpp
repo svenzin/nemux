@@ -179,7 +179,7 @@ TEST_F(CpuTestShift, ASL_ZeroPageX) {
 
 TEST_F(CpuTestShift, ASL_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
 
     Test_ASL(
         [&]              { return cpu.Memory.GetByteAt(0x0120); },
@@ -189,7 +189,7 @@ TEST_F(CpuTestShift, ASL_Absolute) {
 
 TEST_F(CpuTestShift, ASL_AbsoluteX) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
 
     Test_ASL(
@@ -220,14 +220,14 @@ TEST_F(CpuTestShift, LSR_ZeroPageX) {
 
 TEST_F(CpuTestShift, LSR_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     Test_LSR(Getter(0x0120), Setter(0x0120),
              Opcode(LSR, Absolute, 3, 6));
 }
 
 TEST_F(CpuTestShift, LSR_AbsoluteX) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
     Test_LSR(Getter(0x0128), Setter(0x0128),
              Opcode(LSR, AbsoluteX, 3, 7));
@@ -255,14 +255,14 @@ TEST_F(CpuTestShift, ROL_ZeroPageX) {
 
 TEST_F(CpuTestShift, ROL_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     Test_ROL(Getter(0x0120), Setter(0x0120),
              Opcode(ROL, Absolute, 3, 6));
 }
 
 TEST_F(CpuTestShift, ROL_AbsoluteX) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
     Test_ROL(Getter(0x0128), Setter(0x0128),
              Opcode(ROL, AbsoluteX, 3, 7));
@@ -290,14 +290,14 @@ TEST_F(CpuTestShift, ROR_ZeroPageX) {
 
 TEST_F(CpuTestShift, ROR_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     Test_ROR(Getter(0x0120), Setter(0x0120),
              Opcode(ROR, Absolute, 3, 6));
 }
 
 TEST_F(CpuTestShift, ROR_AbsoluteX) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
     Test_ROR(Getter(0x0128), Setter(0x0128),
              Opcode(ROR, AbsoluteX, 3, 7));

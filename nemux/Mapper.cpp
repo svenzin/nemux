@@ -25,12 +25,3 @@ Byte Mapper::GetByteAt(const Word address) const {
 void Mapper::SetByteAt(const Word address, Byte value) {
     m_memory.at(address) = value;
 }
-
-Word Mapper::GetWordAt(const Word address) const {
-    return m_memory.at(address) + (m_memory.at(address + 1) << BYTE_WIDTH);
-}
-
-void Mapper::SetWordAt(const Word address, Word value) {
-    m_memory.at(address) = value & BYTE_MASK;
-    m_memory.at(address + 1) = (value & WORD_MASK) >> BYTE_WIDTH;
-}

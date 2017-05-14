@@ -9,26 +9,10 @@
 #define PPU_H_
 
 #include "Types.h"
+#include "BitUtil.h"
+#include "Palette.h"
 
 #include <array>
-
-typedef Byte Flag;
-
-template <size_t bit> Byte Mask(const bool & isset) {
-    return isset ? 0x01 << bit : 0x00;
-}
-
-template <size_t bit> Flag Bit(const Byte & value) {
-    return (value >> bit) & 0x01;
-}
-
-template <size_t bit> bool IsBitSet(const Byte & value) {
-    return Bit<bit>(value) == 1;
-}
-
-template <size_t bit> bool IsBitClear(const Byte & value) {
-    return !IsBitSet<bit>(value);
-}
 
 class Ppu {
 public:
@@ -91,7 +75,29 @@ public:
         } else {
             Address = (Address & WORD_HI_MASK) | value;
         }
-        Latch.Step();
+         Latch.Step();
+    }
+
+    Byte ReadData() {
+        Byte data;
+        if (Address >= 0x3F00) {
+            data = PpuPalette.ReadAt(Address - 0x3F00);
+            ReadDataBuffer = Data[Address & 0x2FFF];
+        } else {
+            data = ReadDataBuffer;
+            ReadDataBuffer = Data[Address];
+        }
+        Address = (Address + AddressIncrement) & 0x3FFF;
+        return data;
+    }
+
+    void WriteData(Byte value) {
+        if (Address >= 0x3F00) {
+            PpuPalette.WriteAt(Address - 0x3F00, value);
+        } else {
+            Data[Address] = value;
+        }
+        Address = (Address + AddressIncrement) & 0x3FFF;
     }
 
     explicit Ppu() {
@@ -121,6 +127,7 @@ public:
         ScrollY = 0x00;
 
         Address = 0x0000;
+        ReadDataBuffer = 0x00;
     }
 
     struct {
@@ -157,6 +164,11 @@ public:
     Byte ScrollY;
 
     Word Address;
+
+    std::array<Byte, 0x3F00> Data;
+    Byte ReadDataBuffer;
+
+    Palette PpuPalette;
 };
 
 #endif /* PPU_H_ */

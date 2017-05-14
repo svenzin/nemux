@@ -51,7 +51,7 @@ TEST_F(CpuTestJumpCall, JMP_Absolute) {
     auto op = Opcode(JMP, Absolute, 3, 3);
 
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
 
     cpu.PC = BASE_PC;
     cpu.Ticks = BASE_TICKS;
@@ -65,8 +65,8 @@ TEST_F(CpuTestJumpCall, JMP_Indirect) {
     auto op = Opcode(JMP, Indirect, 3, 5);
 
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
-    cpu.Memory.SetWordAt(0x0120, 0x0200);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(0x0120, 0x0200);
 
     cpu.PC = BASE_PC;
     cpu.Ticks = BASE_TICKS;
@@ -80,7 +80,7 @@ TEST_F(CpuTestJumpCall, JMP_Indirect_Bug) {
     auto op = Opcode(JMP, Indirect, 3, 5);
 
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x01FF);
+    cpu.WriteWordAt(BASE_PC + 1, 0x01FF);
     cpu.Memory.SetByteAt(0x01FF, 0xF0);
     cpu.Memory.SetByteAt(0x0200, 0x02);
     cpu.Memory.SetByteAt(0x0100, 0x01);
@@ -97,7 +97,7 @@ TEST_F(CpuTestJumpCall, JSR) {
     auto op = Opcode(JSR, Absolute, 3, 6);
 
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.StackPage = 0x100;
     cpu.SP = 0xF0;
 

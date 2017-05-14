@@ -6,6 +6,8 @@
  */
 #include "Cpu.h"
 
+#include "BitUtil.h"
+
 #include <iomanip>
 #include <sstream>
 #include <iostream>
@@ -14,11 +16,15 @@ using namespace std;
 using namespace Instructions;
 using namespace Addressing;
 
-template <size_t bit> Flag Bit(const Byte & value) {
-    return (value >> bit) & 0x01;
+Word Cpu::ReadWordAt(const Word address) const {
+    const auto lo = Memory.GetByteAt(address);
+    const auto hi = Memory.GetByteAt(address + 1);
+    return (hi << BYTE_WIDTH) + lo;
 }
-template <size_t bit> Byte Mask(const Flag & value = Flag{1}) {
-    return value << bit;
+
+void Cpu::WriteWordAt(const Word address, const Word value) {
+    Memory.SetByteAt(address, value & BYTE_MASK);
+    Memory.SetByteAt(address + 1, (value >> BYTE_WIDTH) & BYTE_MASK);
 }
 
 /* explicit */ Cpu::Cpu(std::string name)
@@ -264,25 +270,25 @@ address_t Cpu::BuildAddress(const Addressing::Type & type) const {
             return { static_cast<Word>(Memory.GetByteAt(PC + 1) + Y), false };
         }
         case Absolute: {
-            return { Memory.GetWordAt(PC + 1), false };
+            return { ReadWordAt(PC + 1), false };
         }
         case AbsoluteX: {
-            const auto address = Memory.GetWordAt(PC + 1) + X;
+            const auto address = ReadWordAt(PC + 1) + X;
             return { address, (X > (address & BYTE_MASK)) };
         }
         case AbsoluteY: {
-            const auto address = Memory.GetWordAt(PC + 1) + Y;
+            const auto address = ReadWordAt(PC + 1) + Y;
             return { address, (Y > (address & BYTE_MASK)) };
         }
         case IndexedIndirect: {
-            return { Memory.GetWordAt(Memory.GetByteAt(PC + 1) + X), false };
+            return { ReadWordAt(Memory.GetByteAt(PC + 1) + X), false };
         }
         case IndirectIndexed: {
-            const auto base = Memory.GetWordAt(Memory.GetByteAt(PC + 1)) + Y;
-            return { Memory.GetWordAt(base), (Y > (base & BYTE_MASK)) };
+            const auto base = ReadWordAt(Memory.GetByteAt(PC + 1)) + Y;
+            return { ReadWordAt(base), (Y > (base & BYTE_MASK)) };
         }
         case Indirect: {
-            const Word base = Memory.GetWordAt(PC + 1);
+            const Word base = ReadWordAt(PC + 1);
             const Word lo = base;
             const Word hi = (base & WORD_HI_MASK) | ((base + 1) & WORD_LO_MASK);
 			const Word addr = Memory.GetByteAt(hi) << BYTE_WIDTH | Memory.GetByteAt(lo);
@@ -360,7 +366,7 @@ void Cpu::Interrupt(const Flag & isSoft,
     PushWord(returnAddress);
     Push(GetStatus());
     I = 1;
-    PC = Memory.GetWordAt(vector);
+    PC = ReadWordAt(vector);
     Ticks += InterruptCycles;
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {

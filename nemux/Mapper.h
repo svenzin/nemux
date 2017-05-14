@@ -27,9 +27,6 @@ public:
     Byte GetByteAt(const Word address) const;
     void SetByteAt(const Word address, Byte value);
 
-    Word GetWordAt(const Word address) const;
-    void SetWordAt(const Word address, Word value);
-
 private:
     Buffer m_memory;
 };

@@ -51,30 +51,3 @@ TEST(MapperTest, GetByteOutOfRange) {
     EXPECT_THROW(m.GetByteAt(-1), out_of_range);
     EXPECT_THROW(m.GetByteAt(12), out_of_range);
 }
-
-TEST(MapperTest, SetGetWord) {
-    Mapper m("MyBuffer", 12);
-    Word w;
-    EXPECT_NO_THROW(w = m.GetWordAt(3) + 1);
-    EXPECT_NO_THROW(m.SetWordAt(3, w));
-    EXPECT_EQ(w, m.GetWordAt(3));
-}
-
-TEST(MapperTest, SetWordOutOfRange) {
-    Mapper m("MyBuffer", 12);
-    EXPECT_THROW(m.SetWordAt(-1, 0), out_of_range);
-    EXPECT_THROW(m.SetWordAt(11, 0), out_of_range);
-}
-
-TEST(MapperTest, GetWordOutOfRange) {
-    Mapper m("MyBuffer", 12);
-    EXPECT_THROW(m.GetWordAt(-1), out_of_range);
-    EXPECT_THROW(m.GetWordAt(11), out_of_range);
-}
-
-TEST(MapperTest, LittleEndianWord) {
-    Mapper m("MyBuffer", 12);
-    m.SetWordAt(3, Word{0xBEEF});
-    EXPECT_EQ(Byte{0xEF}, m.GetByteAt(3));
-    EXPECT_EQ(Byte{0xBE}, m.GetByteAt(4));
-}

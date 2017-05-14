@@ -52,7 +52,7 @@ TEST_F(CpuTestSystem, BRK) {
     auto op = Opcode(BRK, Implicit, 2, 0);
 
     cpu.VectorIRQ = 0x0380;
-    cpu.Memory.SetWordAt(0x0380, 0x0120);
+    cpu.WriteWordAt(0x0380, 0x0120);
     cpu.StackPage = 0x0100;
     cpu.SP = 0xF0;
     cpu.SetStatus(0x00);
@@ -73,7 +73,7 @@ TEST_F(CpuTestSystem, BRK_FlagI) {
     auto op = Opcode(BRK, Implicit, 2, 7);
 
     cpu.VectorIRQ = 0x0380;
-    cpu.Memory.SetWordAt(0x0380, 0x0120);
+    cpu.WriteWordAt(0x0380, 0x0120);
     cpu.StackPage = 0x0100;
     cpu.SP = 0xF0;
     cpu.SetStatus(0x00);

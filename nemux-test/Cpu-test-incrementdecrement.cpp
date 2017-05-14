@@ -110,7 +110,7 @@ TEST_F(CpuTestIncrementDecrement, DEC_ZeroPageX) {
 
 TEST_F(CpuTestIncrementDecrement, DEC_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
 
     Test_DEC(Getter(0x0120), Setter(0x0120),
              Opcode(DEC, Absolute, 2, 6));
@@ -118,7 +118,7 @@ TEST_F(CpuTestIncrementDecrement, DEC_Absolute) {
 
 TEST_F(CpuTestIncrementDecrement, DEC_AbsoluteX) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
 
     Test_DEC(Getter(0x0128), Setter(0x0128),
@@ -155,7 +155,7 @@ TEST_F(CpuTestIncrementDecrement, INC_ZeroPageX) {
 
 TEST_F(CpuTestIncrementDecrement, INC_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
 
     Test_INC(Getter(0x0120), Setter(0x0120),
              Opcode(INC, Absolute, 2, 6));
@@ -163,7 +163,7 @@ TEST_F(CpuTestIncrementDecrement, INC_Absolute) {
 
 TEST_F(CpuTestIncrementDecrement, INC_AbsoluteX) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
 
     Test_INC(Getter(0x0128), Setter(0x0128),

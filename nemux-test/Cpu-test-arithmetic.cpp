@@ -158,7 +158,7 @@ TEST_F(CpuTestArithmetic, CPX_ZeroPage) {
 
 TEST_F(CpuTestArithmetic, CPX_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
 
     Test_Compare(Setter(cpu.X), Setter(0x0120),
         Opcode(CPX, Absolute, 3, 4), 0
@@ -184,7 +184,7 @@ TEST_F(CpuTestArithmetic, CPY_ZeroPage) {
 
 TEST_F(CpuTestArithmetic, CPY_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
 
     Test_Compare(Setter(cpu.Y), Setter(0x0120),
         Opcode(CPY, Absolute, 3, 4), 0
@@ -201,7 +201,7 @@ TEST_F(CpuTestArithmetic, CMP_Immediate) {
 
 TEST_F(CpuTestArithmetic, CMP_ZeroPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(BASE_PC + 1, 0x20);
 
     Test_Compare(Setter(cpu.A), Setter(0x0020),
         Opcode(CMP, ZeroPage, 2, 3), 0
@@ -210,7 +210,7 @@ TEST_F(CpuTestArithmetic, CMP_ZeroPage) {
 
 TEST_F(CpuTestArithmetic, CMP_ZeroPageX) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
 
     Test_Compare(Setter(cpu.A), Setter(0x0028),
@@ -220,7 +220,7 @@ TEST_F(CpuTestArithmetic, CMP_ZeroPageX) {
 
 TEST_F(CpuTestArithmetic, CMP_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
 
     Test_Compare(Setter(cpu.A), Setter(0x0120),
         Opcode(CMP, Absolute, 3, 4), 0
@@ -229,7 +229,7 @@ TEST_F(CpuTestArithmetic, CMP_Absolute) {
 
 TEST_F(CpuTestArithmetic, CMP_AbsoluteX) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
 
     Test_Compare(Setter(cpu.A), Setter(0x0128),
@@ -239,7 +239,7 @@ TEST_F(CpuTestArithmetic, CMP_AbsoluteX) {
 
 TEST_F(CpuTestArithmetic, CMP_AbsoluteX_CrossingPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0xF0;
 
     Test_Compare(Setter(cpu.A), Setter(0x0210),
@@ -249,7 +249,7 @@ TEST_F(CpuTestArithmetic, CMP_AbsoluteX_CrossingPage) {
 
 TEST_F(CpuTestArithmetic, CMP_AbsoluteY) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.Y = 0x08;
 
     Test_Compare(Setter(cpu.A), Setter(0x0128),
@@ -259,7 +259,7 @@ TEST_F(CpuTestArithmetic, CMP_AbsoluteY) {
 
 TEST_F(CpuTestArithmetic, CMP_AbsoluteY_CrossingPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.Y = 0xF0;
 
     Test_Compare(Setter(cpu.A), Setter(0x0210),
@@ -271,7 +271,7 @@ TEST_F(CpuTestArithmetic, CMP_IndexedIndirect) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
-    cpu.Memory.SetWordAt(0x28, 0x0120);
+    cpu.WriteWordAt(0x28, 0x0120);
 
     Test_Compare(Setter(cpu.A), Setter(0x0120),
         Opcode(CMP, IndexedIndirect, 2, 6), 0
@@ -281,9 +281,9 @@ TEST_F(CpuTestArithmetic, CMP_IndexedIndirect) {
 TEST_F(CpuTestArithmetic, CMP_IndirectIndexed) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
-    cpu.Memory.SetWordAt(0x20, 0x120);
+    cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0x08;
-    cpu.Memory.SetWordAt(0x0128, 0x0200);
+    cpu.WriteWordAt(0x0128, 0x0200);
 
     Test_Compare(Setter(cpu.A), Setter(0x0200),
         Opcode(CMP, IndirectIndexed, 2, 5), 0
@@ -293,9 +293,9 @@ TEST_F(CpuTestArithmetic, CMP_IndirectIndexed) {
 TEST_F(CpuTestArithmetic, CMP_IndirectIndexed_CrossingPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
-    cpu.Memory.SetWordAt(0x20, 0x120);
+    cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0xF0;
-    cpu.Memory.SetWordAt(0x0210, 0x0200);
+    cpu.WriteWordAt(0x0210, 0x0200);
 
     Test_Compare(Setter(cpu.A), Setter(0x0200),
         Opcode(CMP, IndirectIndexed, 2, 5), 1
@@ -331,7 +331,7 @@ TEST_F(CpuTestArithmetic, ADC_ZeroPageX) {
 
 TEST_F(CpuTestArithmetic, ADC_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
 
     Test_ADC(Setter(0x0120),
              Opcode(ADC, Absolute, 3, 4),
@@ -340,7 +340,7 @@ TEST_F(CpuTestArithmetic, ADC_Absolute) {
 
 TEST_F(CpuTestArithmetic, ADC_AbsoluteX) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
 
     Test_ADC(Setter(0x0128),
@@ -350,7 +350,7 @@ TEST_F(CpuTestArithmetic, ADC_AbsoluteX) {
 
 TEST_F(CpuTestArithmetic, ADC_AbsoluteX_CrossingPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0xF0;
 
     Test_ADC(Setter(0x0210),
@@ -360,7 +360,7 @@ TEST_F(CpuTestArithmetic, ADC_AbsoluteX_CrossingPage) {
 
 TEST_F(CpuTestArithmetic, ADC_AbsoluteY) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.Y = 0x08;
 
     Test_ADC(Setter(0x0128),
@@ -370,7 +370,7 @@ TEST_F(CpuTestArithmetic, ADC_AbsoluteY) {
 
 TEST_F(CpuTestArithmetic, ADC_AbsoluteY_CrossingPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.Y = 0xF0;
 
     Test_ADC(Setter(0x0210),
@@ -382,7 +382,7 @@ TEST_F(CpuTestArithmetic, ADC_IndexedIndirect) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
-    cpu.Memory.SetWordAt(0x28, 0x0120);
+    cpu.WriteWordAt(0x28, 0x0120);
 
     Test_ADC(Setter(0x0120),
              Opcode(ADC, IndexedIndirect, 2, 6),
@@ -393,9 +393,9 @@ TEST_F(CpuTestArithmetic, ADC_IndirectIndexed) {
     // Same page
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
-    cpu.Memory.SetWordAt(0x20, 0x120);
+    cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0x08;
-    cpu.Memory.SetWordAt(0x0128, 0x0200);
+    cpu.WriteWordAt(0x0128, 0x0200);
 
     Test_ADC(Setter(0x0200),
              Opcode(ADC, IndirectIndexed, 2, 5),
@@ -406,9 +406,9 @@ TEST_F(CpuTestArithmetic, ADC_IndirectIndexed_CrossingPage) {
     // Crossing page
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
-    cpu.Memory.SetWordAt(0x20, 0x120);
+    cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0xF0;
-    cpu.Memory.SetWordAt(0x0210, 0x0200);
+    cpu.WriteWordAt(0x0210, 0x0200);
 
     Test_ADC(Setter(0x0200),
              Opcode(ADC, IndirectIndexed, 2, 5),
@@ -442,7 +442,7 @@ TEST_F(CpuTestArithmetic, SBC_ZeroPageX) {
 
 TEST_F(CpuTestArithmetic, SBC_Absolute) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
 
     Test_SBC(Setter(0x0120),
              Opcode(SBC, Absolute, 3, 4), 0);
@@ -450,7 +450,7 @@ TEST_F(CpuTestArithmetic, SBC_Absolute) {
 
 TEST_F(CpuTestArithmetic, SBC_AbsoluteX) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
 
  Test_SBC(Setter(0x0128),
@@ -459,7 +459,7 @@ TEST_F(CpuTestArithmetic, SBC_AbsoluteX) {
 
 TEST_F(CpuTestArithmetic, SBC_AbsoluteX_CrossingPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0xF0;
 
     Test_SBC(Setter(0x0210),
@@ -468,7 +468,7 @@ TEST_F(CpuTestArithmetic, SBC_AbsoluteX_CrossingPage) {
 
 TEST_F(CpuTestArithmetic, SBC_AbsoluteY) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.Y = 0x08;
 
     Test_SBC(Setter(0x0128),
@@ -477,7 +477,7 @@ TEST_F(CpuTestArithmetic, SBC_AbsoluteY) {
 
 TEST_F(CpuTestArithmetic, SBC_AbsoluteY_CrossingPage) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
-    cpu.Memory.SetWordAt(BASE_PC + 1, 0x0120);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.Y = 0xF0;
 
     Test_SBC(Setter(0x0210),
@@ -488,7 +488,7 @@ TEST_F(CpuTestArithmetic, SBC_IndexedIndirect) {
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
-    cpu.Memory.SetWordAt(0x28, 0x0120);
+    cpu.WriteWordAt(0x28, 0x0120);
 
     Test_SBC(Setter(0x0120),
              Opcode(SBC, IndexedIndirect, 2, 6), 0);
@@ -498,9 +498,9 @@ TEST_F(CpuTestArithmetic, SBC_IndirectIndexed) {
     // Same page
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
-    cpu.Memory.SetWordAt(0x20, 0x120);
+    cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0x08;
-    cpu.Memory.SetWordAt(0x0128, 0x0200);
+    cpu.WriteWordAt(0x0128, 0x0200);
 
     Test_SBC(Setter(0x0200),
              Opcode(SBC, IndirectIndexed, 2, 5), 0);
@@ -510,9 +510,9 @@ TEST_F(CpuTestArithmetic, SBC_IndirectIndexed_CrossingPage) {
     // Crossing page
     cpu.Memory.SetByteAt(BASE_PC, 0xFF);
     cpu.Memory.SetByteAt(BASE_PC + 1, 0x20);
-    cpu.Memory.SetWordAt(0x20, 0x120);
+    cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0xF0;
-    cpu.Memory.SetWordAt(0x0210, 0x0200);
+    cpu.WriteWordAt(0x0210, 0x0200);
 
     Test_SBC(Setter(0x0200),
              Opcode(SBC, IndirectIndexed, 2, 5), 1);
