@@ -291,7 +291,7 @@ address_t Cpu::BuildAddress(const Addressing::Type & type) const {
             const Word base = ReadWordAt(PC + 1);
             const Word lo = base;
             const Word hi = (base & WORD_HI_MASK) | ((base + 1) & WORD_LO_MASK);
-			const Word addr = Memory.GetByteAt(hi) << BYTE_WIDTH | Memory.GetByteAt(lo);
+            const Word addr = Memory.GetByteAt(hi) << BYTE_WIDTH | Memory.GetByteAt(lo);
             return { addr, false };
         }
         default: return { Word(-1), false };

@@ -140,8 +140,6 @@ public:
     void SetStatus(const Byte & status);
     Byte GetStatus();
 
-    bool CrossedPage(const Opcode & op, const Word address);
-
     void Interrupt(const Flag & isSoft, const Word & returnAddress, const Word & vector);
 
 private:

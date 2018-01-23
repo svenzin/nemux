@@ -33,10 +33,6 @@ struct unsupported_format : public std::runtime_error {
 
 class NesFile {
 public:
-    explicit NesFile(const std::string & filepath)
-        : NesFile(std::ifstream(filepath, std::ios::binary))
-    {}
-    
     explicit NesFile(std::istream & input) : Header(input) {
         Validate(Header);
 
