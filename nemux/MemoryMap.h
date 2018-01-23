@@ -3,6 +3,7 @@
 
 #include "Types.h"
 #include "Ppu.h"
+#include "Palette.h"
 
 #include <array>
 
@@ -73,6 +74,39 @@ public:
 
         } else {
             Mapper->SetByteAt(address, value);
+        }
+    }
+};
+
+template <class Palette_t>
+class PpuMemoryMap : public MemoryMap {
+public:
+    //std::array<Byte, 0x0100> SprRam;
+    //std::array<Byte, 0x0800> Vram;
+    Palette_t * PpuPalette;
+    MemoryMap * Mapper;
+
+    PpuMemoryMap(Palette_t * palette, MemoryMap * mapper)
+        : PpuPalette(palette), Mapper(mapper)
+    {}
+
+    ~PpuMemoryMap() override {}
+
+    Byte GetByteAt(const Word address) const override {
+        if (address >= 0x3F00) {
+            return PpuPalette->ReadAt(address - 0x3F00);
+        }
+        else {
+            return Mapper->GetByteAt(address);
+        }
+    }
+
+    void SetByteAt(const Word address, const Byte value) override {
+        if (address >= 0x3F00) {
+            PpuPalette->WriteAt(address - 0x3F00, value);
+        }
+        else {
+            return Mapper->SetByteAt(address, value);
         }
     }
 };

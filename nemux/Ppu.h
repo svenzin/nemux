@@ -75,7 +75,7 @@ public:
         } else {
             Address = (Address & WORD_HI_MASK) | value;
         }
-         Latch.Step();
+        Latch.Step();
     }
 
     Byte ReadData() {
