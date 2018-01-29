@@ -247,6 +247,10 @@ void Cpu::WriteWordAt(const Word address, const Word value) {
     m_opcodes[0x20] = Opcode(JSR, Absolute, 3, 6);
 
     m_opcodes[0x60] = Opcode(RTS, Implicit, 1, 6);
+
+    // Power up state
+    SP = 0xFD;
+    SetStatus(0x34);
 }
 
 Opcode Cpu::Decode(const Byte &byte) const {

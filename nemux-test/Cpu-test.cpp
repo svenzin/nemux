@@ -117,3 +117,11 @@ TEST_F(CpuTest, Opcode_Addressing) {
 		EXPECT_EQ(opcodes[i], op.Addressing) << "Instruction 0x" << std::hex << i;
 	}
 }
+
+TEST_F(CpuTest, PowerUpState) {
+    EXPECT_EQ(0, cpu.A);
+    EXPECT_EQ(0, cpu.X);
+    EXPECT_EQ(0, cpu.Y);
+    EXPECT_EQ(0xFD, cpu.SP);
+    EXPECT_EQ(0x34, cpu.GetStatus());
+}
