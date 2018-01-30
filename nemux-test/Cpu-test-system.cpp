@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 
 #include "Cpu.h"
+#include "BitUtil.h"
 
 //#include <sstream>
 #include <vector>
@@ -47,6 +48,8 @@ public:
         return [=] () { return cpu.Memory.GetByteAt(a); };
     }
 };
+const Word CpuTestSystem::BASE_PC;
+const int CpuTestSystem::BASE_TICKS;
 
 TEST_F(CpuTestSystem, BRK) {
     auto op = Opcode(BRK, Implicit, 2, 0);
@@ -122,4 +125,64 @@ TEST_F(CpuTestSystem, RTI) {
 
     tester(0xFF, 1, 1, 1, 1, 1, 1, 1);
     tester(0x00, 0, 0, 0, 0, 0, 0, 0);
+}
+
+TEST_F(CpuTestSystem, Reset) {
+    cpu.VectorRST = 0x0380;
+    cpu.WriteWordAt(0x0380, 0x0120);
+    cpu.StackPage = 0x0100;
+    cpu.SP = 0xF0;
+    cpu.SetStatus(0xFF);
+
+    cpu.PC = BASE_PC;
+    cpu.Ticks = BASE_TICKS;
+    cpu.Reset();
+
+    EXPECT_EQ(0x0120, cpu.PC);
+    EXPECT_EQ(BASE_TICKS + cpu.InterruptCycles, cpu.Ticks);
+    EXPECT_EQ(0xED, cpu.SP);
+    EXPECT_EQ(0, cpu.B);
+    EXPECT_EQ(1, cpu.I);
+}
+
+TEST_F(CpuTestSystem, NMI) {
+    cpu.VectorNMI = 0x0380;
+    cpu.WriteWordAt(0x0380, 0x0120);
+    cpu.StackPage = 0x0100;
+    cpu.SP = 0xF0;
+    cpu.SetStatus(0xFF);
+
+    cpu.PC = BASE_PC;
+    cpu.Ticks = BASE_TICKS;
+    cpu.NMI();
+
+    EXPECT_EQ(0x0120, cpu.PC);
+    EXPECT_EQ(BASE_TICKS + cpu.InterruptCycles, cpu.Ticks);
+    EXPECT_EQ(0xED, cpu.SP);
+    EXPECT_EQ(0, cpu.B);
+    EXPECT_EQ(1, cpu.I);
+    const auto pushed_status = cpu.Pull();
+    EXPECT_TRUE(IsBitClear<Brk>(pushed_status));
+    EXPECT_EQ(BASE_PC, cpu.PullWord());
+}
+
+TEST_F(CpuTestSystem, IRQ) {
+    cpu.VectorIRQ = 0x0380;
+    cpu.WriteWordAt(0x0380, 0x0120);
+    cpu.StackPage = 0x0100;
+    cpu.SP = 0xF0;
+    cpu.SetStatus(0xFF);
+
+    cpu.PC = BASE_PC;
+    cpu.Ticks = BASE_TICKS;
+    cpu.IRQ();
+
+    EXPECT_EQ(0x0120, cpu.PC);
+    EXPECT_EQ(BASE_TICKS + cpu.InterruptCycles, cpu.Ticks);
+    EXPECT_EQ(0xED, cpu.SP);
+    EXPECT_EQ(0, cpu.B);
+    EXPECT_EQ(1, cpu.I);
+    const auto pushed_status = cpu.Pull();
+    EXPECT_TRUE(IsBitClear<Brk>(pushed_status));
+    EXPECT_EQ(BASE_PC, cpu.PullWord());
 }

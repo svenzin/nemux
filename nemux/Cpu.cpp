@@ -363,22 +363,29 @@ Byte Cpu::GetStatus() {
            Mask<Dec>(D)      | Mask<Int>(I) |
            Mask<Zer>(Z)      | Mask<Car>(C);
 }
-void Cpu::Interrupt(const Flag & isSoft,
-                    const Word & returnAddress,
-                    const Word & vector) {
-    B = isSoft;
-    PushWord(returnAddress);
-    Push(GetStatus());
+void Cpu::Interrupt(const Flag & isBRK,
+                    const Word & vector,
+                    const bool readOnly /*= false*/) {
+    B = isBRK;
+    if (readOnly) {
+        SP -= 3;
+    } else {
+        PushWord(PC);
+        Push(GetStatus());
+    }
     I = 1;
     PC = ReadWordAt(vector);
     Ticks += InterruptCycles;
 }
+void Cpu::Reset() { Interrupt(0, VectorRST, true); }
+void Cpu::NMI() { Interrupt(0, VectorNMI); }
+void Cpu::IRQ() { Interrupt(0, VectorIRQ); }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
         case BRK: {
             PC += op.Bytes;
             if (I == 0) {
-                Interrupt(1, PC, VectorIRQ);
+                Interrupt(1, VectorIRQ);
                 Ticks += op.Cycles;
             }
             break;

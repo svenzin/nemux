@@ -140,7 +140,11 @@ public:
     void SetStatus(const Byte & status);
     Byte GetStatus();
 
-    void Interrupt(const Flag & isSoft, const Word & returnAddress, const Word & vector);
+    void Interrupt(const Flag & isBRK, const Word & vector, const bool readOnly = false);
+
+    void Reset();
+    void NMI();
+    void IRQ();
 
 private:
 //    std::vector<Instruction> m_opcodes;
