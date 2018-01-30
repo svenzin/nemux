@@ -25,28 +25,13 @@ public:
     static const Word BASE_PC = 10;
     static const int BASE_TICKS = 10;
 
-    CpuTestSystem() : cpu("6502") {
+    CpuTestSystem() : memory(), cpu("6502", &memory) {
         cpu.PC = BASE_PC;
         cpu.Ticks = BASE_TICKS;
-
-        Mapper map("Test", 0x400);
-        cpu.Memory = map;
     }
 
+    MemoryBlock<0x1000> memory;
     Cpu cpu;
-
-    function<void (Byte)> Setter(Byte & a) {
-        return [&] (Byte value) { a = value; };
-    }
-    function<void (Byte)> Setter(Word a) {
-        return [=] (Byte value) { cpu.Memory.SetByteAt(a, value); };
-    }
-    function<Byte ()> Getter(Byte & b) {
-        return [&] () { return b; };
-    }
-    function<Byte ()> Getter(Word a) {
-        return [=] () { return cpu.Memory.GetByteAt(a); };
-    }
 };
 const Word CpuTestSystem::BASE_PC;
 const int CpuTestSystem::BASE_TICKS;
@@ -101,7 +86,7 @@ TEST_F(CpuTestSystem, RTI) {
     auto op = Opcode(RTI, Implicit, 1, 6);
 
     auto tester = [&] (Byte status, Flag expN, Flag expV, Flag expB, Flag expD, Flag expI, Flag expZ, Flag expC) {
-        cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+        cpu.Map->SetByteAt(BASE_PC, 0xFF);
         cpu.StackPage = 0x100;
         cpu.SP = 0xF0;
         cpu.PushWord(0x0120);

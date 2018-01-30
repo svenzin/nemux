@@ -9,7 +9,7 @@
 #define CPU_H_
 
 #include "Types.h"
-#include "Mapper.h"
+#include "MemoryMap.h"
 
 #include <string>
 #include <vector>
@@ -89,8 +89,10 @@ class Cpu {
 public:
     Word ReadWordAt(const Word address) const;
     void WriteWordAt(const Word address, const Word value);
+    Byte ReadByteAt(const Word address) const;
+    void WriteByteAt(const Word address, const Byte value);
 
-    explicit Cpu(std::string name);
+    explicit Cpu(std::string name, MemoryMap * map = nullptr);
 
     std::string Name;
 
@@ -121,7 +123,7 @@ public:
     address_t BuildAddress(const Addressing::Type & type) const;
     void Execute(const Opcode &op);//, const std::vector<Byte> &data);
 
-    Mapper Memory;
+    MemoryMap * Map;
 
     std::string ToString() const;
 

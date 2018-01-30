@@ -24,25 +24,9 @@ public:
     CpuTest() : cpu("6502") {
         cpu.PC = BASE_PC;
         cpu.Ticks = BASE_TICKS;
-
-        Mapper map("Test", 0x400);
-        cpu.Memory = map;
     }
 
     Cpu cpu;
-
-    function<void (Byte)> Setter(Byte & a) {
-        return [&] (Byte value) { a = value; };
-    }
-    function<void (Byte)> Setter(Word a) {
-        return [=] (Byte value) { cpu.Memory.SetByteAt(a, value); };
-    }
-    function<Byte ()> Getter(Byte & b) {
-        return [&] () { return b; };
-    }
-    function<Byte ()> Getter(Word a) {
-        return [=] () { return cpu.Memory.GetByteAt(a); };
-    }
 };
 
 
@@ -68,7 +52,6 @@ TEST_F(CpuTest, Opcode_Instruction) {
 /* Fx */    BEQ, SBC, UNK, UNK, UNK, SBC, INC, UNK, SED, SBC, UNK, UNK, UNK, SBC, INC, UNK,
     };
 
-	const Cpu cpu("6502");
 	for (int i = 0; i < opcodes.size(); ++i) {
 		const auto op = cpu.Decode(i);
 		EXPECT_EQ(opcodes[i], op.Instruction) << "Instruction 0x" << std::hex << i;
@@ -111,7 +94,6 @@ TEST_F(CpuTest, Opcode_Addressing) {
 		/* Fx */    REL, IDY, UNK, UNK, UNK, ZPX, ZPX, UNK, IMP, ABY, UNK, UNK, UNK, ABX, ABX, UNK,
     };
 
-	const Cpu cpu("6502");
 	for (int i = 0; i < opcodes.size(); ++i) {
 		const auto op = cpu.Decode(i);
 		EXPECT_EQ(opcodes[i], op.Addressing) << "Instruction 0x" << std::hex << i;

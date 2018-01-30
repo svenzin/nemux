@@ -23,14 +23,12 @@ public:
     static const Word BASE_PC = 10;
     static const int BASE_TICKS = 10;
 
-    CpuTestStack() : cpu("6502") {
+    CpuTestStack() : cpu("6502", &memory) {
         cpu.PC = BASE_PC;
         cpu.Ticks = BASE_TICKS;
-
-        Mapper map("Test", 0x400);
-        cpu.Memory = map;
     }
 
+    MemoryBlock<0x400> memory;
     Cpu cpu;
 
     template<typename Getter, typename Setter>
@@ -58,13 +56,13 @@ public:
         return [&] (Byte value) { a = value; };
     }
     function<void (Byte)> Setter(Word a) {
-        return [=] (Byte value) { cpu.Memory.SetByteAt(a, value); };
+        return [=] (Byte value) { cpu.WriteByteAt(a, value); };
     }
     function<Byte ()> Getter(Byte & b) {
         return [&] () { return b; };
     }
     function<Byte ()> Getter(Word a) {
-        return [=] () { return cpu.Memory.GetByteAt(a); };
+        return [=] () { return cpu.ReadByteAt(a); };
     }
 };
 
@@ -93,7 +91,7 @@ TEST_F(CpuTestStack, TXS) {
 TEST_F(CpuTestStack, PHP_FlagB) {
     // PHP is software instruction pushing the Status -> B is set
     const auto op = Opcode(PHP, Implicit, 1, 3);
-    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC, 0xFF);
 
     cpu.B = 0;
     cpu.StackPage = 0x0100;
@@ -105,18 +103,18 @@ TEST_F(CpuTestStack, PHP_FlagB) {
 
     EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
     EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
-    EXPECT_EQ(0x10, cpu.Memory.GetByteAt(0x01F0) & 0x10);
+    EXPECT_EQ(0x10, cpu.ReadByteAt(0x01F0) & 0x10);
     EXPECT_EQ(0xEF, cpu.SP);
 }
 
 TEST_F(CpuTestStack, PLP_FlagB) {
     const auto op = Opcode(PLP, Implicit, 1, 4);
-    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC, 0xFF);
 
     cpu.B = 1;
     cpu.StackPage = 0x0100;
     cpu.SP = 0xEF;
-    cpu.Memory.SetByteAt(0x01F0, 0xFF);
+    cpu.WriteByteAt(0x01F0, 0xFF);
 
     cpu.PC = BASE_PC;
     cpu.Ticks = BASE_TICKS;
@@ -131,7 +129,7 @@ TEST_F(CpuTestStack, PLP_FlagB) {
 TEST_F(CpuTestStack, PHA) {
     const auto op = Opcode(PHA, Implicit, 1, 3);
 
-    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC, 0xFF);
 
     cpu.A = 0x20;
     cpu.StackPage = 0x0100;
@@ -143,18 +141,18 @@ TEST_F(CpuTestStack, PHA) {
 
     EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
     EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
-    EXPECT_EQ(0x20, cpu.Memory.GetByteAt(0x01F0));
+    EXPECT_EQ(0x20, cpu.ReadByteAt(0x01F0));
     EXPECT_EQ(0xEF, cpu.SP);
 }
 
 TEST_F(CpuTestStack, PLA) {
     const auto op = Opcode(PLA, Implicit, 1, 4);
-    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC, 0xFF);
 
     auto tester = [&] (Byte m, Flag expZ, Flag expN) {
         cpu.StackPage = 0x0100;
         cpu.SP = 0xEF;
-        cpu.Memory.SetByteAt(0x01F0, m);
+        cpu.WriteByteAt(0x01F0, m);
 
         cpu.PC = BASE_PC;
         cpu.Ticks = BASE_TICKS;
@@ -175,12 +173,12 @@ TEST_F(CpuTestStack, PLA) {
 
 TEST_F(CpuTestStack, PLP) {
     const auto op = Opcode(PLP, Implicit, 1, 4);
-    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC, 0xFF);
 
     auto tester = [&] (Byte m, Flag expN, Flag expV, Flag expD, Flag expI, Flag expZ, Flag expC) {
         cpu.StackPage = 0x0100;
         cpu.SP = 0xEF;
-        cpu.Memory.SetByteAt(0x01F0, m);
+        cpu.WriteByteAt(0x01F0, m);
 
         cpu.PC = BASE_PC;
         cpu.Ticks = BASE_TICKS;
@@ -203,7 +201,7 @@ TEST_F(CpuTestStack, PLP) {
 
 TEST_F(CpuTestStack, PHP) {
     const auto op = Opcode(PHP, Implicit, 1, 3);
-    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC, 0xFF);
 
     auto tester = [&] (Flag n, Flag v, Flag d, Flag i, Flag z, Flag c) {
         cpu.N = n;
@@ -224,7 +222,7 @@ TEST_F(CpuTestStack, PHP) {
         const auto flagsMask = 0xCF;
         EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
         EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
-        EXPECT_EQ(expected & flagsMask, cpu.Memory.GetByteAt(0x01F0) & flagsMask);
+        EXPECT_EQ(expected & flagsMask, cpu.ReadByteAt(0x01F0) & flagsMask);
         EXPECT_EQ(0xEF, cpu.SP);
     };
 

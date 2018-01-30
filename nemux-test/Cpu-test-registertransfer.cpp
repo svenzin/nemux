@@ -23,14 +23,12 @@ public:
     static const Word BASE_PC = 10;
     static const int BASE_TICKS = 10;
 
-    CpuTestRegisterTransfer() : cpu("6502") {
+    CpuTestRegisterTransfer() : cpu("6502", &memory) {
         cpu.PC = BASE_PC;
         cpu.Ticks = BASE_TICKS;
-
-        Mapper map("Test", 0x400);
-        cpu.Memory = map;
     }
 
+    MemoryBlock<0x400> memory;
     Cpu cpu;
 
     template<typename Getter, typename Setter>
@@ -58,13 +56,13 @@ public:
         return [&] (Byte value) { a = value; };
     }
     function<void (Byte)> Setter(Word a) {
-        return [=] (Byte value) { cpu.Memory.SetByteAt(a, value); };
+        return [=] (Byte value) { cpu.WriteByteAt(a, value); };
     }
     function<Byte ()> Getter(Byte & b) {
         return [&] () { return b; };
     }
     function<Byte ()> Getter(Word a) {
-        return [=] () { return cpu.Memory.GetByteAt(a); };
+        return [=] () { return cpu.ReadByteAt(a); };
     }
 };
 

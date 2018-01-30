@@ -23,34 +23,32 @@ public:
     static const Word BASE_PC = 10;
     static const int BASE_TICKS = 10;
 
-    CpuTestJumpCall() : cpu("6502") {
+    CpuTestJumpCall() : cpu("6502", &memory) {
         cpu.PC = BASE_PC;
         cpu.Ticks = BASE_TICKS;
-
-        Mapper map("Test", 0x400);
-        cpu.Memory = map;
     }
 
+    MemoryBlock<0x400> memory;
     Cpu cpu;
 
     function<void (Byte)> Setter(Byte & a) {
         return [&] (Byte value) { a = value; };
     }
     function<void (Byte)> Setter(Word a) {
-        return [=] (Byte value) { cpu.Memory.SetByteAt(a, value); };
+        return [=] (Byte value) { cpu.WriteByteAt(a, value); };
     }
     function<Byte ()> Getter(Byte & b) {
         return [&] () { return b; };
     }
     function<Byte ()> Getter(Word a) {
-        return [=] () { return cpu.Memory.GetByteAt(a); };
+        return [=] () { return cpu.ReadByteAt(a); };
     }
 };
 
 TEST_F(CpuTestJumpCall, JMP_Absolute) {
     auto op = Opcode(JMP, Absolute, 3, 3);
 
-    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
 
     cpu.PC = BASE_PC;
@@ -64,7 +62,7 @@ TEST_F(CpuTestJumpCall, JMP_Absolute) {
 TEST_F(CpuTestJumpCall, JMP_Indirect) {
     auto op = Opcode(JMP, Indirect, 3, 5);
 
-    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.WriteWordAt(0x0120, 0x0200);
 
@@ -79,11 +77,11 @@ TEST_F(CpuTestJumpCall, JMP_Indirect) {
 TEST_F(CpuTestJumpCall, JMP_Indirect_Bug) {
     auto op = Opcode(JMP, Indirect, 3, 5);
 
-    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x01FF);
-    cpu.Memory.SetByteAt(0x01FF, 0xF0);
-    cpu.Memory.SetByteAt(0x0200, 0x02);
-    cpu.Memory.SetByteAt(0x0100, 0x01);
+    cpu.WriteByteAt(0x01FF, 0xF0);
+    cpu.WriteByteAt(0x0200, 0x02);
+    cpu.WriteByteAt(0x0100, 0x01);
 
     cpu.PC = BASE_PC;
     cpu.Ticks = BASE_TICKS;
@@ -96,7 +94,7 @@ TEST_F(CpuTestJumpCall, JMP_Indirect_Bug) {
 TEST_F(CpuTestJumpCall, JSR) {
     auto op = Opcode(JSR, Absolute, 3, 6);
 
-    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.StackPage = 0x100;
     cpu.SP = 0xF0;
@@ -114,7 +112,7 @@ TEST_F(CpuTestJumpCall, JSR) {
 TEST_F(CpuTestJumpCall, RTS) {
     auto op = Opcode(RTS, Implicit, 1, 6);
 
-    cpu.Memory.SetByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.StackPage = 0x100;
     cpu.SP = 0xF0;
     cpu.PushWord(0x0120);

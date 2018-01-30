@@ -6,14 +6,12 @@ struct CpuTestEndianness : public ::testing::Test {
     static const Word BASE_PC = 10;
     static const int BASE_TICKS = 10;
 
-    CpuTestEndianness() : cpu("6502") {
+    CpuTestEndianness() : cpu("6502", &memory) {
         cpu.PC = BASE_PC;
         cpu.Ticks = BASE_TICKS;
-
-        Mapper map("Test", 0x400);
-        cpu.Memory = map;
     }
 
+    MemoryBlock<0x400> memory;
     Cpu cpu;
 };
 
@@ -26,6 +24,6 @@ TEST_F(CpuTestEndianness, SetGetWord) {
 
 TEST_F(CpuTestEndianness, LittleEndianWord) {
     cpu.WriteWordAt(3, Word{ 0xBEEF });
-    EXPECT_EQ(Byte{ 0xEF }, cpu.Memory.GetByteAt(3));
-    EXPECT_EQ(Byte{ 0xBE }, cpu.Memory.GetByteAt(4));
+    EXPECT_EQ(Byte{ 0xEF }, cpu.ReadByteAt(3));
+    EXPECT_EQ(Byte{ 0xBE }, cpu.ReadByteAt(4));
 }
