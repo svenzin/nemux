@@ -112,9 +112,12 @@ public:
         }
     };
 
+    typedef std::array<Byte, 0x4000> PrgBank;
+    typedef std::array<Byte, 0x2000> ChrBank;
+
     HeaderDesc Header;
-    std::vector< std::array<Byte, 0x4000> > PrgRomPages;
-    std::vector< std::array<Byte, 0x2000> > ChrRomPages;
+    std::vector<PrgBank> PrgRomPages;
+    std::vector<ChrBank> ChrRomPages;
 
     static void Validate(const HeaderDesc & header) {
         if (header.HasTrainer) throw unsupported_format("Trainer is not supported");

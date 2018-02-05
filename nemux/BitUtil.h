@@ -1,6 +1,8 @@
 #ifndef BIT_UTIL_H_
 #define BIT_UTIL_H_
 
+#include <cstddef>
+
 #include "Types.h"
 
 template <std::size_t bit> Byte Mask(const bool & isset) {
