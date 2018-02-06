@@ -18,12 +18,7 @@ using namespace std;
 
 class CpuTest : public ::testing::Test {
 public:
-    static const Word BASE_PC = 10;
-    static const int BASE_TICKS = 10;
-
     CpuTest() : cpu("6502") {
-        cpu.PC = BASE_PC;
-        cpu.Ticks = BASE_TICKS;
     }
 
     Cpu cpu;
@@ -106,4 +101,58 @@ TEST_F(CpuTest, PowerUpState) {
     EXPECT_EQ(0, cpu.Y);
     EXPECT_EQ(0xFD, cpu.SP);
     EXPECT_EQ(0x34, cpu.GetStatus());
+
+    EXPECT_EQ(0, cpu.Ticks);
+}
+
+TEST_F(CpuTest, Ticking) {
+    EXPECT_EQ(0, cpu.Ticks);
+
+    MemoryBlock<0x0400> mem;
+    mem.SetByteAt(0x0200, 0xA9); // LDA Immediate
+    mem.SetByteAt(0x0201, 0x01); // LDA 1 Tick=2 A=1
+    mem.SetByteAt(0x0000, 0x02);
+    mem.SetByteAt(0x0202, 0x65); // ADC ZeroPage
+    mem.SetByteAt(0x0203, 0x00); // ADC $00 ($0000=2) Tick=5 A=3
+    mem.SetByteAt(0x0204, 0xE6); // INC ZeroPage
+    mem.SetByteAt(0x0205, 0x00); // INC $00 Tick=10 $0000=3
+
+    cpu.Map = &mem;
+    cpu.PC = 0x0200;
+
+    EXPECT_EQ(0, cpu.CurrentTick);
+    EXPECT_EQ(0, cpu.Ticks);
+    EXPECT_EQ(0, cpu.A);
+
+    // LDA #1
+    cpu.Tick();
+    EXPECT_EQ(1, cpu.CurrentTick);
+    EXPECT_EQ(2, cpu.Ticks);
+    EXPECT_EQ(1, cpu.A);
+
+    cpu.Tick();
+    EXPECT_EQ(2, cpu.CurrentTick);
+    EXPECT_EQ(2, cpu.Ticks);
+    EXPECT_EQ(1, cpu.A);
+
+    // ADC $00
+    cpu.Tick();
+    EXPECT_EQ(3, cpu.CurrentTick);
+    EXPECT_EQ(5, cpu.Ticks);
+    EXPECT_EQ(3, cpu.A);
+
+    cpu.Tick();
+    EXPECT_EQ(4, cpu.CurrentTick);
+    EXPECT_EQ(5, cpu.Ticks);
+
+    cpu.Tick();
+    EXPECT_EQ(5, cpu.CurrentTick);
+    EXPECT_EQ(5, cpu.Ticks);
+    EXPECT_EQ(2, mem.GetByteAt(0x0000));
+
+    // INC $00
+    cpu.Tick();
+    EXPECT_EQ(6, cpu.CurrentTick);
+    EXPECT_EQ(10, cpu.Ticks);
+    EXPECT_EQ(3, mem.GetByteAt(0x0000));
 }

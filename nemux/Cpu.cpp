@@ -259,6 +259,16 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     // Power up state
     SP = 0xFD;
     SetStatus(0x34);
+    CurrentTick = 0;
+}
+
+void Cpu::Tick() {
+    ++CurrentTick;
+    if (CurrentTick > Ticks) {
+        const auto instruction = ReadByteAt(PC);
+        const auto opcode = Decode(instruction);
+        Execute(opcode);
+    }
 }
 
 Opcode Cpu::Decode(const Byte &byte) const {
