@@ -106,4 +106,10 @@ TEST_F(CpuTest, PowerUpState) {
     EXPECT_EQ(0, cpu.Y);
     EXPECT_EQ(0xFD, cpu.SP);
     EXPECT_EQ(0x34, cpu.GetStatus());
+
+    EXPECT_EQ(0, cpu.Ticks);
+}
+
+TEST_F(CpuTest, Ticking) {
+    EXPECT_EQ(0, cpu.Ticks);
 }

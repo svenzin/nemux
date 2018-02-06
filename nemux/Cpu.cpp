@@ -261,6 +261,10 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     SetStatus(0x34);
 }
 
+void Cpu::Tick() {
+
+}
+
 Opcode Cpu::Decode(const Byte &byte) const {
     if (0 <= byte && byte < OPCODES_COUNT)
         return m_opcodes[byte];
