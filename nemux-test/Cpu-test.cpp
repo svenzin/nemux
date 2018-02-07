@@ -107,7 +107,7 @@ TEST_F(CpuTest, PowerUpState) {
 }
 
 TEST_F(CpuTest, InterruptPriority) {
-    EXPECT_EQ(InterruptType::None, cpu.PendingInterrupt);
+    cpu.PendingInterrupt = InterruptType::None;
     cpu.TriggerIRQ();
     EXPECT_EQ(InterruptType::Irq, cpu.PendingInterrupt);
     cpu.TriggerNMI();
@@ -176,13 +176,14 @@ TEST_F(CpuTest, TickingWithInterrupt) {
     EXPECT_EQ(0, cpu.Ticks);
 
     MemoryBlock<0x0400> mem;
-    mem.SetByteAt(0x0200, 0xA9); // LDA Immediate
-    mem.SetByteAt(0x0201, 0x01); // LDA 1 Tick=2 A=1
+    mem.SetByteAt(0x0200, 0x58); // CLI Tick=2 I=0
+    mem.SetByteAt(0x0201, 0xA9); // LDA Immediate
+    mem.SetByteAt(0x0202, 0x01); // LDA 1 Tick=4 A=1
     mem.SetByteAt(0x0000, 0x02);
-    mem.SetByteAt(0x0202, 0x65); // ADC ZeroPage
-    mem.SetByteAt(0x0203, 0x00); // ADC $00 ($0000=2) Tick=5 A=3
-    mem.SetByteAt(0x0204, 0xE6); // INC ZeroPage
-    mem.SetByteAt(0x0205, 0x00); // INC $00 Tick=10 $0000=3
+    mem.SetByteAt(0x0203, 0x65); // ADC ZeroPage
+    mem.SetByteAt(0x0204, 0x00); // ADC $00 ($0000=2) Tick=7 A=3
+    mem.SetByteAt(0x0205, 0xE6); // INC ZeroPage
+    mem.SetByteAt(0x0206, 0x00); // INC $00 Tick=12 $0000=3
 
     cpu.Map = &mem;
     cpu.PC = 0x0200;
@@ -193,23 +194,60 @@ TEST_F(CpuTest, TickingWithInterrupt) {
     EXPECT_EQ(0, cpu.Ticks);
     EXPECT_EQ(0, cpu.A);
 
-    // LDA #1
+    // CLI
     cpu.Tick();
     EXPECT_EQ(1, cpu.CurrentTick);
     EXPECT_EQ(2, cpu.Ticks);
+    EXPECT_EQ(0, cpu.I);
+    
+    cpu.Tick();
+    EXPECT_EQ(2, cpu.CurrentTick);
+    EXPECT_EQ(2, cpu.Ticks);
+    
+    // LDA #1
+    cpu.Tick();
+    EXPECT_EQ(3, cpu.CurrentTick);
+    EXPECT_EQ(4, cpu.Ticks);
     EXPECT_EQ(1, cpu.A);
 
     cpu.TriggerIRQ();
 
     cpu.Tick();
-    EXPECT_EQ(2, cpu.CurrentTick);
-    EXPECT_EQ(2, cpu.Ticks);
+    EXPECT_EQ(4, cpu.CurrentTick);
+    EXPECT_EQ(4, cpu.Ticks);
     EXPECT_EQ(1, cpu.A);
 
     // Interrupt
     cpu.Tick();
-    EXPECT_EQ(3, cpu.CurrentTick);
-    EXPECT_EQ(2 + cpu.InterruptCycles, cpu.Ticks);
+    EXPECT_EQ(5, cpu.CurrentTick);
+    EXPECT_EQ(4 + cpu.InterruptCycles, cpu.Ticks);
     EXPECT_EQ(1, cpu.A);
     EXPECT_EQ(0x0080, cpu.PC);
 }
+
+TEST_F(CpuTest, TickingWithInhibitedInterrupt) {
+    EXPECT_EQ(0, cpu.Ticks);
+
+    MemoryBlock<0x0400> mem;
+    mem.SetByteAt(0x0200, 0x78); // SEI Tick=2 I=1
+    mem.SetByteAt(0x0201, 0xA9); // LDA Immediate
+    mem.SetByteAt(0x0202, 0x01); // LDA #1 Tick=4 A=1
+
+    cpu.Map = &mem;
+    cpu.PC = 0x0200;
+    cpu.VectorIRQ = 0x03FE;
+    cpu.WriteWordAt(0x03FE, 0x0080);
+    
+    // SEI
+    cpu.Tick();
+    cpu.TriggerIRQ();
+    cpu.Tick();
+
+    // LDA #1
+    cpu.Tick();
+    EXPECT_EQ(3, cpu.CurrentTick);
+    EXPECT_EQ(4, cpu.Ticks);
+    EXPECT_EQ(1, cpu.A);
+    EXPECT_EQ(0x0203, cpu.PC);
+}
+

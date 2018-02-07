@@ -63,7 +63,7 @@ enum Bits : size_t {
 };
 
 enum class InterruptType {
-    None, Brk, Irq, Nmi, Rst,
+    None, Irq, Nmi, Rst,
 };
 
 class Opcode {

@@ -266,23 +266,16 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
 void Cpu::Tick() {
     ++CurrentTick;
     if (CurrentTick > Ticks) {
-        switch (PendingInterrupt)
-        {
-        case InterruptType::None:
-        case InterruptType::Brk: {
-                const auto instruction = ReadByteAt(PC);
-                const auto opcode = Decode(instruction);
-                Execute(opcode);
-            } break;
-        case InterruptType::Irq: {
-                IRQ();
-            } break;
-        case InterruptType::Nmi: {
-                NMI();
-            } break;
-        case InterruptType::Rst: {
-                Reset();
-            } break;
+        if (PendingInterrupt == InterruptType::Rst) {
+            Reset();
+        } else if (PendingInterrupt == InterruptType::Nmi) {
+            NMI();
+        } else if (I == 0 && PendingInterrupt == InterruptType::Irq) {
+            IRQ();
+        } else {
+            const auto instruction = ReadByteAt(PC);
+            const auto opcode = Decode(instruction);
+            Execute(opcode);
         }
     }
 }
