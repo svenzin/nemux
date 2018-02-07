@@ -7,6 +7,8 @@
 #include <iomanip>
 
 #include "NesFile.h"
+#include "Mapper_0.h"
+#include "Cpu.h"
 
 void usage() {
     std::cout << "NeMux emulator command-line executable" << std::endl;
@@ -53,6 +55,8 @@ int main(int argc, char ** argv) {
         }
     }
 
+    auto IsSet = [&options] (const Options & opt) { return options.count(opt) == 1; };
+
     if (positionals.size() != 1) {
         error("Please specify a NES ROM file");
         return 1;
@@ -64,7 +68,7 @@ int main(int argc, char ** argv) {
         NesFile rom(file);
         log("Done.");
 
-        if (options.count(Options::NesFile_Info) == 1) {
+        if (IsSet(Options::NesFile_Info)) {
             const auto size_prg = 0x4000 * rom.Header.PrgRomPages;
             const auto size_chr = 0x2000 * rom.Header.ChrRomPages;
 
@@ -81,6 +85,20 @@ int main(int argc, char ** argv) {
                 << "    PRG-ROM       " << static_cast<int>(rom.Header.PrgRomPages) << " page(s)" << std::endl
                 << "    CHR-ROM       " << static_cast<int>(rom.Header.ChrRomPages) << " page(s)" << std::endl;
                 log(oss.str());
+        }
+        else {
+            Mapper_0 mapper(rom);
+            Ppu ppu;
+            CpuMemoryMap<Ppu> cpumap(&ppu, &mapper);
+            Cpu cpu("6502", &cpumap);
+            cpu.Reset();
+
+            std::string line;
+            std::cout << cpu.ToMiniString() << " ";
+            while (std::getline(std::cin, line) && line.empty()) {
+                cpu.Tick();
+                std::cout << cpu.ToMiniString() << " ";
+            }
         }
     }
     catch (const std::exception & e) {

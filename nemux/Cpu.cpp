@@ -384,7 +384,7 @@ void Cpu::SetStatus(const Byte & status) {
     Z = Bit<Zer>(status);
     C = Bit<Car>(status);
 }
-Byte Cpu::GetStatus() {
+Byte Cpu::GetStatus() const {
     return Mask<Neg>(N)      | Mask<Ovf>(V) |
            Mask<Unu>(Unused) | Mask<Brk>(B) |
            Mask<Dec>(D)      | Mask<Int>(I) |
@@ -774,11 +774,11 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
 string Cpu::ToString() const {
     ostringstream value;
     value << "Cpu " << Name << endl
-          << "- Registers PC " << setw(10) << PC << endl
-          << "            SP " << setw(10) << SP << endl
-          << "             A " << setw(10) <<  A << endl
-          << "             X " << setw(10) <<  X << endl
-          << "             Y " << setw(10) <<  Y << endl
+          << "- Registers PC 0x" << hex << setfill('0') << setw(4) << PC << "(" << dec << PC << ")" << endl
+          << "            SP 0x" << hex << setfill('0') << setw(2) << SP << "(" << dec << SP << ")" << endl
+          << "             A 0x" << hex << setfill('0') << setw(2) <<  A << "(" << dec <<  A << ")" << endl
+          << "             X 0x" << hex << setfill('0') << setw(2) <<  X << "(" << dec <<  X << ")" << endl
+          << "             Y 0x" << hex << setfill('0') << setw(2) <<  Y << "(" << dec <<  Y << ")" << endl
           << "- Flags C " << setw(5) << boolalpha << (C != 0) << endl
           << "        Z " << setw(5) << boolalpha << (Z != 0) << endl
           << "        I " << setw(5) << boolalpha << (I != 0) << endl
@@ -786,5 +786,27 @@ string Cpu::ToString() const {
           << "        B " << setw(5) << boolalpha << (B != 0) << endl
           << "        V " << setw(5) << boolalpha << (V != 0) << endl
           << "        N " << setw(5) << boolalpha << (N != 0) << endl;
+    return value.str();
+}
+
+std::string Cpu::ToMiniString() const {
+    ostringstream value;
+    const auto P = GetStatus();
+    value << "Cpu " << Name
+          << " @" << Ticks
+          << " PC=$" << hex << setfill('0') << setw(4) << int{PC}
+          << " S=$" << hex << setfill('0') << setw(2) << int{SP}
+          << " A=$" << hex << setfill('0') << setw(2) << int{A}
+          << " X=$" << hex << setfill('0') << setw(2) << int{X}
+          << " Y=$" << hex << setfill('0') << setw(2) << int{Y}
+          << " P=$" << hex << setfill('0') << setw(2) << int{P}
+          << " "
+          << (C == 0 ? 'c' : 'C')
+          << (Z == 0 ? 'z' : 'Z')
+          << (I == 0 ? 'i' : 'I')
+          << (D == 0 ? 'd' : 'D')
+          << (B == 0 ? 'b' : 'B')
+          << (V == 0 ? 'v' : 'V')
+          << (N == 0 ? 'n' : 'N');
     return value.str();
 }
