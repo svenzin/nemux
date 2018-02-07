@@ -62,8 +62,8 @@ enum Bits : size_t {
     Left = 7, Right = 0,
 };
 
-enum class Interrupt {
-    Brk, Irq, Nmi, Rst,
+enum class InterruptType {
+    None, Brk, Irq, Nmi, Rst,
 };
 
 class Opcode {
@@ -150,6 +150,11 @@ public:
     void Reset();
     void NMI();
     void IRQ();
+
+    InterruptType PendingInterrupt;
+    void TriggerReset();
+    void TriggerNMI();
+    void TriggerIRQ();
 
 private:
 //    std::vector<Instruction> m_opcodes;

@@ -39,7 +39,7 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     : Name{name},
       PC {0}, SP {0}, A {0}, X {0}, Y {0},
       C {0}, Z {0}, I {0}, D {0}, B {0}, V {0}, N {0}, Unused{1},
-      Ticks{0}, InterruptCycles{7}, Map{ map } {
+      Ticks{0}, InterruptCycles{7}, Map{map} {
     m_opcodes.resize(
         OPCODES_COUNT,
         Opcode(UNK, Unknown, 0, 0)
@@ -260,14 +260,30 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     SP = 0xFD;
     SetStatus(0x34);
     CurrentTick = 0;
+    PendingInterrupt = InterruptType::None;
 }
 
 void Cpu::Tick() {
     ++CurrentTick;
     if (CurrentTick > Ticks) {
-        const auto instruction = ReadByteAt(PC);
-        const auto opcode = Decode(instruction);
-        Execute(opcode);
+        switch (PendingInterrupt)
+        {
+        case InterruptType::None:
+        case InterruptType::Brk: {
+                const auto instruction = ReadByteAt(PC);
+                const auto opcode = Decode(instruction);
+                Execute(opcode);
+            } break;
+        case InterruptType::Irq: {
+                IRQ();
+            } break;
+        case InterruptType::Nmi: {
+                NMI();
+            } break;
+        case InterruptType::Rst: {
+                Reset();
+            } break;
+        }
     }
 }
 
@@ -395,9 +411,28 @@ void Cpu::Interrupt(const Flag & isBRK,
     PC = ReadWordAt(vector);
     Ticks += InterruptCycles;
 }
-void Cpu::Reset() { Interrupt(0, VectorRST, true); }
-void Cpu::NMI() { Interrupt(0, VectorNMI); }
-void Cpu::IRQ() { Interrupt(0, VectorIRQ); }
+void Cpu::Reset() {
+    Interrupt(0, VectorRST, true);
+}
+void Cpu::NMI() {
+    Interrupt(0, VectorNMI);
+}
+void Cpu::IRQ() {
+    Interrupt(0, VectorIRQ);
+}
+void Cpu::TriggerReset() {
+    PendingInterrupt = InterruptType::Rst;
+}
+void Cpu::TriggerNMI() {
+    if (PendingInterrupt != InterruptType::Rst) {
+        PendingInterrupt = InterruptType::Nmi;
+    }
+}
+void Cpu::TriggerIRQ() {
+    if (PendingInterrupt == InterruptType::None) {
+        PendingInterrupt = InterruptType::Irq;
+    }
+}
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
         case BRK: {
