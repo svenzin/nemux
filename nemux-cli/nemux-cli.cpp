@@ -91,12 +91,16 @@ int main(int argc, char ** argv) {
             Ppu ppu;
             CpuMemoryMap<Ppu> cpumap(&ppu, &mapper);
             Cpu cpu("6502", &cpumap);
-            cpu.Reset();
+//            cpu.Reset();
+            cpu.PC = 0xC000;
 
             std::string line;
             std::cout << cpu.ToMiniString() << " ";
             while (std::getline(std::cin, line) && line.empty()) {
                 cpu.Tick();
+                while (cpu.CurrentTick < cpu.Ticks) {
+                    cpu.Tick();
+                }
                 std::cout << cpu.ToMiniString() << " ";
             }
         }

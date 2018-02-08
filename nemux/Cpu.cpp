@@ -793,13 +793,13 @@ std::string Cpu::ToMiniString() const {
     ostringstream value;
     const auto P = GetStatus();
     value << "Cpu " << Name
-          << " @" << Ticks
-          << " PC=$" << hex << setfill('0') << setw(4) << int{PC}
-          << " S=$" << hex << setfill('0') << setw(2) << int{SP}
-          << " A=$" << hex << setfill('0') << setw(2) << int{A}
-          << " X=$" << hex << setfill('0') << setw(2) << int{X}
-          << " Y=$" << hex << setfill('0') << setw(2) << int{Y}
-          << " P=$" << hex << setfill('0') << setw(2) << int{P}
+          << " " << CurrentTick << "@" << Ticks
+          << " PC=$" << hex << setfill('0') << setw(4) << PC
+          << " S=$" << hex << setfill('0') << setw(2) << Word{SP}
+          << " A=$" << hex << setfill('0') << setw(2) << Word{A}
+          << " X=$" << hex << setfill('0') << setw(2) << Word{X}
+          << " Y=$" << hex << setfill('0') << setw(2) << Word{Y}
+          << " P=$" << hex << setfill('0') << setw(2) << Word{P}
           << " "
           << (C == 0 ? 'c' : 'C')
           << (Z == 0 ? 'z' : 'Z')
