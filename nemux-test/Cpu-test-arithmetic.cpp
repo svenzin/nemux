@@ -117,11 +117,13 @@ public:
 
         tester(0x20, 0x10, 1, 0, 0); // Greater
         tester(0x20, 0x20, 1, 1, 0); // Equal
-        tester(0x20, 0x40, 0, 0, 1); // Lower
+        tester(0x20, 0x40, 0, 0, 1); // MSB set
 
         tester(0xF0, 0xE0, 1, 0, 0); // Greater
         tester(0xF0, 0xF0, 1, 1, 0); // Equal
-        tester(0xF0, 0xF8, 0, 0, 1); // Lower
+        tester(0xF0, 0xF8, 0, 0, 1); // MSB set
+
+        tester(0x80, 0x00, 1, 0, 1); // MSB set
     }
 
     function<void (Byte)> Setter(Byte & a) {

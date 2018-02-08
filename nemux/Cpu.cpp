@@ -344,7 +344,7 @@ void Cpu::Compare(const Byte lhs, const Byte rhs) {
     const auto r = lhs - rhs;
     C = (r >= 0) ? 1 : 0;
     Z = (r == 0) ? 1 : 0;
-    N = (r  < 0) ? 1 : 0;
+    N = (IsBitSet<BYTE_SIGN_BIT>(r)) ? 1 : 0;
 }
 void Cpu::BranchIf(const bool condition, const Opcode & op) {
     const auto basePC = PC;
