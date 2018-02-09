@@ -625,7 +625,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             const auto aa = BuildAddress(op.Addressing);
             const auto M = ReadByteAt(aa.Address);
             Word a = A - M - (1 - C);
-            C = (a > BYTE_MASK) ? 1 : 0;
+            C = (a > BYTE_MASK) ? 0 : 1;
             V = Bit<Neg>(A ^ M) & Bit<Neg>(A ^ a);
             Transfer(a & BYTE_MASK, A);
             if (aa.HasCrossedPage) ++Ticks;

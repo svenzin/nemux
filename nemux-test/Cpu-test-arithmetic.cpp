@@ -85,17 +85,31 @@ public:
             EXPECT_EQ(expN, cpu.N);
         };
 
-        tester(0x40, 0x20, 1, 0x20, 0, 0, 0, 0); // pos pos > pos
-        tester(0x40, 0x1F, 0, 0x20, 0, 0, 0, 0); // pos pos C > pos
-        tester(0x00, 0x00, 1, 0x00, 0, 1, 0, 0); // Zero
-        tester(0x80, 0x7F, 0, 0x00, 0, 1, 1, 0); // Zero by overflow
-        tester(0x00, 0xFF, 0, 0x00, 1, 1, 0, 0); // Zero by carry
-        tester(0x20, 0x40, 1, 0xE0, 1, 0, 0, 1); // Carry w/o overflow
-        tester(0x20, 0xA0, 1, 0x80, 1, 0, 1, 1); // Carry w/ overflow
-        tester(0x00, 0x00, 0, 0xFF, 1, 0, 0, 1); // Carry by borrow
-        tester(0x20, 0xA0, 1, 0x80, 1, 0, 1, 1); // Overflow pos > neg
-        tester(0x80, 0x20, 1, 0x60, 0, 0, 1, 0); // Overflow neg > pos
-        tester(0x80, 0x00, 1, 0x80, 0, 0, 0, 1); // Negative
+        // 0x40 + 0xDF + 1 = 0x120
+        tester(0x40, 0x20, 1, 0x20, 1, 0, 0, 0); // pos pos C > pos
+        // 0x40 + 0xDF + 0 = 0x11F
+        tester(0x40, 0x20, 0, 0x1F, 1, 0, 0, 0); // pos pos !C > pos
+        // 0x00 + 0xFF + 1 = 0x100
+        tester(0x00, 0x00, 1, 0x00, 1, 1, 0, 0); // Zero
+        // 0x80 + 0x80 + 0 = 0x100
+        tester(0x80, 0x7F, 0, 0x00, 1, 1, 1, 0); // Zero by carry
+        // 0x00 + 0x00 + 0 = 0x000
+        tester(0x00, 0xFF, 0, 0x00, 0, 1, 0, 0); // Zero by overflow
+        // 0x20 + 0xBF + 1 = 0x0E0
+        tester(0x20, 0x40, 1, 0xE0, 0, 0, 0, 1); // Carry w/o overflow
+        // 0x20 + 0x5F + 1 = 0x080
+        tester(0x20, 0xA0, 1, 0x80, 0, 0, 1, 1); // Carry w/ overflow
+        // 0x00 + 0xFF + 0 = 0x0FF
+        tester(0x00, 0x00, 0, 0xFF, 0, 0, 0, 1); // Carry by borrow
+        // 0x20 + 0x5F + 1 = 0x080
+        tester(0x20, 0xA0, 1, 0x80, 0, 0, 1, 1); // Overflow pos > neg
+        // 0x80 + 0xDF + 1 = 0x160
+        tester(0x80, 0x20, 1, 0x60, 1, 0, 1, 0); // Overflow neg > pos
+        // 0x80 + 0xFF + 1 = 0x180
+        tester(0x80, 0x00, 1, 0x80, 1, 0, 0, 1); // Negative
+
+        // 0x40 + 0xBE + 1 = 0x0FF
+        tester(0x40, 0x41, 1, 0xFF, 0, 0, 0, 1); // Negative
     }
 
     template<typename SetterReg, typename SetterMem>
