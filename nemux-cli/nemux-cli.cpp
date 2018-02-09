@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <map>
 #include <exception>
 #include <sstream>
 #include <iomanip>
@@ -17,6 +18,10 @@ void usage() {
     std::cout << "    nesfile    Path the the NES ROM file" << std::endl;
     std::cout << "Options:" << std::endl;
     std::cout << "    -nesfile_info    Prints information about the NES ROM file" << std::endl;
+    std::cout << "    -test            Run a test rom where the results are copmpared against an expected output" << std::endl;
+    std::cout << "    -test_log LOGFILE         nestest-formatted log to test against" << std::endl;
+    std::cout << "    -test_start_at ADDRESS    Address to start execution at" << std::endl;
+    std::cout << "                              This will skip the reset sequence" << std::endl;
     std::cout << "    -help            Print this help message" << std::endl;
 }
 
@@ -33,11 +38,13 @@ void log(const std::string & msg) {
 enum class Options
 {
     NesFile_Info,
+    Test, Test_Log, Test_StartAt
 };
 
 int main(int argc, char ** argv) {
     std::vector<std::string> positionals;
     std::set<Options> options;
+    std::map<Options, std::string> values;
     for (int i = 1; i < argc; ++i) {
         std::string param(argv[i]);
         if (param[0] == '-') {
@@ -46,6 +53,24 @@ int main(int argc, char ** argv) {
                 return 0;
             } else if (param == "-nesfile_info") {
                 options.insert(Options::NesFile_Info);
+            } else if (param == "-test") {
+                options.insert(Options::Test);
+            } else if (param == "-test_log") {
+                options.insert(Options::Test_Log);
+                if (++i == argc) {
+                    error("-test_log requires a parameter");
+                    return 1;
+                }
+                std::string value(argv[i]);
+                values[Options::Test_Log] = value;
+            } else if (param == "-test_start_at") {
+                options.insert(Options::Test_StartAt);
+                if (++i == argc) {
+                    error("-test_start_at requires a parameter");
+                    return 1;
+                }
+                std::string value(argv[i]);
+                values[Options::Test_StartAt] = value;
             } else {
                 error("Unrecognized parameter: " + param);
                 return 1;
@@ -86,13 +111,28 @@ int main(int argc, char ** argv) {
                 << "    CHR-ROM       " << static_cast<int>(rom.Header.ChrRomPages) << " page(s)" << std::endl;
                 log(oss.str());
         }
-        else {
+        else if (IsSet(Options::Test)) {
+            std::pair<bool, std::string> logfile { false, "" };
+            if (IsSet(Options::Test_Log)) {
+                logfile.first = true;
+                logfile.second = values[Options::Test_Log];
+            }
+
+            std::pair<bool, int> start_addr { false, 0 };
+            if (IsSet(Options::Test_StartAt)) {
+                start_addr.first = true;
+                start_addr.second = std::stoi(values[Options::Test_StartAt], nullptr, 0);
+            }
+            
             Mapper_0 mapper(rom);
             Ppu ppu;
             CpuMemoryMap<Ppu> cpumap(&ppu, &mapper);
             Cpu cpu("6502", &cpumap);
-//            cpu.Reset();
-            cpu.PC = 0xC000;
+            if (start_addr.first) {
+                cpu.PC = start_addr.second;
+            } else {
+                cpu.Reset();
+            }
 
             std::string line;
             std::cout << cpu.ToMiniString() << " ";
