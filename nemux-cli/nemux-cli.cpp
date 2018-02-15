@@ -11,6 +11,11 @@
 #include "Mapper_0.h"
 #include "Cpu.h"
 
+using std::hex;
+using std::dec;
+using std::setfill;
+using std::setw;
+
 void usage() {
     std::cout << "NeMux emulator command-line executable" << std::endl;
     std::cout << "Usage: nemux-cli [options] nesfile" << std::endl;
@@ -40,6 +45,25 @@ enum class Options
     NesFile_Info,
     Test, Test_Log, Test_StartAt
 };
+
+struct state_t {
+    Byte A;
+    Byte X;
+    Byte Y;
+    Byte SP;
+    Word PC;
+    Byte P;
+};
+state_t ParseLog(std::string line) {
+    state_t state;
+    state.PC = std::stoul(line.substr(0, 4), 0, 16);
+    state.SP = std::stoul(line.substr(71, 2), 0, 16);
+    state.A = std::stoul(line.substr(50, 2), 0, 16);
+    state.X = std::stoul(line.substr(55, 2), 0, 16);
+    state.Y = std::stoul(line.substr(60, 2), 0, 16);
+    state.P = std::stoul(line.substr(65, 2), 0, 16);
+    return state;
+}
 
 int main(int argc, char ** argv) {
     std::vector<std::string> positionals;
@@ -112,10 +136,10 @@ int main(int argc, char ** argv) {
                 log(oss.str());
         }
         else if (IsSet(Options::Test)) {
-            std::pair<bool, std::string> logfile { false, "" };
+            std::pair<bool, std::ifstream> logfile { false, std::ifstream() };
             if (IsSet(Options::Test_Log)) {
                 logfile.first = true;
-                logfile.second = values[Options::Test_Log];
+                logfile.second.open(values[Options::Test_Log]);
             }
 
             std::pair<bool, int> start_addr { false, 0 };
@@ -130,18 +154,42 @@ int main(int argc, char ** argv) {
             Cpu cpu("6502", &cpumap);
             if (start_addr.first) {
                 cpu.PC = start_addr.second;
+                cpu.B = 0;
             } else {
                 cpu.Reset();
             }
 
+            std::size_t counter = 1;
             std::string line;
-            std::cout << cpu.ToMiniString() << " ";
+            std::getline(logfile.second, line);
             while (std::getline(std::cin, line) && line.empty()) {
+                ++counter;
+
                 cpu.Tick();
                 while (cpu.CurrentTick < cpu.Ticks) {
                     cpu.Tick();
                 }
-                std::cout << cpu.ToMiniString() << " ";
+
+                std::cout << dec << counter << " " << cpu.ToMiniString() << " ";
+                if (logfile.first) {
+                    std::getline(logfile.second, line);
+                    const auto state = ParseLog(line);
+                    if (cpu.PC != state.PC ||
+                        cpu.SP != state.SP ||
+                        cpu.A != state.A ||
+                        cpu.X != state.X ||
+                        cpu.Y != state.Y ||
+                        (cpu.GetStatus() & ~Mask<Brk>(1)) != (state.P & ~Mask<Brk>(1))) {
+                        std::cout << "DIFF"
+                            << " PC=$" << hex << setfill('0') << setw(4) << state.PC
+                            << " S=$" << hex << setfill('0') << setw(2) << Word{ state.SP }
+                            << " A=$" << hex << setfill('0') << setw(2) << Word{ state.A }
+                            << " X=$" << hex << setfill('0') << setw(2) << Word{ state.X }
+                            << " Y=$" << hex << setfill('0') << setw(2) << Word{ state.Y }
+                            << " P=$" << hex << setfill('0') << setw(2) << Word{ state.P }
+                        << " ";
+                    }
+                }
             }
         }
     }
