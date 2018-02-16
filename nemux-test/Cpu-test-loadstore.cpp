@@ -97,6 +97,14 @@ TEST_F(CpuTestLoadStore, LDX_ZeroPageY) {
               Opcode(LDX, ZeroPageY, 2, 4), 0);
 }
 
+TEST_F(CpuTestLoadStore, LDX_ZeroPageY_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.Y = 0x10;
+    Test_Load(Getter(cpu.X), Setter(0x0000),
+              Opcode(LDX, ZeroPageY, 2, 4), 0);
+}
+
 TEST_F(CpuTestLoadStore, LDX_Absolute) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
@@ -284,6 +292,15 @@ TEST_F(CpuTestLoadStore, STX_ZeroPageY) {
     cpu.Y = 0x08;
 
     Test_Set(Getter(0x0028), Setter(cpu.X),
+             Opcode(STX, ZeroPageY, 2, 4));
+}
+
+TEST_F(CpuTestLoadStore, STX_ZeroPageY_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.Y = 0x10;
+
+    Test_Set(Getter(0x0000), Setter(cpu.X),
              Opcode(STX, ZeroPageY, 2, 4));
 }
 
