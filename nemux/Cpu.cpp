@@ -314,7 +314,11 @@ address_t Cpu::BuildAddress(const Addressing::Type & type) const {
             return { address, (Y > (address & BYTE_MASK)) };
         }
         case IndexedIndirect: {
-            return { ReadWordAt(ReadByteAt(PC + 1) + X), false };
+            const auto base = ReadWordAt(PC + 1) + X;
+            const Word lo = base & WORD_LO_MASK;
+            const Word hi = (base + 1) & WORD_LO_MASK;
+            const Word addr = ReadByteAt(hi) << BYTE_WIDTH | ReadByteAt(lo);
+            return { addr, false };
         }
         case IndirectIndexed: {
             const auto base = ReadWordAt(ReadByteAt(PC + 1)) + Y;

@@ -302,6 +302,18 @@ TEST_F(CpuTestArithmetic, CMP_IndexedIndirect) {
     );
 }
 
+TEST_F(CpuTestArithmetic, CMP_IndexedIndirect_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x0F;
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+
+    Test_Compare(Setter(cpu.A), Setter(0x0120),
+        Opcode(CMP, IndexedIndirect, 2, 6), 0
+    );
+}
+
 TEST_F(CpuTestArithmetic, CMP_IndirectIndexed) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
@@ -423,6 +435,18 @@ TEST_F(CpuTestArithmetic, ADC_IndexedIndirect) {
              false);
 }
 
+TEST_F(CpuTestArithmetic, ADC_IndexedIndirect_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x0F;
+    cpu.WriteByteAt(0x00FF, 0x20);
+    cpu.WriteByteAt(0x0000, 0x01); 
+
+    Test_ADC(Setter(0x0120),
+             Opcode(ADC, IndexedIndirect, 2, 6),
+             false);
+}
+
 TEST_F(CpuTestArithmetic, ADC_IndirectIndexed) {
     // Same page
     cpu.WriteByteAt(BASE_PC, 0xFF);
@@ -532,6 +556,17 @@ TEST_F(CpuTestArithmetic, SBC_IndexedIndirect) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
     cpu.WriteWordAt(0x28, 0x0120);
+
+    Test_SBC(Setter(0x0120),
+             Opcode(SBC, IndexedIndirect, 2, 6), 0);
+}
+
+TEST_F(CpuTestArithmetic, SBC_IndexedIndirect_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x0F;
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
 
     Test_SBC(Setter(0x0120),
              Opcode(SBC, IndexedIndirect, 2, 6), 0);
