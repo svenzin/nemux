@@ -130,6 +130,13 @@ TEST_F(CpuTestLogical, EOR_ZeroPageX) {
     Test_EOR(Setter(0x0028), Opcode(EOR, ZeroPageX, 2, 4), 0);
 }
 
+TEST_F(CpuTestLogical, EOR_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+    Test_EOR(Setter(0x0000), Opcode(EOR, ZeroPageX, 2, 4), 0);
+}
+
 TEST_F(CpuTestLogical, EOR_Absolute) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
@@ -206,6 +213,13 @@ TEST_F(CpuTestLogical, ORA_ZeroPageX) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
     Test_ORA(Setter(0x0028), Opcode(ORA, ZeroPageX, 2, 4), 0);
+}
+
+TEST_F(CpuTestLogical, ORA_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+    Test_ORA(Setter(0x0000), Opcode(ORA, ZeroPageX, 2, 4), 0);
 }
 
 TEST_F(CpuTestLogical, ORA_Absolute) {
@@ -292,6 +306,16 @@ TEST_F(CpuTestLogical, AND_ZeroPageX) {
     cpu.X = 0x08;
 
     Test_AND(Setter(0x0028),
+             Opcode(AND, ZeroPageX, 2, 4),
+             false);
+}
+
+TEST_F(CpuTestLogical, AND_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+
+    Test_AND(Setter(0x0000),
              Opcode(AND, ZeroPageX, 2, 4),
              false);
 }

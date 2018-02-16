@@ -295,7 +295,8 @@ address_t Cpu::BuildAddress(const Addressing::Type & type) const {
             return { ReadByteAt(PC + 1), false };
         }
         case ZeroPageX: {
-            return { static_cast<Word>(ReadByteAt(PC + 1) + X), false };
+            const auto address = (ReadByteAt(PC + 1) + X) & WORD_LO_MASK;
+            return { static_cast<Word>(address), false };
         }
         case ZeroPageY: {
             return { static_cast<Word>(ReadByteAt(PC + 1) + Y), false };
