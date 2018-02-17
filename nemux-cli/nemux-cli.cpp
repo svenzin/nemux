@@ -6,6 +6,7 @@
 #include <exception>
 #include <sstream>
 #include <iomanip>
+#include <stdexcept>
 
 #include "NesFile.h"
 #include "Mapper_0.h"
@@ -159,10 +160,27 @@ int main(int argc, char ** argv) {
                 cpu.Reset();
             }
 
+            long long step = 0;
             std::size_t counter = 1;
             std::string line;
             std::getline(logfile.second, line);
-            while (std::getline(std::cin, line) && line.empty()) {
+            while (true) {
+                if (step == 0) {
+                    std::getline(std::cin, line);
+                    if (line.empty()) step = 1;
+                    else if (line == "r") step = -1;
+                    else {
+                        try {
+                            step = std::stoll(line);
+                        }
+                        catch (const std::exception & e) {
+                            break;
+                        }
+                    }
+                } else {
+                    std::cout << std::endl;
+                }
+                --step;
                 ++counter;
 
                 cpu.Tick();
@@ -188,6 +206,8 @@ int main(int argc, char ** argv) {
                             << " Y=$" << hex << setfill('0') << setw(2) << Word{ state.Y }
                             << " P=$" << hex << setfill('0') << setw(2) << Word{ state.P }
                         << " ";
+
+                        if (step < 0) step = 0;
                     }
                 }
             }
