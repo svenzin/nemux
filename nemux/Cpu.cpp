@@ -86,8 +86,8 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     m_opcodes[0x49] = Opcode(EOR, Immediate, 2, 2);
     m_opcodes[0x45] = Opcode(EOR, ZeroPage,  2, 3);
     m_opcodes[0x55] = Opcode(EOR, ZeroPageX, 2, 4);
-    m_opcodes[0x40] = Opcode(EOR, Absolute,  3, 4);
-    m_opcodes[0x50] = Opcode(EOR, AbsoluteX, 3, 4);
+    m_opcodes[0x4D] = Opcode(EOR, Absolute,  3, 4);
+    m_opcodes[0x5D] = Opcode(EOR, AbsoluteX, 3, 4);
     m_opcodes[0x59] = Opcode(EOR, AbsoluteY, 3, 4);
     m_opcodes[0x41] = Opcode(EOR, IndexedIndirect, 2, 6);
     m_opcodes[0x51] = Opcode(EOR, IndirectIndexed, 2, 5);
