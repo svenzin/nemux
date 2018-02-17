@@ -319,9 +319,8 @@ TEST_F(CpuTestArithmetic, CMP_IndirectIndexed) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0x08;
-    cpu.WriteWordAt(0x0128, 0x0200);
 
-    Test_Compare(Setter(cpu.A), Setter(0x0200),
+    Test_Compare(Setter(cpu.A), Setter(0x0128),
         Opcode(CMP, IndirectIndexed, 2, 5), 0
     );
 }
@@ -331,9 +330,8 @@ TEST_F(CpuTestArithmetic, CMP_IndirectIndexed_CrossingPage) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0xF0;
-    cpu.WriteWordAt(0x0210, 0x0200);
 
-    Test_Compare(Setter(cpu.A), Setter(0x0200),
+    Test_Compare(Setter(cpu.A), Setter(0x0210),
         Opcode(CMP, IndirectIndexed, 2, 5), 1
     );
 }
@@ -453,9 +451,8 @@ TEST_F(CpuTestArithmetic, ADC_IndirectIndexed) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0x08;
-    cpu.WriteWordAt(0x0128, 0x0200);
 
-    Test_ADC(Setter(0x0200),
+    Test_ADC(Setter(0x0128),
              Opcode(ADC, IndirectIndexed, 2, 5),
              false);
 }
@@ -466,9 +463,8 @@ TEST_F(CpuTestArithmetic, ADC_IndirectIndexed_CrossingPage) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0xF0;
-    cpu.WriteWordAt(0x0210, 0x0200);
 
-    Test_ADC(Setter(0x0200),
+    Test_ADC(Setter(0x0210),
              Opcode(ADC, IndirectIndexed, 2, 5),
              true);
 }
@@ -578,9 +574,8 @@ TEST_F(CpuTestArithmetic, SBC_IndirectIndexed) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0x08;
-    cpu.WriteWordAt(0x0128, 0x0200);
 
-    Test_SBC(Setter(0x0200),
+    Test_SBC(Setter(0x0128),
              Opcode(SBC, IndirectIndexed, 2, 5), 0);
 }
 
@@ -590,8 +585,7 @@ TEST_F(CpuTestArithmetic, SBC_IndirectIndexed_CrossingPage) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0xF0;
-    cpu.WriteWordAt(0x0210, 0x0200);
 
-    Test_SBC(Setter(0x0200),
+    Test_SBC(Setter(0x0210),
              Opcode(SBC, IndirectIndexed, 2, 5), 1);
 }

@@ -193,8 +193,7 @@ TEST_F(CpuTestLogical, EOR_IndirectIndexed) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x0120);
     cpu.Y = 0x08;
-    cpu.WriteWordAt(0x0128, 0x0200);
-    Test_EOR(Setter(0x0200), Opcode(EOR, IndirectIndexed, 2, 5), 0);
+    Test_EOR(Setter(0x0128), Opcode(EOR, IndirectIndexed, 2, 5), 0);
 }
 
 TEST_F(CpuTestLogical, EOR_IndirectIndexed_CrossingPage) {
@@ -202,8 +201,7 @@ TEST_F(CpuTestLogical, EOR_IndirectIndexed_CrossingPage) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x0120);
     cpu.Y = 0xF0;
-    cpu.WriteWordAt(0x0210, 0x0200);
-    Test_EOR(Setter(0x0200), Opcode(EOR, IndirectIndexed, 2, 5), 1);
+    Test_EOR(Setter(0x0210), Opcode(EOR, IndirectIndexed, 2, 5), 1);
 }
 
 TEST_F(CpuTestLogical, ORA_Immediate) {
@@ -287,8 +285,7 @@ TEST_F(CpuTestLogical, ORA_IndirectIndexed) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x0120);
     cpu.Y = 0x08;
-    cpu.WriteWordAt(0x0128, 0x0200);
-    Test_ORA(Setter(0x0200), Opcode(ORA, IndirectIndexed, 2, 5), 0);
+    Test_ORA(Setter(0x0128), Opcode(ORA, IndirectIndexed, 2, 5), 0);
 }
 
 TEST_F(CpuTestLogical, ORA_IndirectIndexed_CrossingPage) {
@@ -296,8 +293,7 @@ TEST_F(CpuTestLogical, ORA_IndirectIndexed_CrossingPage) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x0120);
     cpu.Y = 0xF0;
-    cpu.WriteWordAt(0x0210, 0x0200);
-    Test_ORA(Setter(0x0200), Opcode(ORA, IndirectIndexed, 2, 5), 1);
+    Test_ORA(Setter(0x0210), Opcode(ORA, IndirectIndexed, 2, 5), 1);
 }
 
 
@@ -420,9 +416,8 @@ TEST_F(CpuTestLogical, AND_IndirectIndexed) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0x08;
-    cpu.WriteWordAt(0x0128, 0x0200);
 
-    Test_AND(Setter(0x0200),
+    Test_AND(Setter(0x0128),
              Opcode(AND, IndirectIndexed, 2, 5),
              false);
 }
@@ -433,9 +428,8 @@ TEST_F(CpuTestLogical, AND_IndirectIndexed_CrossingPage) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0xF0;
-    cpu.WriteWordAt(0x0210, 0x0200);
 
-    Test_AND(Setter(0x0200),
+    Test_AND(Setter(0x0210),
              Opcode(AND, IndirectIndexed, 2, 5),
              true);
 }
