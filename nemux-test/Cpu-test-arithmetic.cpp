@@ -336,6 +336,17 @@ TEST_F(CpuTestArithmetic, CMP_IndirectIndexed_CrossingPage) {
     );
 }
 
+TEST_F(CpuTestArithmetic, CMP_IndirectIndexed_CrossingWordsize) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0xFFFF);
+    cpu.Y = 0x10;
+
+    Test_Compare(Setter(cpu.A), Setter(0x000F),
+        Opcode(CMP, IndirectIndexed, 2, 5), 1
+    );
+}
+
 TEST_F(CpuTestArithmetic, ADC_Immediate) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
 
@@ -465,10 +476,21 @@ TEST_F(CpuTestArithmetic, ADC_IndirectIndexed_CrossingPage) {
     cpu.Y = 0xF0;
 
     Test_ADC(Setter(0x0210),
-             Opcode(ADC, IndirectIndexed, 2, 5),
-             true);
+        Opcode(ADC, IndirectIndexed, 2, 5),
+        true);
 }
 
+TEST_F(CpuTestArithmetic, ADC_IndirectIndexed_CrossingWordsize) {
+    // Crossing page
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0xFFFF);
+    cpu.Y = 0x10;
+
+    Test_ADC(Setter(0x000F),
+        Opcode(ADC, IndirectIndexed, 2, 5),
+        true);
+}
 
 TEST_F(CpuTestArithmetic, SBC_Immediate) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
@@ -588,4 +610,15 @@ TEST_F(CpuTestArithmetic, SBC_IndirectIndexed_CrossingPage) {
 
     Test_SBC(Setter(0x0210),
              Opcode(SBC, IndirectIndexed, 2, 5), 1);
+}
+
+TEST_F(CpuTestArithmetic, SBC_IndirectIndexed_CrossingWordsize) {
+    // Crossing page
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0xFFFF);
+    cpu.Y = 0x10;
+
+    Test_SBC(Setter(0x000F),
+        Opcode(SBC, IndirectIndexed, 2, 5), 1);
 }

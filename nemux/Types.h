@@ -10,8 +10,8 @@
 
 #include <cstdint>
 
-typedef uint_fast8_t  Byte;
-typedef uint_fast16_t Word;
+typedef uint8_t  Byte;
+typedef uint16_t Word;
 
 typedef Byte Flag;
 

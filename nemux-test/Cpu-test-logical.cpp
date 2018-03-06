@@ -204,6 +204,14 @@ TEST_F(CpuTestLogical, EOR_IndirectIndexed_CrossingPage) {
     Test_EOR(Setter(0x0210), Opcode(EOR, IndirectIndexed, 2, 5), 1);
 }
 
+TEST_F(CpuTestLogical, EOR_IndirectIndexed_CrossingWordsize) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0xFFFF);
+    cpu.Y = 0x10;
+    Test_EOR(Setter(0x000F), Opcode(EOR, IndirectIndexed, 2, 5), 1);
+}
+
 TEST_F(CpuTestLogical, ORA_Immediate) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     Test_ORA(Setter(BASE_PC + 1), Opcode(ORA, Immediate, 2, 2), 0);
@@ -296,6 +304,13 @@ TEST_F(CpuTestLogical, ORA_IndirectIndexed_CrossingPage) {
     Test_ORA(Setter(0x0210), Opcode(ORA, IndirectIndexed, 2, 5), 1);
 }
 
+TEST_F(CpuTestLogical, ORA_IndirectIndexed_CrossingWordsize) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0xFFFF);
+    cpu.Y = 0x10;
+    Test_ORA(Setter(0x000F), Opcode(ORA, IndirectIndexed, 2, 5), 1);
+}
 
 TEST_F(CpuTestLogical, AND_Immediate) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
@@ -430,6 +445,18 @@ TEST_F(CpuTestLogical, AND_IndirectIndexed_CrossingPage) {
     cpu.Y = 0xF0;
 
     Test_AND(Setter(0x0210),
+             Opcode(AND, IndirectIndexed, 2, 5),
+             true);
+}
+
+TEST_F(CpuTestLogical, AND_IndirectIndexed_CrossingWordsize) {
+    // Crossing page
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0xFFFF);
+    cpu.Y = 0x10;
+
+    Test_AND(Setter(0x000F),
              Opcode(AND, IndirectIndexed, 2, 5),
              true);
 }
