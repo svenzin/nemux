@@ -295,6 +295,16 @@ TEST_F(CpuTestLoadStore, LDA_IndirectIndexed_CrossingWordsize) {
         Opcode(LDA, IndirectIndexed, 2, 5), 1);
 }
 
+TEST_F(CpuTestLoadStore, LDA_IndirectIndexed_BaseFromZeroPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xFF);
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    cpu.Y = 0x10;
+    Test_Load(Getter(cpu.A), Setter(0x0130),
+        Opcode(LDA, IndirectIndexed, 2, 5), 0);
+}
+
 TEST_F(CpuTestLoadStore, STX_ZeroPage) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
@@ -458,5 +468,17 @@ TEST_F(CpuTestLoadStore, STA_IndirectIndexed_CrossingWordsize) {
     cpu.Y = 0x10;
 
     Test_Set(Getter(0x000F), Setter(cpu.A),
+        Opcode(STA, IndirectIndexed, 2, 6));
+}
+
+TEST_F(CpuTestLoadStore, STA_IndirectIndexed_BaseFromZeroPage) {
+    // Same page
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xFF);
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    cpu.Y = 0x10;
+
+    Test_Set(Getter(0x0130), Setter(cpu.A),
         Opcode(STA, IndirectIndexed, 2, 6));
 }
