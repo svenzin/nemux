@@ -287,45 +287,46 @@ Opcode Cpu::Decode(const Byte &byte) const {
 }
 
 address_t Cpu::BuildAddress(const Addressing::Type & type) const {
+    const Word PC_1 = PC + 1;
     switch (type) {
         case Immediate: {
-            return { PC + 1, false };
+            return { PC_1, false };
         }
         case ZeroPage: {
-            return { ReadByteAt(PC + 1), false };
+            return { ReadByteAt(PC_1), false };
         }
         case ZeroPageX: {
-            const auto address = (ReadByteAt(PC + 1) + X) & WORD_LO_MASK;
+            const auto address = (ReadByteAt(PC_1) + X) & WORD_LO_MASK;
             return { static_cast<Word>(address), false };
         }
         case ZeroPageY: {
-            const auto address = (ReadByteAt(PC + 1) + Y) & WORD_LO_MASK;
+            const auto address = (ReadByteAt(PC_1) + Y) & WORD_LO_MASK;
             return { static_cast<Word>(address), false };
         }
         case Absolute: {
-            return { ReadWordAt(PC + 1), false };
+            return { ReadWordAt(PC_1), false };
         }
         case AbsoluteX: {
-            const auto address = ReadWordAt(PC + 1) + X;
+            const Word address = ReadWordAt(PC_1) + X;
             return { address, (X > (address & BYTE_MASK)) };
         }
         case AbsoluteY: {
-            const auto address = ReadWordAt(PC + 1) + Y;
+            const Word address = ReadWordAt(PC_1) + Y;
             return { address, (Y > (address & BYTE_MASK)) };
         }
         case IndexedIndirect: {
-            const auto base = ReadWordAt(PC + 1) + X;
+            const Word base = ReadWordAt(PC_1) + X;
             const Word lo = base & WORD_LO_MASK;
             const Word hi = (base + 1) & WORD_LO_MASK;
             const Word addr = ReadByteAt(hi) << BYTE_WIDTH | ReadByteAt(lo);
             return { addr, false };
         }
         case IndirectIndexed: {
-            const auto base = ReadWordAt(ReadByteAt(PC + 1)) + Y;
+            const Word base = ReadWordAt(ReadByteAt(PC_1)) + Y;
             return { base, (Y > (base & BYTE_MASK)) };
         }
         case Indirect: {
-            const Word base = ReadWordAt(PC + 1);
+            const Word base = ReadWordAt(PC_1);
             const Word lo = base;
             const Word hi = (base & WORD_HI_MASK) | ((base + 1) & WORD_LO_MASK);
             const Word addr = ReadByteAt(hi) << BYTE_WIDTH | ReadByteAt(lo);
