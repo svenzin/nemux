@@ -157,6 +157,8 @@ public:
     void TriggerNMI();
     void TriggerIRQ();
 
+    void DMA(const Byte page, std::array<Byte, 0x0100> & target, const Byte offset);
+
 private:
 //    std::vector<Instruction> m_opcodes;
 //    std::vector<Opsize> m_opsize;

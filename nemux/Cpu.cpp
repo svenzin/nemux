@@ -436,6 +436,18 @@ void Cpu::TriggerIRQ() {
         PendingInterrupt = InterruptType::Irq;
     }
 }
+void Cpu::DMA(const Byte page,
+    std::array<Byte, 0x0100> & target,
+    const Byte offset) {
+    const Word base = page << BYTE_WIDTH;
+    for (Word i = 0; i < 0x0100; ++i) {
+        target[(i + offset) & WORD_LO_MASK] = ReadByteAt(base + i);
+    }
+    Ticks += 513;
+    if (CurrentTick % 2 == 1) {
+        ++Ticks;
+    }
+}
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     switch(op.Instruction) {
         case BRK: {
