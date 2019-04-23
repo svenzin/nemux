@@ -13,22 +13,16 @@
 
 #include "Types.h"
 
-static const auto MEMORY_COUNT = 0x10000;
-
-class Mapper {
+class NesMapper {
 public:
-    explicit Mapper(const std::string &name, const size_t size);
 
-    typedef std::vector<Byte> Buffer;
-    const Buffer & data() const;
+    virtual Byte GetCpuAt(const Word address) const = 0;
 
-    std::string Name;
+    virtual void SetCpuAt(const Word address, const Byte value) = 0;
 
-    Byte GetByteAt(const Word address) const;
-    void SetByteAt(const Word address, Byte value);
+    virtual Byte GetPpuAt(const Word address) const = 0;
 
-private:
-    Buffer m_memory;
+    virtual void SetPpuAt(const Word address, const Byte value) = 0;
 };
 
 #endif /* MAPPER_H_ */

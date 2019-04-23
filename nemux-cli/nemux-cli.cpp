@@ -149,7 +149,7 @@ int main(int argc, char ** argv) {
                 start_addr.second = std::stoi(values[Options::Test_StartAt], nullptr, 0);
             }
             
-            Mapper_0 mapper(rom);
+            Mapper_000 mapper(rom);
             Ppu ppu;
             CpuMemoryMap<Ppu> cpumap(&ppu, &mapper);
             Cpu cpu("6502", &cpumap);

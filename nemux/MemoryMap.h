@@ -4,6 +4,7 @@
 #include "Types.h"
 #include "Ppu.h"
 #include "Palette.h"
+#include "Mapper.h"
 
 #include <array>
 
@@ -35,9 +36,9 @@ class CpuMemoryMap : public MemoryMap {
 public:
     std::array<Byte, 0x0800> RAM;
     Ppu_t * PPU;
-    MemoryMap * Mapper;
+    NesMapper * Mapper;
     
-    CpuMemoryMap(Ppu_t * ppu, MemoryMap * mapper)
+    CpuMemoryMap(Ppu_t * ppu, NesMapper * mapper)
         : PPU(ppu), Mapper(mapper)
     {}
 
@@ -54,7 +55,7 @@ public:
         } else if (address < 0x4020) {
             return 0;
         } else {
-            return Mapper->GetByteAt(address);
+            return Mapper->GetCpuAt(address);
         }
     }
 
@@ -73,7 +74,7 @@ public:
         } else if (address < 0x4020) {
 
         } else {
-            Mapper->SetByteAt(address, value);
+            Mapper->SetCpuAt(address, value);
         }
     }
 };
@@ -82,11 +83,11 @@ template <class Palette_t>
 class PpuMemoryMap : public MemoryMap {
 public:
     //std::array<Byte, 0x0100> SprRam;
-    //std::array<Byte, 0x0800> Vram;
+    std::array<Byte, 0x0800> Vram;
     Palette_t * PpuPalette;
-    MemoryMap * Mapper;
+    NesMapper * Mapper;
 
-    PpuMemoryMap(Palette_t * palette, MemoryMap * mapper)
+    PpuMemoryMap(Palette_t * palette, NesMapper * mapper)
         : PpuPalette(palette), Mapper(mapper)
     {}
 
@@ -96,8 +97,12 @@ public:
         if (address >= 0x3F00) {
             return PpuPalette->ReadAt(address - 0x3F00);
         }
+        else if (address >= 0x2000) {
+            const auto addr = address & 0x07FF;
+            return Vram[addr];
+        }
         else {
-            return Mapper->GetByteAt(address);
+            return Mapper->GetPpuAt(address);
         }
     }
 
@@ -105,8 +110,12 @@ public:
         if (address >= 0x3F00) {
             PpuPalette->WriteAt(address - 0x3F00, value);
         }
+        else if (address >= 0x2000) {
+            const auto addr = address & 0x07FF;
+            Vram[addr] = value;
+        }
         else {
-            return Mapper->SetByteAt(address, value);
+            return Mapper->SetPpuAt(address, value);
         }
     }
 };

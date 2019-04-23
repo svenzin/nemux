@@ -19,14 +19,16 @@ struct MonitoredPpu {
     MOCK_METHOD1(WriteData, void(Byte value));
 };
 
-struct MonitoredMapper : public MemoryMap {
-    MOCK_CONST_METHOD1(GetByteAt, Byte(const Word address));
-    MOCK_METHOD2(SetByteAt, void(const Word address, const Byte value));
+struct MonitoredNesMapper : public NesMapper {
+    MOCK_CONST_METHOD1(GetCpuAt, Byte(const Word address));
+    MOCK_METHOD2(SetCpuAt, void(const Word address, const Byte value));
+    MOCK_CONST_METHOD1(GetPpuAt, Byte(const Word address));
+    MOCK_METHOD2(SetPpuAt, void(const Word address, const Byte value));
 };
 
 struct CpuMemoryMapTest : public ::testing::Test {
     MonitoredPpu ppu;
-    MonitoredMapper mapper;
+    MonitoredNesMapper mapper;
     CpuMemoryMap<MonitoredPpu> cpumap;
 
     CpuMemoryMapTest() : cpumap(&ppu, &mapper) {}
@@ -147,22 +149,22 @@ TEST_F(CpuMemoryMapTest, PPU_MirroredRegisters) {
 
 TEST_F(CpuMemoryMapTest, Mapper_Get) {
     {
-        EXPECT_CALL(mapper, GetByteAt(0x4020));
+        EXPECT_CALL(mapper, GetCpuAt(0x4020));
         cpumap.GetByteAt(0x4020);
     }
     {
-        EXPECT_CALL(mapper, GetByteAt(0xFFFF));
+        EXPECT_CALL(mapper, GetCpuAt(0xFFFF));
         cpumap.GetByteAt(0xFFFF);
     }
 }
 
 TEST_F(CpuMemoryMapTest, Mapper_Set) {
     {
-        EXPECT_CALL(mapper, SetByteAt(0x4020, 0x00));
+        EXPECT_CALL(mapper, SetCpuAt(0x4020, 0x00));
         cpumap.SetByteAt(0x4020, 0x00);
     }
     {
-        EXPECT_CALL(mapper, SetByteAt(0xFFFF, 0x00));
+        EXPECT_CALL(mapper, SetCpuAt(0xFFFF, 0x00));
         cpumap.SetByteAt(0xFFFF, 0x00);
     }
 }
