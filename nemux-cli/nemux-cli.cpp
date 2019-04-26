@@ -152,7 +152,8 @@ int main(int argc, char ** argv) {
             
             Mapper_000 mapper(rom);
             
-            Ppu ppu;
+            PpuMemoryMap<Palette> ppumap(nullptr, &mapper);
+            Ppu ppu(&ppumap);
             
             CpuMemoryMap<Cpu, Ppu> cpumap(nullptr, &ppu, &mapper);
             Cpu cpu("6502", &cpumap);
@@ -171,9 +172,32 @@ int main(int argc, char ** argv) {
             std::getline(logfile.second, line);
             while (true) {
                 if (step == 0) {
+                    std::cout << "> ";
                     std::getline(std::cin, line);
                     if (line.empty()) step = 1;
                     else if (line == "r") step = -1;
+                    else if (line == "nt") {
+                        const Byte * nt = &ppumap.Vram[0];
+                        std::cout << "Nametable 0 @0x2000" << std::endl;
+                        for (auto y = 0; y < 30; ++y) {
+                            for (auto x = 0; x < 32; x++) {
+                                std::cout << hex << setfill('0') << setw(2) << Word{ *nt } << ' ';
+                                ++nt;
+                            }
+                            std::cout << std::endl;
+                        }
+                    }
+                    else if (line == "at") {
+                        const Byte * at = &ppumap.Vram[0x3C0];
+                        std::cout << "Attribute Table 0 @0x23C0" << std::endl;
+                        for (auto y = 0; y < 8; ++y) {
+                            for (auto x = 0; x < 8; x++) {
+                                std::cout << hex << setfill('0') << setw(2) << Word{ *at } << ' ';
+                                ++at;
+                            }
+                            std::cout << std::endl;
+                        }
+                    }
                     else {
                         try {
                             step = std::stoll(line);
@@ -183,36 +207,41 @@ int main(int argc, char ** argv) {
                         }
                     }
                 } else {
-                    std::cout << std::endl;
-                }
-                --step;
-                ++counter;
-
-                cpu.Tick();
-                while (cpu.CurrentTick < cpu.Ticks) {
-                    cpu.Tick();
+                    //std::cout << std::endl;
                 }
 
-                std::cout << dec << counter << " " << cpu.ToMiniString() << " ";
-                if (logfile.first) {
-                    std::getline(logfile.second, line);
-                    const auto state = ParseLog(line);
-                    if (cpu.PC != state.PC ||
-                        cpu.SP != state.SP ||
-                        cpu.A != state.A ||
-                        cpu.X != state.X ||
-                        cpu.Y != state.Y ||
-                        (cpu.GetStatus() & ~Mask<Brk>(1)) != (state.P & ~Mask<Brk>(1))) {
-                        std::cout << "DIFF"
-                            << " PC=$" << hex << setfill('0') << setw(4) << state.PC
-                            << " S=$" << hex << setfill('0') << setw(2) << Word{ state.SP }
-                            << " A=$" << hex << setfill('0') << setw(2) << Word{ state.A }
-                            << " X=$" << hex << setfill('0') << setw(2) << Word{ state.X }
-                            << " Y=$" << hex << setfill('0') << setw(2) << Word{ state.Y }
-                            << " P=$" << hex << setfill('0') << setw(2) << Word{ state.P }
-                        << " ";
+                if (step > 0) {
+                    --step;
+                    ++counter;
 
-                        if (step < 0) step = 0;
+                    cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick();
+                    while (cpu.CurrentTick < cpu.Ticks) {
+                        cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick();
+                    }
+                }
+
+                if (step == 0) {
+                    std::cout << dec << counter << " " << cpu.ToMiniString() << " ";
+                    if (logfile.first) {
+                        std::getline(logfile.second, line);
+                        const auto state = ParseLog(line);
+                        if (cpu.PC != state.PC ||
+                            cpu.SP != state.SP ||
+                            cpu.A != state.A ||
+                            cpu.X != state.X ||
+                            cpu.Y != state.Y ||
+                            (cpu.GetStatus() & ~Mask<Brk>(1)) != (state.P & ~Mask<Brk>(1))) {
+                            std::cout << "DIFF"
+                                << " PC=$" << hex << setfill('0') << setw(4) << state.PC
+                                << " S=$" << hex << setfill('0') << setw(2) << Word{ state.SP }
+                                << " A=$" << hex << setfill('0') << setw(2) << Word{ state.A }
+                                << " X=$" << hex << setfill('0') << setw(2) << Word{ state.X }
+                                << " Y=$" << hex << setfill('0') << setw(2) << Word{ state.Y }
+                                << " P=$" << hex << setfill('0') << setw(2) << Word{ state.P }
+                            << " ";
+
+                            if (step < 0) step = 0;
+                        }
                     }
                 }
             }
