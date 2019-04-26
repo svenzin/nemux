@@ -11,6 +11,7 @@
 #include "Types.h"
 #include "BitUtil.h"
 #include "Palette.h"
+#include "MemoryMap.h"
 
 #include <array>
 
@@ -82,10 +83,10 @@ public:
         Byte data;
         if (Address >= 0x3F00) {
             data = PpuPalette.ReadAt(Address - 0x3F00);
-            ReadDataBuffer = Data[Address & 0x2FFF];
+            ReadDataBuffer = Map->GetByteAt(Address & 0x2FFF);
         } else {
             data = ReadDataBuffer;
-            ReadDataBuffer = Data[Address];
+            ReadDataBuffer = Map->GetByteAt(Address);
         }
         Address = (Address + AddressIncrement) & 0x3FFF;
         return data;
@@ -95,7 +96,7 @@ public:
         if (Address >= 0x3F00) {
             PpuPalette.WriteAt(Address - 0x3F00, value);
         } else {
-            Data[Address] = value;
+            Map->SetByteAt(Address, value);
         }
         Address = (Address + AddressIncrement) & 0x3FFF;
     }
@@ -118,7 +119,7 @@ public:
         FrameBuffer.fill(0);
     }
 
-    explicit Ppu() {
+    explicit Ppu(MemoryMap * map = nullptr) {
         OAMAddress = 0x00;
 
         //IgnoreVramWrites;
@@ -143,6 +144,8 @@ public:
 
         ScrollX = 0x00;
         ScrollY = 0x00;
+
+        Map = map;
 
         Address = 0x0000;
         ReadDataBuffer = 0x00;
@@ -187,7 +190,8 @@ public:
 
     Word Address;
 
-    std::array<Byte, 0x3F00> Data;
+    MemoryMap * Map;
+
     Byte ReadDataBuffer;
 
     Palette PpuPalette;

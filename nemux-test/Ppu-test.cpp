@@ -14,7 +14,10 @@ using namespace std;
 ////////////////////////////////////////////////////////////////
 
 struct PpuTest : public ::testing::Test {
+    MemoryBlock<0x2000> ppumap;
     Ppu ppu;
+    
+    PpuTest() : ppu(&ppumap) {}
 };
 
 TEST_F(PpuTest, WriteCtrl1_NameTable) {

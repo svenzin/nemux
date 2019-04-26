@@ -3,6 +3,8 @@
 
 #include "MemoryMap.h"
 
+#include "Ppu.h"
+
 #include <functional>
 #include <typeinfo>
 

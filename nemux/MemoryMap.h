@@ -2,7 +2,7 @@
 #define MEMORY_MAP_H_
 
 #include "Types.h"
-#include "Ppu.h"
+//#include "Ppu.h"
 #include "Palette.h"
 #include "Mapper.h"
 

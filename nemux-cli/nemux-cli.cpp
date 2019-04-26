@@ -11,6 +11,7 @@
 #include "NesFile.h"
 #include "Mapper_0.h"
 #include "Cpu.h"
+#include "Ppu.h"
 
 using std::hex;
 using std::dec;
