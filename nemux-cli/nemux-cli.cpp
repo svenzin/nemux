@@ -150,9 +150,13 @@ int main(int argc, char ** argv) {
             }
             
             Mapper_000 mapper(rom);
+            
             Ppu ppu;
-            CpuMemoryMap<Ppu> cpumap(&ppu, &mapper);
+            
+            CpuMemoryMap<Cpu, Ppu> cpumap(nullptr, &ppu, &mapper);
             Cpu cpu("6502", &cpumap);
+            cpumap.CPU = &cpu;
+            
             if (start_addr.first) {
                 cpu.PC = start_addr.second;
                 cpu.B = 0;

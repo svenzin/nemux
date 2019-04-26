@@ -31,15 +31,16 @@ public:
     }
 };
 
-template <class Ppu_t>
+template <class Cpu_t, class Ppu_t>
 class CpuMemoryMap : public MemoryMap {
 public:
     std::array<Byte, 0x0800> RAM;
+    Cpu_t * CPU;
     Ppu_t * PPU;
     NesMapper * Mapper;
     
-    CpuMemoryMap(Ppu_t * ppu, NesMapper * mapper)
-        : PPU(ppu), Mapper(mapper)
+    CpuMemoryMap(Cpu_t * cpu, Ppu_t * ppu, NesMapper * mapper)
+        : CPU(cpu), PPU(ppu), Mapper(mapper)
     {}
 
     ~CpuMemoryMap() override {}
@@ -72,7 +73,9 @@ public:
             if (addr == 0x2006) PPU->WriteAddress(value);
             if (addr == 0x2007) PPU->WriteData(value);
         } else if (address < 0x4020) {
-
+            if (address == 0x4014) {
+                CPU->DMA(value, PPU->SprRam, PPU->OAMAddress);
+            } // OAM DMA
         } else {
             Mapper->SetCpuAt(address, value);
         }

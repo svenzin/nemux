@@ -6,7 +6,14 @@
 #include <functional>
 #include <typeinfo>
 
-struct MonitoredPpu {
+struct MonitoredCpu {
+    MOCK_METHOD3(DMA, void(const Byte page,
+                           std::array<Byte, 0x0100> & target,
+                           const Byte offset)
+    );
+};
+
+struct MonitoredPpu : public Ppu {
     MOCK_METHOD1(WriteControl1, void(Byte value));
     MOCK_METHOD1(WriteControl2, void(Byte value));
     MOCK_METHOD0(ReadStatus, Byte());
@@ -27,11 +34,12 @@ struct MonitoredNesMapper : public NesMapper {
 };
 
 struct CpuMemoryMapTest : public ::testing::Test {
+    MonitoredCpu cpu;
     MonitoredPpu ppu;
     MonitoredNesMapper mapper;
-    CpuMemoryMap<MonitoredPpu> cpumap;
+    CpuMemoryMap<MonitoredCpu, MonitoredPpu> cpumap;
 
-    CpuMemoryMapTest() : cpumap(&ppu, &mapper) {}
+    CpuMemoryMapTest() : cpumap(&cpu, &ppu, &mapper) {}
 };
 
 TEST_F(CpuMemoryMapTest, RAM_ReadMirroring) {
@@ -167,4 +175,10 @@ TEST_F(CpuMemoryMapTest, Mapper_Set) {
         EXPECT_CALL(mapper, SetCpuAt(0xFFFF, 0x00));
         cpumap.SetByteAt(0xFFFF, 0x00);
     }
+}
+
+TEST_F(CpuMemoryMapTest, CPU_OAMDMA) {
+    ppu.OAMAddress = 0x04;
+    EXPECT_CALL(cpu, DMA(0x02, ppu.SprRam, 0x04));
+    cpumap.SetByteAt(0x4014, 0x02);
 }
