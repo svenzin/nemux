@@ -7,6 +7,7 @@
 #include "Cpu.h"
 
 #include "BitUtil.h"
+#include "Ppu.h"
 
 #include <iomanip>
 #include <sstream>
@@ -265,6 +266,13 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
 
 void Cpu::Tick() {
     ++CurrentTick;
+    auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu> *>(Map);
+    if (m != nullptr) {
+        if (m->PPU->NMIActive) {
+            m->PPU->NMIActive = false;
+            TriggerNMI();
+        }
+    }
     if (CurrentTick > Ticks) {
         if (PendingInterrupt == InterruptType::Rst) {
             Reset();
@@ -415,12 +423,15 @@ void Cpu::Interrupt(const Flag & isBRK,
     Ticks += InterruptCycles;
 }
 void Cpu::Reset() {
+    PendingInterrupt = InterruptType::None;
     Interrupt(0, VectorRST, true);
 }
 void Cpu::NMI() {
+    PendingInterrupt = InterruptType::None;
     Interrupt(0, VectorNMI);
 }
 void Cpu::IRQ() {
+    PendingInterrupt = InterruptType::None;
     Interrupt(0, VectorIRQ);
 }
 void Cpu::TriggerReset() {
