@@ -100,6 +100,24 @@ public:
         Address = (Address + AddressIncrement) & 0x3FFF;
     }
 
+    void Tick() {
+        ++Ticks;
+
+        if (Ticks == 89342) {
+            Ticks = 0;
+            ++Frames;
+            Render();
+        }
+
+        if (Ticks == 82152) NMIActive = true;
+        else if (Ticks == 88972) NMIActive = false;
+    }
+
+    std::array<Byte, 89342> FrameBuffer;
+    void Render() {
+        FrameBuffer.fill(0);
+    }
+
     explicit Ppu() {
         OAMAddress = 0x00;
 
@@ -128,6 +146,10 @@ public:
 
         Address = 0x0000;
         ReadDataBuffer = 0x00;
+
+        NMIActive = false;
+        Ticks = 0;
+        Frames = 0;
     }
 
     struct {
@@ -169,6 +191,10 @@ public:
     Byte ReadDataBuffer;
 
     Palette PpuPalette;
+
+    bool NMIActive;
+    int Ticks;
+    int Frames;
 };
 
 #endif /* PPU_H_ */

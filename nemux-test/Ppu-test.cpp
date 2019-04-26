@@ -178,6 +178,9 @@ TEST_F(PpuTest, PowerUpState) {
     // Address
     EXPECT_EQ(0x0000, ppu.Address);
     EXPECT_EQ(0x00, ppu.ReadData());
+
+    // NMI line
+    EXPECT_EQ(false, ppu.NMIActive);
 }
 
 TEST_F(PpuTest, WriteOAMAdress) {
@@ -409,4 +412,32 @@ TEST_F(PpuTest, ReadData_ReadBufferOnHighAddress) {
     ppu.WriteAddress(0x00);
     ppu.WriteAddress(0x00);
     EXPECT_EQ(0xBE, ppu.ReadData());
+}
+
+TEST_F(PpuTest, NMI_SimpleActivation) {
+    // Frame 0
+    for (int i = 0; i <= 82151; ++i) {
+        EXPECT_EQ(false, ppu.NMIActive);
+        ppu.Tick();
+    }
+    // Frame 0
+    for (int i = 82152; i <= 88971; i++) {
+        EXPECT_EQ(true, ppu.NMIActive);
+        ppu.Tick();
+    }
+    // Frame 0-1
+    for (int i = 88972; i <= 171493; i++) {
+        EXPECT_EQ(false, ppu.NMIActive);
+        ppu.Tick();
+    }
+    // Frame 1
+    for (int i = 171494; i <= 178313; i++) {
+        EXPECT_EQ(true, ppu.NMIActive);
+        ppu.Tick();
+    }
+    // Frame 1
+    for (int i = 178314; i <= 178683; i++) {
+        EXPECT_EQ(false, ppu.NMIActive);
+        ppu.Tick();
+    }
 }
