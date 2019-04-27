@@ -212,6 +212,24 @@ int main(int argc, char ** argv) {
                     SDL::SetScale(32);
                     SDL::Show(8, 8, p.data());
                 }
+                else if (line == "pt") {
+                    std::vector<Uint32> p(128 * 256, 0);
+                    std::cout << "Pattern Table @0x0000" << std::endl;
+                    for (auto y = 0; y < 256; ++y) {
+                        for (auto x = 0; x < 128; x++) {
+                            auto tx = x / 8; auto xx = x % 8;
+                            auto ty = y / 8; auto yy = y % 8;
+                            auto td = 16 * ty + tx;
+                            auto b = ppumap.GetByteAt(16 * td + yy);
+                            Uint8 v = (b >> (7 - xx)) & 0x01;
+                            b = ppumap.GetByteAt(16 * td + yy + 8);
+                            v += ((b >> (7 - xx)) & 0x01) << 1;
+                            p[128 * y + x] = RGB(v / 3.0f, v / 3.0f, v / 3.0f);
+                        }
+                    }
+                    SDL::SetScale(2);
+                    SDL::Show(128, 256, p.data());
+                }
                 else if (line[0] == 'f') {
                     step = 29781 * std::stoll(line.substr(1));
                 }

@@ -37,7 +37,7 @@ public:
 
     Byte GetPpuAt(const Word address) const override {
         const Word addr = TranslatePpu(address);
-        return PrgRom[addr];
+        return ChrRom[addr];
     }
 
     void SetPpuAt(const Word address, const Byte value) override {
