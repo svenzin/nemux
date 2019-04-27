@@ -233,6 +233,28 @@ int main(int argc, char ** argv) {
                 else if (line[0] == 'f') {
                     step = 29781 * std::stoll(line.substr(1));
                 }
+                else if (line == "bg") {
+                    std::vector<Uint32> p(256 * 240, 0);
+                    std::cout << "Background" << std::endl;
+                    for (auto ty = 0; ty < 30; ++ty) {
+                        for (auto tx = 0; tx < 32; tx++) {
+                            auto td = ppumap.Vram[32 * ty + tx];
+                            for (auto yy = 0; yy < 8; yy++) {
+                                for (auto xx = 0; xx < 8; xx++) {
+                                    auto x = 8 * tx + xx;
+                                    auto y = 8 * ty + yy;
+                                    auto b = ppumap.GetByteAt(ppu.BackgroundTable + 16 * td + yy);
+                                    Uint8 v = (b >> (7 - xx)) & 0x01;
+                                    b = ppumap.GetByteAt(ppu.BackgroundTable + 16 * td + yy + 8);
+                                    v += ((b >> (7 - xx)) & 0x01) << 1;
+                                    p[256 * y + x] = RGB(v / 3.0f, v / 3.0f, v / 3.0f);
+                                }
+                            }
+                        }
+                    }
+                    SDL::SetScale(2);
+                    SDL::Show(256, 240, p.data());
+                }
                 else {
                     try {
                         step = std::stoll(line);
