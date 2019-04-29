@@ -15,6 +15,12 @@
 
 #include <array>
 
+static constexpr size_t FRAME_WIDTH = 256;
+static constexpr size_t FRAME_HEIGHT = 240;
+static constexpr size_t VIDEO_WIDTH = 341;
+static constexpr size_t VIDEO_HEIGHT = 262;
+static constexpr size_t VIDEO_SIZE = VIDEO_WIDTH * VIDEO_HEIGHT;
+
 class Ppu {
 public:
     void WriteControl1(Byte value) {
@@ -102,16 +108,17 @@ public:
     }
 
     void Tick() {
-        ++Ticks;
-
-        if (Ticks == 89342) {
-            Ticks = 0;
-            ++Frames;
-            Render();
+        const auto y = FrameTicks / VIDEO_WIDTH;
+        const auto x = FrameTicks % VIDEO_WIDTH;
+        if ((y == 241) && (x == 0))
+            NMIActive = true;
+        if ((y == 260) && (x == 340))
+            NMIActive = false;
+        ++FrameTicks;
+        if (FrameTicks == VIDEO_SIZE) {
+            FrameTicks = 0;
+            ++FrameCount;
         }
-
-        if (Ticks == 82152) NMIActive = true;
-        else if (Ticks == 88972) NMIActive = false;
     }
 
     std::array<Byte, 89342> FrameBuffer;
@@ -153,6 +160,9 @@ public:
         NMIActive = false;
         Ticks = 0;
         Frames = 0;
+
+        FrameTicks = 0;
+        FrameCount = 0;
     }
 
     struct {
@@ -199,6 +209,9 @@ public:
     bool NMIActive;
     int Ticks;
     int Frames;
+
+    size_t FrameTicks;
+    size_t FrameCount;
 };
 
 #endif /* PPU_H_ */

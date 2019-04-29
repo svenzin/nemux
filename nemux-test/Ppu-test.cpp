@@ -419,28 +419,38 @@ TEST_F(PpuTest, ReadData_ReadBufferOnHighAddress) {
 
 TEST_F(PpuTest, NMI_SimpleActivation) {
     // Frame 0
-    for (int i = 0; i <= 82151; ++i) {
-        EXPECT_EQ(false, ppu.NMIActive);
+    // Pixels (0, 0) to (341, 240)
+    // Cycles 0 to 341*241-1 = 82180
+    for (int i = 0; i <= 82180; ++i) {
+        EXPECT_EQ(false, ppu.NMIActive) << i;
         ppu.Tick();
     }
     // Frame 0
-    for (int i = 82152; i <= 88971; i++) {
-        EXPECT_EQ(true, ppu.NMIActive);
+    // Pixels (0, 241) to (341, 260)
+    // Cycles 341*241 = 82181 to 341*261-1 = 89000
+    for (int i = 82181; i <= 89000; i++) {
+        EXPECT_EQ(true, ppu.NMIActive) << i;
         ppu.Tick();
     }
     // Frame 0-1
-    for (int i = 88972; i <= 171493; i++) {
-        EXPECT_EQ(false, ppu.NMIActive);
+    // Pixels (0, 261) to (341, 240)
+    // Cycles 341*261 = 89001 to 341*262+341*241-1 = 171522
+    for (int i = 89001; i <= 171522; i++) {
+        EXPECT_EQ(false, ppu.NMIActive) << i;
         ppu.Tick();
     }
     // Frame 1
-    for (int i = 171494; i <= 178313; i++) {
-        EXPECT_EQ(true, ppu.NMIActive);
+    // Pixels (0, 241) to (341, 260)
+    // Cycles 341*262+341*241 = 171523 to 341*262+341*261-1 = 178342
+    for (int i = 171523; i <= 178342; i++) {
+        EXPECT_EQ(true, ppu.NMIActive) << i;
         ppu.Tick();
     }
     // Frame 1
-    for (int i = 178314; i <= 178683; i++) {
-        EXPECT_EQ(false, ppu.NMIActive);
+    // Pixels (0, 261) to (341, 261)
+    // Cycles 341*262+341*261 = 178343 to 341*262+341*262-1 = 178683
+    for (int i = 178343; i <= 178683; i++) {
+        EXPECT_EQ(false, ppu.NMIActive) << i;
         ppu.Tick();
     }
 }
