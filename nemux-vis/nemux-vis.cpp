@@ -11,6 +11,7 @@
 #include "Mapper_0.h"
 #include "Cpu.h"
 #include "Ppu.h"
+#include "Controllers.h"
 
 using std::hex;
 using std::dec;
@@ -190,12 +191,13 @@ int main(int argc, char ** argv) {
         NesFile rom(file);
         log("Done.");
 
+        Controllers ctrl;
         Mapper_000 mapper(rom);
 
         PpuMemoryMap<Palette> ppumap(nullptr, &mapper);
         Ppu ppu(&ppumap);
 
-        CpuMemoryMap<Cpu, Ppu> cpumap(nullptr, &ppu, &mapper);
+        CpuMemoryMap<Cpu, Ppu, Controllers> cpumap(nullptr, &ppu, &mapper, &ctrl);
         Cpu cpu("6502", &cpumap);
         cpumap.CPU = &cpu;
 

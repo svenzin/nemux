@@ -4,6 +4,7 @@
 #include "MemoryMap.h"
 
 #include "Ppu.h"
+#include "Controllers.h"
 
 #include <functional>
 #include <typeinfo>
@@ -35,13 +36,20 @@ struct MonitoredNesMapper : public NesMapper {
     MOCK_METHOD2(SetPpuAt, void(const Word address, const Byte value));
 };
 
+struct MonitoredControllers : public Controllers {
+    MOCK_METHOD0(ReadP1, Byte());
+    MOCK_METHOD0(ReadP2, Byte());
+    MOCK_METHOD1(Write, void(const Byte value));
+};
+
 struct CpuMemoryMapTest : public ::testing::Test {
     MonitoredCpu cpu;
     MonitoredPpu ppu;
     MonitoredNesMapper mapper;
-    CpuMemoryMap<MonitoredCpu, MonitoredPpu> cpumap;
+    MonitoredControllers controllers;
+    CpuMemoryMap<MonitoredCpu, MonitoredPpu, MonitoredControllers> cpumap;
 
-    CpuMemoryMapTest() : cpumap(&cpu, &ppu, &mapper) {}
+    CpuMemoryMapTest() : cpumap(&cpu, &ppu, &mapper, &controllers) {}
 };
 
 TEST_F(CpuMemoryMapTest, RAM_ReadMirroring) {
@@ -183,4 +191,19 @@ TEST_F(CpuMemoryMapTest, CPU_OAMDMA) {
     ppu.OAMAddress = 0x04;
     EXPECT_CALL(cpu, DMA(0x02, ppu.SprRam, 0x04));
     cpumap.SetByteAt(0x4014, 0x02);
+}
+
+TEST_F(CpuMemoryMapTest, Controllers_ReadWrite) {
+    {
+        EXPECT_CALL(controllers, Write(0x1E));
+        cpumap.SetByteAt(0x4016, 0x1E);
+    }
+    {
+        EXPECT_CALL(controllers, ReadP1());
+        cpumap.GetByteAt(0x4016);
+    }
+    {
+        EXPECT_CALL(controllers, ReadP2());
+        cpumap.GetByteAt(0x4017);
+    }
 }

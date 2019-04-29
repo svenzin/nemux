@@ -8,6 +8,7 @@
 
 #include "BitUtil.h"
 #include "Ppu.h"
+#include "Controllers.h"
 
 #include <iomanip>
 #include <sstream>
@@ -266,7 +267,7 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
 
 void Cpu::Tick() {
     ++CurrentTick;
-    auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu> *>(Map);
+    static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers> *>(Map);
     if (m != nullptr) {
         if (m->PPU->NMIActive) {
             m->PPU->NMIActive = false;
