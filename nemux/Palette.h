@@ -19,7 +19,7 @@ public:
     }
 
     Byte ReadAt(const Byte Address) const {
-        return Data[Mirror(Address)];
+        return Data[Mirror(Address)] & 0x3F;
     }
 
     std::array<Byte, 0x20> Data;

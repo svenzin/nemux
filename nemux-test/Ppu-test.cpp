@@ -395,22 +395,22 @@ TEST_F(PpuTest, ReadData_ReadBufferOnHighAddress) {
     
     ppu.WriteAddress(0x3F);
     ppu.WriteAddress(0x00);
-    ppu.WriteData(0xA5);
-    ppu.WriteData(0xAA);
+    ppu.WriteData(0x15);
+    ppu.WriteData(0x1A);
 
     // At power up, the buffer is 0x00 (already tested)
     // When reading in addresses > 0x3EFF, the data in memory is returned
     ppu.WriteAddress(0x3F);
     ppu.WriteAddress(0x00);
-    EXPECT_EQ(0xA5, ppu.ReadData());
+    EXPECT_EQ(0x15, ppu.ReadData());
     EXPECT_EQ(0x3F01, ppu.Address);
-    EXPECT_EQ(0xAA, ppu.ReadData());
+    EXPECT_EQ(0x1A, ppu.ReadData());
     EXPECT_EQ(0x3F02, ppu.Address);
 
     // The buffer is still filled based on mirrored-down address
     ppu.WriteAddress(0x3F);
     ppu.WriteAddress(0x00);
-    EXPECT_EQ(0xA5, ppu.ReadData());
+    EXPECT_EQ(0x15, ppu.ReadData());
     EXPECT_EQ(0x3F01, ppu.Address);
     ppu.WriteAddress(0x00);
     ppu.WriteAddress(0x00);
