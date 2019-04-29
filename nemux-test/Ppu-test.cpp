@@ -14,7 +14,7 @@ using namespace std;
 ////////////////////////////////////////////////////////////////
 
 struct PpuTest : public ::testing::Test {
-    MemoryBlock<0x2000> ppumap;
+    MemoryBlock<0x3000> ppumap;
     Ppu ppu;
     
     PpuTest() : ppu(&ppumap) {}
