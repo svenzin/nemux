@@ -421,13 +421,33 @@ int main(int argc, char ** argv) {
                         case SDL_QUIT:
                             quit = true;
                             break;
-                        case SDL_KEYDOWN:
+                        case SDL_KEYDOWN: {
                             quit = quit || (e.key.keysym.sym == SDLK_ESCAPE);
+                            if (e.key.keysym.sym == SDLK_UP) ctrl.P1_Up = true;
+                            if (e.key.keysym.sym == SDLK_DOWN) ctrl.P1_Down = true;
+                            if (e.key.keysym.sym == SDLK_LEFT) ctrl.P1_Left = true;
+                            if (e.key.keysym.sym == SDLK_RIGHT) ctrl.P1_Right = true;
+                            if (e.key.keysym.sym == SDLK_o) ctrl.P1_Select = true;
+                            if (e.key.keysym.sym == SDLK_p) ctrl.P1_Start = true;
+                            if (e.key.keysym.sym == SDLK_q) ctrl.P1_A = true;
+                            if (e.key.keysym.sym == SDLK_s) ctrl.P1_B = true;
                             break;
+                        }
+                        case SDL_KEYUP: {
+                            quit = quit || (e.key.keysym.sym == SDLK_ESCAPE);
+                            if (e.key.keysym.sym == SDLK_UP) ctrl.P1_Up = false;
+                            if (e.key.keysym.sym == SDLK_DOWN) ctrl.P1_Down = false;
+                            if (e.key.keysym.sym == SDLK_LEFT) ctrl.P1_Left = false;
+                            if (e.key.keysym.sym == SDLK_RIGHT) ctrl.P1_Right = false;
+                            if (e.key.keysym.sym == SDLK_o) ctrl.P1_Select = false;
+                            if (e.key.keysym.sym == SDLK_p) ctrl.P1_Start = false;
+                            if (e.key.keysym.sym == SDLK_q) ctrl.P1_A = false;
+                            if (e.key.keysym.sym == SDLK_s) ctrl.P1_B = false;
+                            break;
+                        }
                         }
                     }
                 }
-                if (ppu.FrameCount == 900) quit = true;
             }
 
             SDL_DestroyTexture(tex);
