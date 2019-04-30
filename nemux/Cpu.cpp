@@ -268,11 +268,12 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
 void Cpu::Tick() {
     ++CurrentTick;
     static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers> *>(Map);
+    static bool nmi = false;
     if (m != nullptr) {
-        if (m->PPU->NMIActive) {
-            m->PPU->NMIActive = false;
+        if (!nmi && m->PPU->NMIActive) {
             TriggerNMI();
         }
+        nmi = m->PPU->NMIActive;
     }
     if (CurrentTick > Ticks) {
         if (PendingInterrupt == InterruptType::Rst) {

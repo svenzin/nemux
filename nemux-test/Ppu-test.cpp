@@ -417,42 +417,85 @@ TEST_F(PpuTest, ReadData_ReadBufferOnHighAddress) {
     EXPECT_EQ(0xBE, ppu.ReadData());
 }
 
-TEST_F(PpuTest, NMI_SimpleActivation) {
-    // Frame 0
-    // Pixels (0, 0) to (341, 240)
-    // Cycles 0 to 341*241-1 = 82180
-    for (int i = 0; i <= 82180; ++i) {
-        EXPECT_EQ(false, ppu.NMIActive) << i;
+TEST_F(PpuTest, NMI_DetailedActivation) {
+    ppu.WriteControl1(Mask<7>(true));
+    EXPECT_EQ(true, ppu.NMIOnVBlank);
+    EXPECT_EQ(false, ppu.ShowBackground);
+    EXPECT_EQ(false, ppu.ShowSprite);
+
+    int i;
+    EXPECT_EQ(false, ppu.NMIActive); // NMI inactive at start
+    
+    // Frame 0, pixels (0, 0) to (341, 240)
+    for (i = 0; i <= 82180; ++i) {
         ppu.Tick();
+        EXPECT_EQ(false, ppu.NMIActive) << i;
     }
-    // Frame 0
-    // Pixels (0, 241) to (341, 260)
-    // Cycles 341*241 = 82181 to 341*261-1 = 89000
-    for (int i = 82181; i <= 89000; i++) {
+
+    // Frame 0, pixels (0, 241) to (341, 260)
+    // First tick of scanline 241 has not triggered NMI yet
+    // Second tick of scanline 241 triggers NMI
+    ppu.Tick();
+    EXPECT_EQ(false, ppu.NMIActive) << i;
+    for (i = 82182; i <= 89000; i++) {
+        ppu.Tick();
         EXPECT_EQ(true, ppu.NMIActive) << i;
-        ppu.Tick();
     }
-    // Frame 0-1
-    // Pixels (0, 261) to (341, 240)
-    // Cycles 341*261 = 89001 to 341*262+341*241-1 = 171522
-    for (int i = 89001; i <= 171522; i++) {
+
+    // Frame 0, pixels (0, 261) to (341, 261)
+    for (i = 89001; i <= 89341; ++i) {
+        ppu.Tick();
         EXPECT_EQ(false, ppu.NMIActive) << i;
-        ppu.Tick();
     }
-    // Frame 1
-    // Pixels (0, 241) to (341, 260)
-    // Cycles 341*262+341*241 = 171523 to 341*262+341*261-1 = 178342
-    for (int i = 171523; i <= 178342; i++) {
+
+    // Frame 1, pixels (0, 0) to (341, 240)
+    for (i = 89342; i <= 171522; ++i) {
+        ppu.Tick();
+        EXPECT_EQ(false, ppu.NMIActive) << i;
+    }
+
+    // Frame 1, pixels (0, 241) to (341, 260)
+    ppu.Tick();
+    EXPECT_EQ(false, ppu.NMIActive) << i;
+    for (i = 171524; i <= 178342; i++) {
+        ppu.Tick();
         EXPECT_EQ(true, ppu.NMIActive) << i;
-        ppu.Tick();
     }
-    // Frame 1
-    // Pixels (0, 261) to (341, 261)
-    // Cycles 341*262+341*261 = 178343 to 341*262+341*262-1 = 178683
-    for (int i = 178343; i <= 178683; i++) {
+
+    // Frame 1, pixels (0, 261) to (341, 261)
+    for (i = 178343; i <= 178683; ++i) {
+        ppu.Tick();
         EXPECT_EQ(false, ppu.NMIActive) << i;
+    }
+}
+
+TEST_F(PpuTest, NMI_Disabled) {
+    EXPECT_EQ(false, ppu.NMIOnVBlank);
+    for (int i = 0; i < VIDEO_SIZE; ++i) {
+        EXPECT_EQ(false, ppu.NMIActive);
         ppu.Tick();
     }
+}
+
+TEST_F(PpuTest, NMI_MultipleTriggers) {
+    ppu.WriteControl1(Mask<7>(true));
+    EXPECT_EQ(true, ppu.NMIOnVBlank);
+    
+    while (!ppu.NMIActive)
+        ppu.Tick();
+    
+    EXPECT_EQ(true, ppu.NMIActive);
+
+    ppu.WriteControl1(0);
+    ppu.Tick();
+    EXPECT_EQ(false, ppu.NMIActive);
+
+    ppu.WriteControl1(Mask<7>(true));
+    ppu.Tick();
+    EXPECT_EQ(true, ppu.NMIActive);
+
+    ppu.Tick();
+    EXPECT_EQ(true, ppu.NMIActive);
 }
 
 TEST_F(PpuTest, PpuFrameTime_DisabledRendering) {

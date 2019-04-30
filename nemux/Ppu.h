@@ -151,10 +151,16 @@ public:
                 }
             }
         }
-        if ((y == 241) && (x == 0))
-            NMIActive = true;
-        if ((y == 260) && (x == 340))
-            NMIActive = false;
+
+        //// NMI is activated on tick 1 (second tick) of scanline 241
+        //if ((y == 241) && (x == 1) && NMIOnVBlank)
+        //    NMIActive = true;
+        //// NMI is deactivated after the last tick of scanline 260 (i.e. on (0, 261) (?))
+        //if ((y == 261) && (x == 0))
+        //    NMIActive = false;
+        static constexpr auto NMI_FIRST = 241 * 341 + 1;
+        static constexpr auto NMI_LAST = 260 * 341 + 340;
+        NMIActive = (NMIOnVBlank && NMI_FIRST <= FrameTicks && FrameTicks <= NMI_LAST);
         
         ++FrameTicks;
         if (FrameCount % 2 == 1 && FrameTicks == VIDEO_SIZE - 1 && (ShowBackground || ShowSprite)) 
