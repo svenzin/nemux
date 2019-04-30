@@ -14,8 +14,8 @@ class Mapper_000 : public NesMapper {
 public:
     explicit Mapper_000(const NesFile & rom) {
         if (rom.Header.MapperNumber != 0) throw invalid_format("Invalid mapper");
-        if (rom.Header.PrgRomPages != 1 && rom.Header.PrgRomPages != 2) throw unsupported_format("Not an NROM-128 rom");
-        if (rom.Header.ChrRomPages != 1) throw unsupported_format("Not an NROM-128 rom");
+        if (rom.Header.PrgRomPages != 1 && rom.Header.PrgRomPages != 2) throw unsupported_format("Not an NROM-128/256 rom");
+        if (rom.Header.ChrRomPages != 1) throw unsupported_format("Not an NROM-128/256 rom");
 
         Mirror = (rom.Header.PrgRomPages == 1);
         PrgRom = rom.PrgRomPages;
