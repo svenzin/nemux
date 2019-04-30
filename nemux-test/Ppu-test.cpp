@@ -454,3 +454,56 @@ TEST_F(PpuTest, NMI_SimpleActivation) {
         ppu.Tick();
     }
 }
+
+TEST_F(PpuTest, PpuFrameTime_DisabledRendering) {
+    // 1 pixel per PPU cycle
+    const auto T0 = VIDEO_SIZE;
+
+    // Disabled rendering
+    EXPECT_EQ(false, ppu.ShowBackground);
+    EXPECT_EQ(false, ppu.ShowSprite);
+
+    // Even frame (Frame 0)
+    for (int i = 0; i < T0; ++i) {
+        EXPECT_EQ(0, ppu.FrameCount);
+        EXPECT_EQ(i, ppu.FrameTicks);
+        ppu.Tick();
+    }
+
+    // Odd frame (Frame 1)
+    for (int i = 0; i < T0; ++i) {
+        EXPECT_EQ(1, ppu.FrameCount);
+        EXPECT_EQ(i, ppu.FrameTicks);
+        ppu.Tick();
+    }
+
+    EXPECT_EQ(2, ppu.FrameCount);
+    EXPECT_EQ(0, ppu.FrameTicks);
+}
+
+TEST_F(PpuTest, PpuFrameTime_EnabledRendering) {
+    // 1 pixel per PPU cycle
+    const auto T0 = VIDEO_SIZE;
+
+    // Disabled rendering*
+    ppu.WriteControl2(Mask<3>(true) | Mask<4>(true));
+    EXPECT_EQ(true, ppu.ShowBackground);
+    EXPECT_EQ(true, ppu.ShowSprite);
+
+    // Even frame (Frame 0)
+    for (int i = 0; i < T0; ++i) {
+        EXPECT_EQ(0, ppu.FrameCount);
+        EXPECT_EQ(i, ppu.FrameTicks);
+        ppu.Tick();
+    }
+
+    // Odd frame (Frame 1)
+    for (int i = 0; i < T0 - 1; ++i) {
+        EXPECT_EQ(1, ppu.FrameCount);
+        EXPECT_EQ(i, ppu.FrameTicks);
+        ppu.Tick();
+    }
+
+    EXPECT_EQ(2, ppu.FrameCount);
+    EXPECT_EQ(0, ppu.FrameTicks);
+}

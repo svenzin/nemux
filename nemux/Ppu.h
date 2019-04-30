@@ -112,37 +112,40 @@ public:
         const auto x = FrameTicks % VIDEO_WIDTH;
         //if ((FrameCount%2)==0)
         if ((y < FRAME_HEIGHT) && (x < FRAME_WIDTH)) {
-            const auto tx = x / 8; const auto xx = x % 8;
-            const auto ty = y / 8; const auto yy = y % 8;
-            const auto td = Map->GetByteAt(0x2000 + 32 * ty + tx);
-            const auto taddr = BackgroundTable + 16 * td + yy;
-            auto b = Map->GetByteAt(taddr);
-            auto v = (b >> (7 - xx)) & 0x01;
-            b = Map->GetByteAt(taddr + 8);
-            v += ((b >> (7 - xx)) & 0x01) << 1;
-            const auto atx = x / 32; const auto aty = y / 32;
-            const auto a = Map->GetByteAt(0x23C0 + 8 * aty + atx);
-            v += ((a >> (2 * (x / 16 % 2) + 4 * (y / 16 % 2))) & 0x3) << 2;
-            const auto ci = PpuPalette.ReadAt(v);
-            Frame[VIDEO_WIDTH * y + x] = ci;
-
-            for (auto s = 0; s < 64; s++) {
-                const auto sy = y - SprRam[4 * s + 0] - 1;
-                if ((0 <= sy) && (sy < 8)) {
-                    const auto sx = x - SprRam[4 * s + 3];
-                    if ((0 <= sx) && (sx < 8)) {
-                        const auto td = SprRam[4 * s + 1];
-                        const auto at = SprRam[4 * s + 2];
-                        const auto taddr = SpriteTable + 16 * td + sy;
-                        auto b = Map->GetByteAt(taddr);
-                        auto v = (b >> (7 - sx)) & 0x01;
-                        b = Map->GetByteAt(taddr + 8);
-                        v += ((b >> (7 - sx)) & 0x01) << 1;
-                        v += (at & 0x3) << 2;
-                        v += 0x10;
-                        if ((v & 0x03) != 0) {
-                            const auto ci = PpuPalette.ReadAt(v);
-                            Frame[VIDEO_WIDTH * y + x] = ci;
+            if (ShowBackground) {
+                const auto tx = x / 8; const auto xx = x % 8;
+                const auto ty = y / 8; const auto yy = y % 8;
+                const auto td = Map->GetByteAt(0x2000 + 32 * ty + tx);
+                const auto taddr = BackgroundTable + 16 * td + yy;
+                auto b = Map->GetByteAt(taddr);
+                auto v = (b >> (7 - xx)) & 0x01;
+                b = Map->GetByteAt(taddr + 8);
+                v += ((b >> (7 - xx)) & 0x01) << 1;
+                const auto atx = x / 32; const auto aty = y / 32;
+                const auto a = Map->GetByteAt(0x23C0 + 8 * aty + atx);
+                v += ((a >> (2 * (x / 16 % 2) + 4 * (y / 16 % 2))) & 0x3) << 2;
+                const auto ci = PpuPalette.ReadAt(v);
+                Frame[VIDEO_WIDTH * y + x] = ci;
+            }
+            if (ShowSprite) {
+                for (auto s = 0; s < 64; s++) {
+                    const auto sy = y - SprRam[4 * s + 0] - 1;
+                    if ((0 <= sy) && (sy < 8)) {
+                        const auto sx = x - SprRam[4 * s + 3];
+                        if ((0 <= sx) && (sx < 8)) {
+                            const auto td = SprRam[4 * s + 1];
+                            const auto at = SprRam[4 * s + 2];
+                            const auto taddr = SpriteTable + 16 * td + sy;
+                            auto b = Map->GetByteAt(taddr);
+                            auto v = (b >> (7 - sx)) & 0x01;
+                            b = Map->GetByteAt(taddr + 8);
+                            v += ((b >> (7 - sx)) & 0x01) << 1;
+                            v += (at & 0x3) << 2;
+                            v += 0x10;
+                            if ((v & 0x03) != 0) {
+                                const auto ci = PpuPalette.ReadAt(v);
+                                Frame[VIDEO_WIDTH * y + x] = ci;
+                            }
                         }
                     }
                 }
@@ -152,7 +155,10 @@ public:
             NMIActive = true;
         if ((y == 260) && (x == 340))
             NMIActive = false;
+        
         ++FrameTicks;
+        if (FrameCount % 2 == 1 && FrameTicks == VIDEO_SIZE - 1 && (ShowBackground || ShowSprite)) 
+            ++FrameTicks;
         if (FrameTicks == VIDEO_SIZE) {
             FrameTicks = 0;
             ++FrameCount;
