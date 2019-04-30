@@ -46,6 +46,7 @@ public:
 
     Byte ReadStatus() {
         Latch.Reset();
+        Blanking = false;
         return Mask<4>(IgnoreVramWrites)
             | Mask<5>(SpriteOverflow)
             | Mask<6>(SpriteZeroHit)
@@ -158,9 +159,11 @@ public:
         //// NMI is deactivated after the last tick of scanline 260 (i.e. on (0, 261) (?))
         //if ((y == 261) && (x == 0))
         //    NMIActive = false;
-        static constexpr auto NMI_FIRST = 241 * 341 + 1;
-        static constexpr auto NMI_LAST = 260 * 341 + 340;
-        NMIActive = (NMIOnVBlank && NMI_FIRST <= FrameTicks && FrameTicks <= NMI_LAST);
+        static constexpr auto NMI_START = 241 * 341 + 1;
+        static constexpr auto NMI_STOP = 261 * 341;
+        if (FrameTicks == NMI_START) Blanking = true;
+        if (FrameTicks == NMI_STOP) Blanking = false;
+        NMIActive = (NMIOnVBlank && Blanking);
         
         ++FrameTicks;
         if (FrameCount % 2 == 1 && FrameTicks == VIDEO_SIZE - 1 && (ShowBackground || ShowSprite)) 
@@ -207,6 +210,7 @@ public:
         Address = 0x0000;
         ReadDataBuffer = 0x00;
 
+        Blanking = false;
         NMIActive = false;
         Ticks = 0;
         Frames = 0;
@@ -257,6 +261,7 @@ public:
 
     Palette PpuPalette;
 
+    bool Blanking;
     bool NMIActive;
     int Ticks;
     int Frames;

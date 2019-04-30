@@ -420,8 +420,6 @@ TEST_F(PpuTest, ReadData_ReadBufferOnHighAddress) {
 TEST_F(PpuTest, NMI_DetailedActivation) {
     ppu.WriteControl1(Mask<7>(true));
     EXPECT_EQ(true, ppu.NMIOnVBlank);
-    EXPECT_EQ(false, ppu.ShowBackground);
-    EXPECT_EQ(false, ppu.ShowSprite);
 
     int i;
     EXPECT_EQ(false, ppu.NMIActive); // NMI inactive at start
@@ -496,6 +494,46 @@ TEST_F(PpuTest, NMI_MultipleTriggers) {
 
     ppu.Tick();
     EXPECT_EQ(true, ppu.NMIActive);
+}
+
+TEST_F(PpuTest, NMI_StopOnStatusRead) {
+    ppu.WriteControl1(Mask<7>(true));
+    EXPECT_EQ(true, ppu.NMIOnVBlank);
+
+    while (!ppu.NMIActive)
+        ppu.Tick();
+
+    EXPECT_EQ(true, ppu.NMIActive);
+
+    ppu.ReadStatus();
+    ppu.Tick();
+    EXPECT_EQ(false, ppu.NMIActive);
+}
+
+TEST_F(PpuTest, NMI_MultipleTriggersStopOnStatusRead) {
+    ppu.WriteControl1(Mask<7>(true));
+    EXPECT_EQ(true, ppu.NMIOnVBlank);
+
+    while (!ppu.NMIActive)
+        ppu.Tick();
+
+    EXPECT_EQ(true, ppu.NMIActive);
+
+    ppu.WriteControl1(0);
+    ppu.Tick();
+    EXPECT_EQ(false, ppu.NMIActive);
+
+    ppu.WriteControl1(Mask<7>(true));
+    ppu.Tick();
+    EXPECT_EQ(true, ppu.NMIActive);
+
+    ppu.ReadStatus();
+    ppu.Tick();
+    ppu.WriteControl1(0);
+    ppu.Tick();
+    ppu.WriteControl1(Mask<7>(true));
+    ppu.Tick();
+    EXPECT_EQ(false, ppu.NMIActive);
 }
 
 TEST_F(PpuTest, PpuFrameTime_DisabledRendering) {
