@@ -588,3 +588,23 @@ TEST_F(PpuTest, PpuFrameTime_EnabledRendering) {
     EXPECT_EQ(2, ppu.FrameCount);
     EXPECT_EQ(0, ppu.FrameTicks);
 }
+
+TEST_F(PpuTest, Sprite0Hit_DetectHit) {
+    FAIL();
+}
+
+TEST_F(PpuTest, Sprite0Hit_NoHitConditions) {
+    FAIL();
+}
+
+TEST_F(PpuTest, Sprite0Hit_Reset) {
+    ppu.SpriteZeroHit = true;
+
+    // Reset at first pixel of pre-render scanline (261)
+    for (size_t i = 0; i < 261 * 341; i++) {
+        ppu.Tick();
+        EXPECT_EQ(true, ppu.SpriteZeroHit);
+    }
+    ppu.Tick();
+    EXPECT_EQ(false, ppu.SpriteZeroHit);
+}

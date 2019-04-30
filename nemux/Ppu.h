@@ -144,8 +144,11 @@ public:
                             v += (at & 0x3) << 2;
                             v += 0x10;
                             if ((v & 0x03) != 0) {
+                                if (s == 0 && (Frame[VIDEO_WIDTH * y + x] & 0x03) != 0)
+                                    SpriteZeroHit = ShowSprite && ShowBackground;
                                 const auto ci = PpuPalette.ReadAt(v);
                                 Frame[VIDEO_WIDTH * y + x] = ci;
+                                break;
                             }
                         }
                     }
@@ -164,6 +167,9 @@ public:
         if (FrameTicks == NMI_START) Blanking = true;
         if (FrameTicks == NMI_STOP) Blanking = false;
         NMIActive = (NMIOnVBlank && Blanking);
+
+        static const auto SPRITE_ZERO_HIT_RESET = 261 * 341;
+        if (FrameTicks == SPRITE_ZERO_HIT_RESET) SpriteZeroHit = false;
         
         ++FrameTicks;
         if (FrameCount % 2 == 1 && FrameTicks == VIDEO_SIZE - 1 && (ShowBackground || ShowSprite)) 
