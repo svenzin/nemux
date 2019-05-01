@@ -113,12 +113,13 @@ public:
         const auto x = FrameTicks % VIDEO_WIDTH;
         //if ((FrameCount%2)==0)
         if ((y < FRAME_HEIGHT) && (x < FRAME_WIDTH)) {
+            auto bg_chr = 0;
             if (ShowBackground) {
                 auto tx = (x + ScrollX) / 8; const auto xx = (x + ScrollX) % 8;
                 auto ty = (y + ScrollY) / 8; const auto yy = (y + ScrollY) % 8;
                 auto nt = NameTable;
-                if (tx >= 32) { tx -= 32; nt += 0x0400; }
-                if (ty >= 30) { ty -= 30; nt += 0x0800; }
+                if (tx >= 32) { tx -= 32; nt ^= 0x0400; }
+                if (ty >= 30) { ty -= 30; nt ^= 0x0800; }
                 const auto td = Map->GetByteAt(nt + 32 * ty + tx);
                 const auto taddr = BackgroundTable + 16 * td + yy;
                 auto b = Map->GetByteAt(taddr);
@@ -129,6 +130,7 @@ public:
                 const auto a = Map->GetByteAt(nt + 0x03C0 + 8 * aty + atx);
                 v += ((a >> (2 * (tx / 2 % 2) + 4 * (ty / 2 % 2))) & 0x3) << 2;
                 const auto ci = PpuPalette.ReadAt(v);
+                bg_chr = (v & 0x03);
                 Frame[VIDEO_WIDTH * y + x] = ci;
             }
             if (ShowSprite) {
@@ -139,16 +141,26 @@ public:
                         if ((0 <= sx) && (sx < 8)) {
                             const auto td = SprRam[4 * s + 1];
                             const auto at = SprRam[4 * s + 2];
-                            const auto taddr = SpriteTable + 16 * td + sy;
+                            const auto flipX = IsBitSet<6>(at);
+                            const auto flipY = IsBitSet<7>(at);
+                            int taddr;
+                            if (flipY) taddr = SpriteTable + 16 * td + (7 -  sy);
+                            else taddr = SpriteTable + 16 * td + sy;
                             auto b = Map->GetByteAt(taddr);
-                            auto v = (b >> (7 - sx)) & 0x01;
+                            int v;
+                            if (flipX) v = (b >> sx) & 0x01;
+                            else v = (b >> (7 - sx)) & 0x01;
                             b = Map->GetByteAt(taddr + 8);
-                            v += ((b >> (7 - sx)) & 0x01) << 1;
+                            if (flipX) v += ((b >> sx) & 0x01) << 1;
+                            else v += ((b >> (7 - sx)) & 0x01) << 1;
                             v += (at & 0x3) << 2;
                             v += 0x10;
                             if ((v & 0x03) != 0) {
-                                if (s == 0 && (Frame[VIDEO_WIDTH * y + x] & 0x03) != 0)
-                                    SpriteZeroHit = ShowSprite && ShowBackground;
+                                if (s == 0)
+                                    if (bg_chr != 0)
+                                        if (!SpriteZeroHit) {
+                                            SpriteZeroHit = ShowSprite && ShowBackground;
+                                        }
                                 const auto ci = PpuPalette.ReadAt(v);
                                 Frame[VIDEO_WIDTH * y + x] = ci;
                                 break;
