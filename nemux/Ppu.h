@@ -114,17 +114,21 @@ public:
         //if ((FrameCount%2)==0)
         if ((y < FRAME_HEIGHT) && (x < FRAME_WIDTH)) {
             if (ShowBackground) {
-                const auto tx = x / 8; const auto xx = x % 8;
-                const auto ty = y / 8; const auto yy = y % 8;
-                const auto td = Map->GetByteAt(0x2000 + 32 * ty + tx);
+                const auto tx = (x + ScrollX) / 8; const auto xx = (x + ScrollX) % 8;
+                const auto ty = (y + ScrollY) / 8; const auto yy = (y + ScrollY) % 8;
+                auto tmp = NameTable + 32 * ty + tx;
+                if (tx >= 32) tmp = NameTable + 32 * ty + (tx - 32) + 0x0400;
+                const auto td = Map->GetByteAt(tmp);
                 const auto taddr = BackgroundTable + 16 * td + yy;
                 auto b = Map->GetByteAt(taddr);
                 auto v = (b >> (7 - xx)) & 0x01;
                 b = Map->GetByteAt(taddr + 8);
                 v += ((b >> (7 - xx)) & 0x01) << 1;
-                const auto atx = x / 32; const auto aty = y / 32;
-                const auto a = Map->GetByteAt(0x23C0 + 8 * aty + atx);
-                v += ((a >> (2 * (x / 16 % 2) + 4 * (y / 16 % 2))) & 0x3) << 2;
+                const auto atx = (x + ScrollX) / 32; const auto aty = (y + ScrollY) / 32;
+                tmp = NameTable + 0x03C0 + 8 * aty + atx;
+                if (atx >= 8) tmp = NameTable + 0x03C0 + 8 * aty + (atx - 8) + 0x0400;
+                const auto a = Map->GetByteAt(tmp);
+                v += ((a >> (2 * ((x + ScrollX) / 16 % 2) + 4 * ((y + ScrollY) / 16 % 2))) & 0x3) << 2;
                 const auto ci = PpuPalette.ReadAt(v);
                 Frame[VIDEO_WIDTH * y + x] = ci;
             }
