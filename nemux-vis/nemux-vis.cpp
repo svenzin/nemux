@@ -28,6 +28,10 @@ Uint32 RGB(int r, int g, int b) {
     return RGBA(r, g, b, SDL_ALPHA_OPAQUE);
 }
 
+Uint32 Grey(int x) {
+    return RGBA(x, x, x, SDL_ALPHA_OPAQUE);
+}
+
 Uint32 RGBA(float r, float g, float b, float a) {
     return RGBA(Uint8(255 * r), Uint8(255 * g), Uint8(255 * b), Uint8(255 * a));
 }
@@ -57,12 +61,16 @@ std::array<Uint32, 0x40> palette{
 
 struct SDL {
     struct Window {
+
         explicit Window(int sx, int sy, const Uint32 * pixels) {
             Init(sx, sy);
-            SDL_UpdateTexture(tex, NULL, pixels, sx * sizeof(Uint32));
-            SDL_RenderCopy(ren, tex, NULL, NULL);
-            SDL_RenderPresent(ren);
-            while (!Quit) Pump();
+            while (!Quit) {
+                SDL_UpdateTexture(tex, NULL, pixels, sx * sizeof(Uint32));
+                SDL_RenderCopy(ren, tex, NULL, NULL);
+                SDL_RenderPresent(ren);
+                SDL_UpdateWindowSurface(win);
+                Pump();
+            }
             Close();
         }
         ~Window() {}
@@ -103,8 +111,6 @@ struct SDL {
                     Quit = (e.key.keysym.sym == SDLK_ESCAPE);
                     break;
                 }
-
-                SDL_UpdateWindowSurface(win);
             }
         }
     };
@@ -230,34 +236,42 @@ int main(int argc, char ** argv) {
                         SDL::Show(4, 8, p.data());
                     }
                     else if (line == "nt") {
-                        std::vector<Uint32> p(30 * 32);
+                        std::vector<Uint32> p(64 * 60);
                         const Byte * nt = &ppumap.Vram[0];
                         std::cout << "Nametable 0 @0x2000" << std::endl;
                         for (auto y = 0; y < 30; ++y) {
                             for (auto x = 0; x < 32; x++) {
-                                p[32 * y + x] = RGB(*nt, *nt, *nt);
-                                std::cout << hex << setfill('0') << setw(2) << Word{ *nt } << ' ';
-                                ++nt;
+                                const auto d = 32 * y + x;
+                                p[64 * y + x] = Grey(ppumap.GetByteAt(0x2000 + d));
+                                p[64 * y + x + 32] = Grey(ppumap.GetByteAt(0x2400 + d));
+                                p[64 * y + x + 64 * 30] = Grey(ppumap.GetByteAt(0x2800 + d));
+                                p[64 * y + x + 64 * 30 + 32] = Grey(ppumap.GetByteAt(0x2C00 + d));
+                                std::cout << hex << setfill('0') << setw(2) << Word{ *(nt + d) } << ' ';
+                                //++nt;
                             }
                             std::cout << std::endl;
                         }
                         SDL::SetScale(8);
-                        SDL::Show(32, 30, p.data());
+                        SDL::Show(64, 60, p.data());
                     }
                     else if (line == "at") {
-                        std::vector<Uint32> p(8 * 8);
+                        std::vector<Uint32> p(16 * 16);
                         const Byte * at = &ppumap.Vram[0x3C0];
                         std::cout << "Attribute Table 0 @0x23C0" << std::endl;
                         for (auto y = 0; y < 8; ++y) {
                             for (auto x = 0; x < 8; x++) {
-                                p[8 * y + x] = RGB(*at, *at, *at);
+                                const auto d = 16 * y + x;
+                                p[16 * y + x] = Grey(ppumap.GetByteAt(0x23C0 + d));
+                                p[16 * y + x + 8] = Grey(ppumap.GetByteAt(0x27C0 + d));
+                                p[16 * y + x + 16 * 8] = Grey(ppumap.GetByteAt(0x2BC0 + d));
+                                p[16 * y + x + 16 * 8 + 8] = Grey(ppumap.GetByteAt(0x2FC0 + d));
                                 std::cout << hex << setfill('0') << setw(2) << Word{ *at } << ' ';
                                 ++at;
                             }
                             std::cout << std::endl;
                         }
                         SDL::SetScale(32);
-                        SDL::Show(8, 8, p.data());
+                        SDL::Show(16, 16, p.data());
                     }
                     else if (line == "pt") {
                         std::vector<Uint32> p(128 * 256, 0);
