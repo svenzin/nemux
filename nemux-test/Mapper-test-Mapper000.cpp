@@ -82,3 +82,29 @@ TEST_F(Mapper000Test, NROM256_Cpu_GetFromSecondBank) {
         ExpectBank1(addr, nrom256.TranslateCpu(0xC000 + addr));
     }
 }
+
+TEST_F(Mapper000Test, NametableHorizontalMirroring) {
+    NesFile dummy_nrom = nrom128_file;
+    dummy_nrom.Header.ScreenMode = NesFile::HeaderDesc::HorizontalMirroring;
+    
+    Mapper_000 mapper(dummy_nrom);
+    for (Word addr = 0x0000; addr <= 0x0F; ++addr) {
+        EXPECT_EQ(addr, mapper.NametableAddress(0x2000 + addr));
+        EXPECT_EQ(addr, mapper.NametableAddress(0x2400 + addr));
+        EXPECT_EQ(0x0400 + addr, mapper.NametableAddress(0x2800 + addr));
+        EXPECT_EQ(0x0400 + addr, mapper.NametableAddress(0x2C00 + addr));
+    }
+}
+
+TEST_F(Mapper000Test, NametableVerticalMirroring) {
+    NesFile dummy_nrom = nrom128_file;
+    dummy_nrom.Header.ScreenMode = NesFile::HeaderDesc::VerticalMirroring;
+
+    Mapper_000 mapper(dummy_nrom);
+    for (Word addr = 0x0000; addr <= 0x03FF; ++addr) {
+        EXPECT_EQ(addr, mapper.NametableAddress(0x2000 + addr));
+        EXPECT_EQ(0x0400 + addr, mapper.NametableAddress(0x2400 + addr));
+        EXPECT_EQ(addr, mapper.NametableAddress(0x2800 + addr));
+        EXPECT_EQ(0x0400 + addr, mapper.NametableAddress(0x2C00 + addr));
+    }
+}

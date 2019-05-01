@@ -16,6 +16,8 @@
 class NesMapper {
 public:
 
+    virtual Word NametableAddress(const Word address) const = 0;
+
     virtual Byte GetCpuAt(const Word address) const = 0;
 
     virtual void SetCpuAt(const Word address, const Byte value) = 0;

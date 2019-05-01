@@ -103,7 +103,7 @@ public:
             return PpuPalette->ReadAt(address - 0x3F00);
         }
         else if (address >= 0x2000) {
-            const auto addr = address & 0x07FF;
+            const auto addr = Mapper->NametableAddress(address);
             return Vram[addr];
         }
         else {
@@ -116,7 +116,7 @@ public:
             PpuPalette->WriteAt(address - 0x3F00, value);
         }
         else if (address >= 0x2000) {
-            const auto addr = address & 0x07FF;
+            const auto addr = Mapper->NametableAddress(address);
             Vram[addr] = value;
         }
         else {

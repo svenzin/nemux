@@ -30,6 +30,7 @@ struct MonitoredPpu : public Ppu {
 };
 
 struct MonitoredNesMapper : public NesMapper {
+    MOCK_CONST_METHOD1(NametableAddress, Word(const Word address));
     MOCK_CONST_METHOD1(GetCpuAt, Byte(const Word address));
     MOCK_METHOD2(SetCpuAt, void(const Word address, const Byte value));
     MOCK_CONST_METHOD1(GetPpuAt, Byte(const Word address));

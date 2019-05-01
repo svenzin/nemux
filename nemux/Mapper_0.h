@@ -16,7 +16,11 @@ public:
         if (rom.Header.MapperNumber != 0) throw invalid_format("Invalid mapper");
         if (rom.Header.PrgRomPages != 1 && rom.Header.PrgRomPages != 2) throw unsupported_format("Not an NROM-128/256 rom");
         if (rom.Header.ChrRomPages != 1) throw unsupported_format("Not an NROM-128/256 rom");
+        if ((rom.Header.ScreenMode != NesFile::HeaderDesc::HorizontalMirroring)
+            && (rom.Header.ScreenMode != NesFile::HeaderDesc::VerticalMirroring))
+            throw unsupported_format("Not an NROM-128/256 rom");
 
+        Horizontal = (rom.Header.ScreenMode == NesFile::HeaderDesc::HorizontalMirroring);
         Mirror = (rom.Header.PrgRomPages == 1);
         PrgRom = rom.PrgRomPages;
         ChrRom = rom.ChrRomPages[0];
@@ -33,6 +37,11 @@ public:
 
     Word TranslatePpu(const Word address) const {
         return address & 0x3FFF;
+    }
+
+    Word NametableAddress(const Word address) const {
+        if (Horizontal) return ((address & 0x0800) >> 1) | (address & 0x03FF);
+        return address & 0x07FF;
     }
 
     Byte GetCpuAt(const Word address) const override {
@@ -55,6 +64,7 @@ public:
 
 private:
     bool Mirror;
+    bool Horizontal;
     std::vector<NesFile::PrgBank> PrgRom;
     NesFile::ChrBank ChrRom;
 };

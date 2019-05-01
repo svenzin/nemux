@@ -14,6 +14,7 @@ struct MonitoredPalette {
 };
 
 struct MonitoredNesMapper : public NesMapper {
+    MOCK_CONST_METHOD1(NametableAddress, Word(const Word address));
     MOCK_CONST_METHOD1(GetCpuAt, Byte(const Word address));
     MOCK_METHOD2(SetCpuAt, void(const Word address, const Byte value));
     MOCK_CONST_METHOD1(GetPpuAt, Byte(const Word address));
@@ -73,6 +74,7 @@ TEST_F(PpuMemoryMapTest, Mapper_SetPattern) {
 }
 
 // Nametables will be limited to VRAM for now, no routing through the mapper yet
+// Instead offer only the address mirroring in the mapper
 TEST_F(PpuMemoryMapTest, Mapper_GetNametable) {
     {
         EXPECT_CALL(mapper, GetPpuAt(_)).Times(0);
@@ -81,6 +83,10 @@ TEST_F(PpuMemoryMapTest, Mapper_GetNametable) {
     {
         EXPECT_CALL(mapper, GetPpuAt(_)).Times(0);
         ppumap.GetByteAt(0x2FFF);
+    }
+    {
+        EXPECT_CALL(mapper, NametableAddress(0x2000));
+        ppumap.GetByteAt(0x2000);
     }
 }
 
@@ -92,5 +98,9 @@ TEST_F(PpuMemoryMapTest, Mapper_SetNametable) {
     {
         EXPECT_CALL(mapper, SetPpuAt(_, _)).Times(0);
         ppumap.SetByteAt(0x2FFF, 0);
+    }
+    {
+        EXPECT_CALL(mapper, NametableAddress(0x2000));
+        ppumap.SetByteAt(0x2000, 0);
     }
 }
