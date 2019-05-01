@@ -324,7 +324,7 @@ int main(int argc, char ** argv) {
                             auto td = ppu.SprRam[4 * s + 1];
                             auto sx = ppu.SprRam[4 * s + 3];
                             auto sy = ppu.SprRam[4 * s + 0];
-                            for (auto yy = 0; yy < 8; yy++) {
+                            for (auto yy = 0; yy < ppu.SpriteHeight; yy++) {
                                 for (auto xx = 0; xx < 8; xx++) {
                                     auto taddr = ppu.SpriteTable + 16 * td + yy;
                                     auto b = ppumap.GetByteAt(taddr);

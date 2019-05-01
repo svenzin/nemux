@@ -136,7 +136,7 @@ public:
             if (ShowSprite) {
                 for (auto s = 0; s < 64; s++) {
                     const auto sy = y - SprRam[4 * s + 0] - 1;
-                    if ((0 <= sy) && (sy < 8)) {
+                    if ((0 <= sy) && (sy < SpriteHeight)) {
                         const auto sx = x - SprRam[4 * s + 3];
                         if ((0 <= sx) && (sx < 8)) {
                             const auto td = SprRam[4 * s + 1];
@@ -144,8 +144,13 @@ public:
                             const auto flipX = IsBitSet<6>(at);
                             const auto flipY = IsBitSet<7>(at);
                             int taddr;
-                            if (flipY) taddr = SpriteTable + 16 * td + (7 -  sy);
-                            else taddr = SpriteTable + 16 * td + sy;
+                            if (flipY) taddr = (SpriteHeight - 1 - sy);
+                            else taddr = sy;
+                            if (SpriteHeight == 8) taddr += SpriteTable + 16 * td;
+                            else {
+                                if (taddr >= 8) taddr += 8;
+                                taddr += ((td % 1) * 0x1000) + 16 * (td & 0xFE);
+                            }
                             auto b = Map->GetByteAt(taddr);
                             int v;
                             if (flipX) v = (b >> sx) & 0x01;
