@@ -443,8 +443,8 @@ int main(int argc, char ** argv) {
                             if (e.key.keysym.sym == SDLK_RIGHT) ctrl.P1_Right = true;
                             if (e.key.keysym.sym == SDLK_o) ctrl.P1_Select = true;
                             if (e.key.keysym.sym == SDLK_p) ctrl.P1_Start = true;
-                            if (e.key.keysym.sym == SDLK_q) ctrl.P1_A = true;
-                            if (e.key.keysym.sym == SDLK_s) ctrl.P1_B = true;
+                            if (e.key.keysym.sym == SDLK_s) ctrl.P1_A = true;
+                            if (e.key.keysym.sym == SDLK_q) ctrl.P1_B = true;
                             break;
                         }
                         case SDL_KEYUP: {
@@ -455,8 +455,8 @@ int main(int argc, char ** argv) {
                             if (e.key.keysym.sym == SDLK_RIGHT) ctrl.P1_Right = false;
                             if (e.key.keysym.sym == SDLK_o) ctrl.P1_Select = false;
                             if (e.key.keysym.sym == SDLK_p) ctrl.P1_Start = false;
-                            if (e.key.keysym.sym == SDLK_q) ctrl.P1_A = false;
-                            if (e.key.keysym.sym == SDLK_s) ctrl.P1_B = false;
+                            if (e.key.keysym.sym == SDLK_s) ctrl.P1_A = false;
+                            if (e.key.keysym.sym == SDLK_q) ctrl.P1_B = false;
                             break;
                         }
                         }
