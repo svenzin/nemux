@@ -108,12 +108,38 @@ public:
         Address = (Address + AddressIncrement) & 0x3FFF;
     }
 
+    Byte SpriteMultiplexer(Byte background, Byte sprite, bool isBehind) const {
+        if ((background & 0x03) != 0) {
+            if ((sprite & 0x03) != 0) {
+                if (isBehind) {
+                    return background;
+                }
+                else {
+                    return sprite;
+                }
+            }
+            else {
+                return background;
+            }
+        }
+        else {
+            if ((sprite & 0x03) != 0) {
+                return sprite;
+            }
+            else {
+                return 0;
+            }
+        }
+    }
+
     void Tick() {
         const auto y = FrameTicks / VIDEO_WIDTH;
         const auto x = FrameTicks % VIDEO_WIDTH;
         //if ((FrameCount%2)==0)
         if ((y < FRAME_HEIGHT) && (x < FRAME_WIDTH)) {
-            auto bg_chr = 0;
+            auto bg = 0;
+            auto fg = 0;
+            bool isbg = true;
             if (ShowBackground) {
                 auto tx = (x + ScrollX) / 8; const auto xx = (x + ScrollX) % 8;
                 auto ty = (y + ScrollY) / 8; const auto yy = (y + ScrollY) % 8;
@@ -129,9 +155,7 @@ public:
                 const auto atx = tx / 4; const auto aty = ty / 4;
                 const auto a = Map->GetByteAt(nt + 0x03C0 + 8 * aty + atx);
                 v += ((a >> (2 * (tx / 2 % 2) + 4 * (ty / 2 % 2))) & 0x3) << 2;
-                const auto ci = PpuPalette.ReadAt(v);
-                bg_chr = (v & 0x03);
-                Frame[VIDEO_WIDTH * y + x] = ci;
+                bg = v;
             }
             if (ShowSprite) {
                 for (auto s = 0; s < 64; s++) {
@@ -143,6 +167,7 @@ public:
                             const auto at = SprRam[4 * s + 2];
                             const auto flipX = IsBitSet<6>(at);
                             const auto flipY = IsBitSet<7>(at);
+                            isbg = IsBitSet<5>(at);
                             int taddr;
                             if (flipY) taddr = (SpriteHeight - 1 - sy);
                             else taddr = sy;
@@ -160,20 +185,21 @@ public:
                             else v += ((b >> (7 - sx)) & 0x01) << 1;
                             v += (at & 0x3) << 2;
                             v += 0x10;
+                            fg = v;
                             if ((v & 0x03) != 0) {
                                 if (s == 0)
-                                    if (bg_chr != 0)
+                                    if (bg & 0x03 != 0)
                                         if (!SpriteZeroHit) {
                                             SpriteZeroHit = ShowSprite && ShowBackground;
                                         }
-                                const auto ci = PpuPalette.ReadAt(v);
-                                Frame[VIDEO_WIDTH * y + x] = ci;
                                 break;
                             }
                         }
                     }
                 }
             }
+            const auto ci = SpriteMultiplexer(bg, fg, isbg);
+            Frame[VIDEO_WIDTH * y + x] = PpuPalette.ReadAt(ci);
         }
 
         //// NMI is activated on tick 1 (second tick) of scanline 241

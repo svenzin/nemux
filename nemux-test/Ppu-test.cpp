@@ -608,3 +608,17 @@ TEST_F(PpuTest, Sprite0Hit_Reset) {
     ppu.Tick();
     EXPECT_EQ(false, ppu.SpriteZeroHit);
 }
+
+TEST_F(PpuTest, SpritePriorityMultiplexer) {
+    const auto transparent = 0x04;
+    const auto foreground = 0x05;
+    const auto background = 0x06;
+    EXPECT_EQ(0, ppu.SpriteMultiplexer(transparent, transparent, true));
+    EXPECT_EQ(0, ppu.SpriteMultiplexer(transparent, transparent, false));
+    EXPECT_EQ(foreground, ppu.SpriteMultiplexer(transparent, foreground, true));
+    EXPECT_EQ(foreground, ppu.SpriteMultiplexer(transparent, foreground, false));
+    EXPECT_EQ(background, ppu.SpriteMultiplexer(background, transparent, true));
+    EXPECT_EQ(background, ppu.SpriteMultiplexer(background, transparent, false));
+    EXPECT_EQ(background, ppu.SpriteMultiplexer(background, foreground, true));
+    EXPECT_EQ(foreground, ppu.SpriteMultiplexer(background, foreground, false));
+}
