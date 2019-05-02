@@ -590,11 +590,58 @@ TEST_F(PpuTest, PpuFrameTime_EnabledRendering) {
 }
 
 TEST_F(PpuTest, Sprite0Hit_DetectHit) {
-    FAIL();
+    const auto foreground = 0x05;
+    const auto background = 0x06;
+    // Except on last pixel (255)
+    ppu.ShowBackground = true;
+    ppu.ShowSprite = true;
+    ppu.ClipBackground = false;
+    ppu.ClipSprite = false;
+    for (size_t i = 0; i < 255; i++) {
+        EXPECT_EQ(true, ppu.SpriteHit(foreground, background, i));
+    }
+    EXPECT_EQ(false, ppu.SpriteHit(foreground, background, 255));
 }
 
 TEST_F(PpuTest, Sprite0Hit_NoHitConditions) {
-    FAIL();
+    const auto transparent = 0x04;
+    const auto solid = 0x05;
+    
+    ppu.ShowBackground = true;
+    ppu.ShowSprite = true;
+    EXPECT_EQ(false, ppu.SpriteHit(transparent, solid, 0));
+    EXPECT_EQ(false, ppu.SpriteHit(solid, transparent, 0));
+    EXPECT_EQ(false, ppu.SpriteHit(transparent, transparent, 0));
+
+    ppu.ShowBackground = true;
+    ppu.ShowSprite = false;
+    EXPECT_EQ(false, ppu.SpriteHit(solid, solid, 0));
+
+    ppu.ShowBackground = false;
+    ppu.ShowSprite = true;
+    EXPECT_EQ(false, ppu.SpriteHit(solid, solid, 0));
+
+    ppu.ShowBackground = false;
+    ppu.ShowSprite = false;
+    EXPECT_EQ(false, ppu.SpriteHit(solid, solid, 0));
+
+    ppu.ClipBackground = true;
+    ppu.ClipSprite = false;
+    for (size_t i = 0; i < 8; i++) {
+        EXPECT_EQ(false, ppu.SpriteHit(solid, solid, i));
+    }
+
+    ppu.ClipBackground = false;
+    ppu.ClipSprite = true;
+    for (size_t i = 0; i < 8; i++) {
+        EXPECT_EQ(false, ppu.SpriteHit(solid, solid, i));
+    }
+
+    ppu.ClipBackground = true;
+    ppu.ClipSprite = true;
+    for (size_t i = 0; i < 8; i++) {
+        EXPECT_EQ(false, ppu.SpriteHit(solid, solid, i));
+    }
 }
 
 TEST_F(PpuTest, Sprite0Hit_Reset) {

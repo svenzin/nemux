@@ -132,6 +132,15 @@ public:
         }
     }
 
+    bool SpriteHit(Byte background, Byte foreground, unsigned int x) const {
+        if (x == 255) return false;
+        if (!ShowBackground || !ShowSprite) return false;
+        if ((ClipBackground || ClipSprite) && (x < 8)) return false;
+
+        const bool hit = (((background & 0x03) > 0) && ((foreground & 0x03) > 0));
+        return hit;
+    }
+
     void Tick() {
         const auto y = FrameTicks / VIDEO_WIDTH;
         const auto x = FrameTicks % VIDEO_WIDTH;
@@ -186,16 +195,12 @@ public:
                             v += (at & 0x3) << 2;
                             v += 0x10;
                             fg = v;
-                            if ((v & 0x03) != 0) {
-                                if (s == 0)
-                                    if (bg & 0x03 != 0)
-                                        if (!SpriteZeroHit) {
-                                            SpriteZeroHit = ShowSprite && ShowBackground;
-                                        }
-                                break;
-                            }
                         }
                     }
+                    if (s == 0)
+                        SpriteZeroHit = SpriteZeroHit || SpriteHit(bg, fg, x);
+                        
+                    if ((fg & 0x03) != 0) break;
                 }
             }
             const auto ci = SpriteMultiplexer(bg, fg, isbg);
