@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <iomanip>
+#include <sstream>
 
 #include "SDL.h"
 
@@ -19,6 +20,51 @@ using std::setfill;
 using std::setw;
 
 #undef main
+
+namespace debug {
+    std::string GetCPUInstruction(const Cpu & cpu) {
+        static std::string names[] = {
+            "LDA", "LDX", "LDY", "STA", "STX", "STY",               // Load, Store
+            "TAX", "TAY", "TXA", "TYA",                             // Register Transfer
+            "TSX", "TXS", "PHA", "PLA", "PHP", "PLP",               // Stack
+            "AND", "BIT", "EOR", "ORA",                             // Logical
+            "ADC", "SBC", "CMP", "CPX", "CPY",                      // Arithmetic
+            "DEC", "DEX", "DEY", "INC", "INX", "INY",               // Increment, Decrement
+            "ASL", "LSR", "ROL", "ROR",                             // Shift
+            "JMP", "JSR", "RTS",                                    // Jump, Call
+            "BCC", "BCS", "BEQ", "BMI", "BNE", "BPL", "BVC", "BVS", // Branch
+            "CLC", "CLD", "CLI", "CLV", "SEC", "SED", "SEI",        // Status Change
+            "BRK", "NOP", "RTI",                                    // System
+            "UNK",
+        };
+
+        std::stringstream oss;
+        const auto instruction = cpu.ReadByteAt(cpu.PC);
+        const auto opcode = cpu.Decode(instruction);
+        const auto operandB = Word{ cpu.ReadByteAt(cpu.PC + 1) };
+        const auto operandW = cpu.ReadWordAt(cpu.PC + 1);
+        const auto address = cpu.BuildAddress(opcode.Addressing);
+        oss << hex << setfill('0');
+        oss << names[opcode.Instruction];
+        switch (opcode.Addressing) {
+        case Addressing::Immediate: oss << " #$" << setw(2) << operandB; break;
+        case Addressing::ZeroPage:  oss << " $" << setw(2) << operandB; break;
+        case Addressing::ZeroPageX: oss << " $" << setw(2) << operandB << ",X"; break;
+        case Addressing::ZeroPageY: oss << " $" << setw(2) << operandB << ",Y"; break;
+        case Addressing::Relative:  oss << " *+" << setw(2) << operandB; break;
+        case Addressing::Absolute:  oss << " $" << setw(4) << operandW; break;
+        case Addressing::AbsoluteX: oss << " $" << setw(4) << operandW << ",X"; break;
+        case Addressing::AbsoluteY: oss << " $" << setw(4) << operandW << ",Y"; break;
+        case Addressing::Indirect:  oss << " ($" << setw(4) << operandW << ")"; break;
+        case Addressing::IndexedIndirect: oss << " ($" << setw(2) << operandB << ",X)"; break;
+        case Addressing::IndirectIndexed: oss << " ($" << setw(2) << operandB << "),Y"; break;
+        case Addressing::Implicit: break;
+        case Addressing::Accumulator: break;
+        case Addressing::Unknown: oss << " ????";
+        }
+        return oss.str();
+    }
+}
 
 Uint32 RGBA(int r, int g, int b, int a) {
     return (Uint32(r) << 24) + (Uint32(g) << 16) + (Uint32(b) << 8) + Uint32(a);
@@ -380,13 +426,15 @@ int main(int argc, char ** argv) {
                     ++counter;
 
                     cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick();
-                    //while (cpu.CurrentTick < cpu.Ticks) {
-                    //    cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick();
-                    //}
+                    while (cpu.CurrentTick < cpu.Ticks) {
+                        cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick();
+                    }
                 }
 
                 if (step == 0) {
-                    std::cout << dec << counter << " " << cpu.ToMiniString() << " ";
+                    std::cout << dec << counter
+                        << " " << setfill(' ') << setw(12) << std::left << debug::GetCPUInstruction(cpu)
+                        << " " << cpu.ToMiniString() << " ";
                 }
             }
         }
