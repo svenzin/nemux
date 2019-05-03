@@ -203,7 +203,9 @@ int main(int argc, char ** argv) {
         PpuMemoryMap<Palette> ppumap(nullptr, &mapper);
         Ppu ppu(&ppumap);
 
-        CpuMemoryMap<Cpu, Ppu, Controllers> cpumap(nullptr, &ppu, &mapper, &ctrl);
+        Apu apu;
+
+        CpuMemoryMap<Cpu, Ppu, Controllers, Apu> cpumap(nullptr, &apu, &ppu, &mapper, &ctrl);
         Cpu cpu("6502", &cpumap);
         cpumap.CPU = &cpu;
 

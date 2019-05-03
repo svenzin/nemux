@@ -3,6 +3,7 @@
 
 #include "MemoryMap.h"
 
+#include "Apu.h"
 #include "Ppu.h"
 #include "Controllers.h"
 
@@ -14,6 +15,36 @@ struct MonitoredCpu {
                            std::array<Byte, 0x0100> & target,
                            const Byte offset)
     );
+};
+
+struct MonitoredApu : public Apu {
+    MOCK_CONST_METHOD0(ReadStatus, Byte());
+
+    MOCK_METHOD1(WritePulse1Control, void(const Byte value));
+    MOCK_METHOD1(WritePulse1Sweep, void(const Byte value));
+    MOCK_METHOD1(WritePulse1PeriodLo, void(const Byte value));
+    MOCK_METHOD1(WritePulse1PeriodHi, void(const Byte value));
+    
+    MOCK_METHOD1(WritePulse2Control, void(const Byte value));
+    MOCK_METHOD1(WritePulse2Sweep, void(const Byte value));
+    MOCK_METHOD1(WritePulse2PeriodLo, void(const Byte value));
+    MOCK_METHOD1(WritePulse2PeriodHi, void(const Byte value));
+    
+    MOCK_METHOD1(WriteTriangleControl, void(const Byte value));
+    MOCK_METHOD1(WriteTrianglePeriodLo, void(const Byte value));
+    MOCK_METHOD1(WriteTrianglePeriodHi, void(const Byte value));
+    
+    MOCK_METHOD1(WriteNoiseControl, void(const Byte value));
+    MOCK_METHOD1(WriteNoisePeriod, void(const Byte value));
+    MOCK_METHOD1(WriteNoiseLength, void(const Byte value));
+    
+    MOCK_METHOD1(WriteDMCFrequency, void(const Byte value));
+    MOCK_METHOD1(WriteDMCDAC, void(const Byte value));
+    MOCK_METHOD1(WriteDMCAddress, void(const Byte value));
+    MOCK_METHOD1(WriteDMCLength, void(const Byte value));
+    
+    MOCK_METHOD1(WriteCommonEnable, void(const Byte value));
+    MOCK_METHOD1(WriteCommonControl, void(const Byte value));
 };
 
 struct MonitoredPpu : public Ppu {
@@ -45,12 +76,13 @@ struct MonitoredControllers : public Controllers {
 
 struct CpuMemoryMapTest : public ::testing::Test {
     MonitoredCpu cpu;
+    MonitoredApu apu;
     MonitoredPpu ppu;
     MonitoredNesMapper mapper;
     MonitoredControllers controllers;
-    CpuMemoryMap<MonitoredCpu, MonitoredPpu, MonitoredControllers> cpumap;
+    CpuMemoryMap<MonitoredCpu, MonitoredPpu, MonitoredControllers, MonitoredApu> cpumap;
 
-    CpuMemoryMapTest() : cpumap(&cpu, &ppu, &mapper, &controllers) {}
+    CpuMemoryMapTest() : cpumap(&cpu, &apu, &ppu, &mapper, &controllers) {}
 };
 
 TEST_F(CpuMemoryMapTest, RAM_ReadMirroring) {
@@ -206,5 +238,99 @@ TEST_F(CpuMemoryMapTest, Controllers_ReadWrite) {
     {
         EXPECT_CALL(controllers, ReadP2());
         cpumap.GetByteAt(0x4017);
+    }
+}
+
+TEST_F(CpuMemoryMapTest, APU_Registers) {
+    // Pulse 1
+    {
+        EXPECT_CALL(apu, WritePulse1Control(0));
+        cpumap.SetByteAt(0x4000, 0x00);
+    }
+    {
+        EXPECT_CALL(apu, WritePulse1Sweep(0));
+        cpumap.SetByteAt(0x4001, 0x00);
+    }
+    {
+        EXPECT_CALL(apu, WritePulse1PeriodLo(0));
+        cpumap.SetByteAt(0x4002, 0x00);
+    }
+    {
+        EXPECT_CALL(apu, WritePulse1PeriodHi(0));
+        cpumap.SetByteAt(0x4003, 0x00);
+    }
+    // Pulse 2
+    {
+        EXPECT_CALL(apu, WritePulse2Control(0));
+        cpumap.SetByteAt(0x4004, 0x00);
+    }
+    {
+        EXPECT_CALL(apu, WritePulse2Sweep(0));
+        cpumap.SetByteAt(0x4005, 0x00);
+    }
+    {
+        EXPECT_CALL(apu, WritePulse2PeriodLo(0));
+        cpumap.SetByteAt(0x4006, 0x00);
+    }
+    {
+        EXPECT_CALL(apu, WritePulse2PeriodHi(0));
+        cpumap.SetByteAt(0x4007, 0x00);
+    }
+    // Triangle
+    {
+        EXPECT_CALL(apu, WriteTriangleControl(0));
+        cpumap.SetByteAt(0x4008, 0x00);
+    }
+    {
+        EXPECT_CALL(apu, WriteTrianglePeriodLo(0));
+        cpumap.SetByteAt(0x400A, 0x00);
+    }
+    {
+        EXPECT_CALL(apu, WriteTrianglePeriodHi(0));
+        cpumap.SetByteAt(0x400B, 0x00);
+    }
+    // Noise
+    {
+        EXPECT_CALL(apu, WriteNoiseControl(0));
+        cpumap.SetByteAt(0x400C, 0x00);
+    }
+    {
+        EXPECT_CALL(apu, WriteNoisePeriod(0));
+        cpumap.SetByteAt(0x400E, 0x00);
+    }
+    {
+        EXPECT_CALL(apu, WriteNoiseLength(0));
+        cpumap.SetByteAt(0x400F, 0x00);
+    }
+    // DMC
+    {
+        EXPECT_CALL(apu, WriteDMCFrequency(0));
+        cpumap.SetByteAt(0x4010, 0x00);
+    }
+    {
+        EXPECT_CALL(apu, WriteDMCDAC(0));
+        cpumap.SetByteAt(0x4011, 0x00);
+    }
+    {
+        EXPECT_CALL(apu, WriteDMCAddress(0));
+        cpumap.SetByteAt(0x4012, 0x00);
+    }
+    {
+        EXPECT_CALL(apu, WriteDMCLength(0));
+        cpumap.SetByteAt(0x4013, 0x00);
+    }
+    // Common
+    {
+        EXPECT_CALL(apu, WriteCommonEnable(0));
+        cpumap.SetByteAt(0x4015, 0x00);
+    }
+    {
+        EXPECT_CALL(apu, WriteCommonControl(0));
+        cpumap.SetByteAt(0x4017, 0x00);
+    }
+    // Status
+    {
+        EXPECT_CALL(apu, ReadStatus());
+        cpumap.GetByteAt(0x4015);
     }
 }
