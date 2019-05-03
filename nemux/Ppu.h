@@ -46,11 +46,12 @@ public:
 
     Byte ReadStatus() {
         Latch.Reset();
-        Blanking = false;
-        return Mask<4>(IgnoreVramWrites)
+        const auto status = Mask<4>(IgnoreVramWrites)
             | Mask<5>(SpriteOverflow)
             | Mask<6>(SpriteZeroHit)
             | Mask<7>(VBlank);
+        VBlank = false;
+        return status;
     }
 
     void WriteOAMAddress(Byte value) {
@@ -215,9 +216,9 @@ public:
         //    NMIActive = false;
         static constexpr auto NMI_START = 241 * 341 + 1;
         static constexpr auto NMI_STOP = 261 * 341;
-        if (FrameTicks == NMI_START) Blanking = true;
-        if (FrameTicks == NMI_STOP) Blanking = false;
-        NMIActive = (NMIOnVBlank && Blanking);
+        if (FrameTicks == NMI_START) VBlank = true;
+        if (FrameTicks == NMI_STOP) VBlank = false;
+        NMIActive = (NMIOnVBlank && VBlank);
 
         static const auto SPRITE_ZERO_HIT_RESET = 261 * 341;
         if (FrameTicks == SPRITE_ZERO_HIT_RESET) SpriteZeroHit = false;
@@ -242,7 +243,7 @@ public:
         //IgnoreVramWrites;
         SpriteOverflow = true;
         SpriteZeroHit = false;
-        VBlank = true;
+        VBlank = false;// true;
 
         IsColour = true;
         ClipBackground = true;
@@ -267,7 +268,6 @@ public:
         Address = 0x0000;
         ReadDataBuffer = 0x00;
 
-        Blanking = false;
         NMIActive = false;
         Ticks = 0;
         Frames = 0;
@@ -318,7 +318,6 @@ public:
 
     Palette PpuPalette;
 
-    bool Blanking;
     bool NMIActive;
     int Ticks;
     int Frames;

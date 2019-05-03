@@ -149,6 +149,12 @@ TEST_F(PpuTest, ReadStatus_VBlank) {
     EXPECT_EQ(0x80, ppu.ReadStatus() & 0x80);
 }
 
+TEST_F(PpuTest, ReadStatus_VBlankClearedAfterRead) {
+    ppu.VBlank = true;
+    EXPECT_EQ(0x80, ppu.ReadStatus() & 0x80);
+    EXPECT_EQ(0x00, ppu.ReadStatus() & 0x80);
+}
+
 TEST_F(PpuTest, PowerUpState) {
     // Ctrl1
     EXPECT_EQ(0x2000, ppu.NameTable);
