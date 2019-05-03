@@ -142,11 +142,27 @@ public:
         return hit;
     }
 
+    std::vector<std::tuple<int, std::array<Byte, 4>>> sprites;
     void Tick() {
         const auto y = FrameTicks / VIDEO_WIDTH;
         const auto x = FrameTicks % VIDEO_WIDTH;
         //if ((FrameCount%2)==0)
         if ((y < FRAME_HEIGHT) && (x < FRAME_WIDTH)) {
+            if (x == 0) {
+                sprites.clear();
+                for (auto s = 0; s < 64; s++) {
+                    const auto sy = y - SprRam[4 * s + 0] - 1;
+                    if ((0 <= sy) && (sy < SpriteHeight)) {
+                        sprites.push_back({
+                            s,
+                            {
+                                SprRam[4 * s + 0], SprRam[4 * s + 1],
+                                SprRam[4 * s + 2], SprRam[4 * s + 3]
+                            }
+                        });
+                    }
+                }
+            }
             auto bg = 0;
             auto fg = 0;
             bool isbg = true;
@@ -168,13 +184,16 @@ public:
                 bg = v;
             }
             if (ShowSprite) {
-                for (auto s = 0; s < 64; s++) {
-                    const auto sy = y - SprRam[4 * s + 0] - 1;
+                for (auto i = 0; i < sprites.size(); ++i) {
+                    auto sprite = sprites[i];
+                    auto s = std::get<0>(sprite);
+                    auto data = std::get<1>(sprite);
+                    const auto sy = y - data[0] - 1;
                     if ((0 <= sy) && (sy < SpriteHeight)) {
-                        const auto sx = x - SprRam[4 * s + 3];
+                        const auto sx = x - data[3];
                         if ((0 <= sx) && (sx < 8)) {
-                            const auto td = SprRam[4 * s + 1];
-                            const auto at = SprRam[4 * s + 2];
+                            const auto td = data[1];
+                            const auto at = data[2];
                             const auto flipX = IsBitSet<6>(at);
                             const auto flipY = IsBitSet<7>(at);
                             isbg = IsBitSet<5>(at);
@@ -196,12 +215,12 @@ public:
                             v += (at & 0x3) << 2;
                             v += 0x10;
                             fg = v;
+
+                            if (s == 0)
+                                SpriteZeroHit = SpriteZeroHit || SpriteHit(bg, fg, x);
+                            if ((fg & 0x03) != 0) break;
                         }
                     }
-                    if (s == 0)
-                        SpriteZeroHit = SpriteZeroHit || SpriteHit(bg, fg, x);
-                        
-                    if ((fg & 0x03) != 0) break;
                 }
             }
             const auto ci = SpriteMultiplexer(bg, fg, isbg);
