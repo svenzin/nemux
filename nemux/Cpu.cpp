@@ -367,14 +367,14 @@ void Cpu::Compare(const Byte lhs, const Byte rhs) {
     N = (IsBitSet<BYTE_SIGN_BIT>(r)) ? 1 : 0;
 }
 void Cpu::BranchIf(const bool condition, const Opcode & op) {
-    const auto basePC = PC;
+    const auto basePC = PC + op.Bytes;
     const auto M = ReadByteAt(BuildAddress(Immediate).Address);
     if (condition) {
         Word offset = Bit<Neg>(M) * WORD_HI_MASK | M;
         PC = (PC + op.Bytes + offset) & WORD_MASK;
         Ticks += op.Cycles + 1;
         if ((PC & WORD_HI_MASK) != (basePC & WORD_HI_MASK)) {
-            Ticks += 2;
+            Ticks += 1;
         }
     } else {
         PC += op.Bytes; Ticks += op.Cycles;

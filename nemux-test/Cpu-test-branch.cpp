@@ -49,9 +49,9 @@ public:
         tester(0x0080, 0x20, failure, 0x0080 + 2, 0); // Fail
         tester(0x0080, 0x20, success, 0x00A0 + 2, 1); // Success, positive offset
         tester(0x0080, 0xE0, success, 0x0060 + 2, 1); // Success, negative offset
-        tester(0x00F0, 0x20, success, 0x0110 + 2, 3); // Success, positive offset, crossing page
-        tester(0x00F0, 0x0F, success, 0x00FF + 2, 3); // Success, positive offset, crossing page on PC+2
-        tester(0x0110, 0xE0, success, 0x00F0 + 2, 3); // Success, negative offset, crossing page
+        tester(0x00F0, 0x20, success, 0x0110 + 2, 2); // Success, positive offset, crossing page
+        tester(0x00F0, 0x0F, success, 0x00FF + 2, 2); // Success, positive offset, crossing page on PC+2
+        tester(0x0110, 0xE0, success, 0x00F0 + 2, 2); // Success, negative offset, crossing page
         tester(0x0110, 0xEF, success, 0x00FF + 2, 1); // Success, negative offset, not crossing page on PC+2
     }
 
