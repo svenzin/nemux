@@ -174,7 +174,7 @@ struct SDL {
     }
 
     SDL() {
-        SDL_Init(SDL_INIT_VIDEO);
+        SDL_Init(SDL_INIT_EVERYTHING);
     }
     
     ~SDL() {
@@ -205,6 +205,25 @@ enum class Options
 {
     Debug
 };
+
+static std::vector<float> samples;
+void FillAudioDeviceBuffer(void* UserData, Uint8* DeviceBuffer, int Length)
+{
+    Sint16* SampleBuffer = (Sint16*)DeviceBuffer;
+    int SamplesToWrite = Length / 2;
+    int step = 1789 / 48;
+    int size = samples.size();
+    for (int SampleIndex = 0;
+        SampleIndex < SamplesToWrite;
+        SampleIndex++)
+    {
+        float s = 0.0f;
+        for (int i = 0; i < step; ++i) s += samples[(step * SampleIndex + i) % size];
+        Sint16 SampleValue = 20000 * (s / float(step)) - 10000;
+        *SampleBuffer++ = SampleValue;
+    }
+    samples.clear();
+}
 
 int main(int argc, char ** argv) {
     std::vector<std::string> positionals;
@@ -447,17 +466,32 @@ int main(int argc, char ** argv) {
             SDL_Window * win;
             SDL_Renderer * ren;
             SDL_Texture * tex;
-                win = SDL_CreateWindow("Software Renderer",
-                    SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                    SDL::get()->Scale * VIDEO_WIDTH, SDL::get()->Scale * VIDEO_HEIGHT,
-                    SDL_WINDOW_SHOWN);
-                ren = SDL_CreateRenderer(win, -1, 0);
-                SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
-                SDL_RenderSetLogicalSize(ren, VIDEO_WIDTH, VIDEO_HEIGHT);
-                tex = SDL_CreateTexture(ren,
-                    SDL_PIXELFORMAT_RGBA8888,
-                    SDL_TEXTUREACCESS_STREAMING,
-                    VIDEO_WIDTH, VIDEO_HEIGHT);
+            win = SDL_CreateWindow("Software Renderer",
+                SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                SDL::get()->Scale * VIDEO_WIDTH, SDL::get()->Scale * VIDEO_HEIGHT,
+                SDL_WINDOW_SHOWN);
+            ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_PRESENTVSYNC);
+            SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+            SDL_RenderSetLogicalSize(ren, VIDEO_WIDTH, VIDEO_HEIGHT);
+            tex = SDL_CreateTexture(ren,
+                SDL_PIXELFORMAT_RGBA8888,
+                SDL_TEXTUREACCESS_STREAMING,
+                VIDEO_WIDTH, VIDEO_HEIGHT);
+
+            SDL_AudioSpec RequestedSettings = {};
+            RequestedSettings.freq = 48000; // Our sampling rate
+            RequestedSettings.format = AUDIO_S16; // Use 16-bit amplitude values
+            RequestedSettings.channels = 1; // Stereo samples
+            RequestedSettings.samples = 4096; // Size, in samples, of audio buffer
+            RequestedSettings.callback = &FillAudioDeviceBuffer; // Function called when sound device needs data
+
+            SDL_AudioSpec ObtainedSettings = {};
+            SDL_AudioDeviceID DeviceID = SDL_OpenAudioDevice(
+                NULL, 0, &RequestedSettings, &ObtainedSettings, 0
+            );
+
+            // Start music playing
+            SDL_PauseAudioDevice(DeviceID, 0);
 
             bool quit = false;
             while (!quit) {
@@ -466,17 +500,10 @@ int main(int argc, char ** argv) {
                 ppu.Tick();
                 ppu.Tick();
                 ppu.Tick();
+                const auto sample = apu.Tick();
+                samples.push_back(sample);
 
                 if (ppu.FrameCount != frame) {
-                    for (auto i = 0; i < VIDEO_SIZE; ++i) {
-                        pixels[i] = palette[ppu.Frame[i]];
-                    }
-
-                    SDL_UpdateTexture(tex, NULL, pixels.data(), VIDEO_WIDTH * sizeof(Uint32));
-                    SDL_RenderCopy(ren, tex, NULL, NULL);
-                    SDL_RenderPresent(ren);
-                    SDL_UpdateWindowSurface(win);
-
                     SDL_Event e;
                     while (SDL_PollEvent(&e) > 0)
                     {
@@ -511,8 +538,19 @@ int main(int argc, char ** argv) {
                         }
                         }
                     }
+
+                    for (auto i = 0; i < VIDEO_SIZE; ++i) {
+                        pixels[i] = palette[ppu.Frame[i]];
+                    }
+
+                    SDL_UpdateTexture(tex, NULL, pixels.data(), VIDEO_WIDTH * sizeof(Uint32));
+                    SDL_RenderCopy(ren, tex, NULL, NULL);
+                    SDL_RenderPresent(ren);
+                    SDL_UpdateWindowSurface(win);
                 }
             }
+
+            SDL_CloseAudioDevice(DeviceID);
 
             SDL_DestroyTexture(tex);
             SDL_DestroyRenderer(ren);
