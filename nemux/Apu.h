@@ -20,10 +20,14 @@ struct Pulse {
     Word Period = 1;
     Word T = 0;
 
+    Byte Length;
+
     Byte Volume = 0;
+    bool Halt = false;
     void WriteControl(const Byte value) {
         Duty = value >> 6;
         Volume = value & 0x0F;
+        Halt = IsBitSet<5>(value);
     }
 
     void WritePeriodLow(const Byte value) {
@@ -37,11 +41,20 @@ struct Pulse {
         t = (t & WORD_LO_MASK) | ((value & 0x07) << BYTE_WIDTH);
         Period = t + 1;
         Phase = 0;
+
+        static constexpr Byte Lengths[0x20] = {
+            0x0A, 0xFE, 0x14, 0x02, 0x28, 0x04, 0x50, 0x06,
+            0xA0, 0x08, 0x3C, 0x0A, 0x0E, 0x0C, 0x1A, 0x0E,
+            0x0C, 0x10, 0x18, 0x12, 0x30, 0x14, 0x60, 0x16,
+            0xC0, 0x18, 0x48, 0x1A, 0x10, 0x1C, 0x20, 0x1E
+        };
+        Length = Lengths[value >> 3];
     }
 
     bool Enabled = false;
     void Enable(bool enabled) {
         Enabled = enabled;
+        if (!Enabled) Length = 0;
     }
 
     bool FlipFlop = false;
@@ -69,6 +82,12 @@ struct Pulse {
         const auto value = Sequences[Duty][Phase];
         Phase = (Phase + 1) % 8;
         return value;
+    }
+
+    Byte TickLength() {
+        if (Length == 0) return 0;
+        if (!Halt) --Length;
+        return 1;
     }
 
     Byte Sequence = 0;

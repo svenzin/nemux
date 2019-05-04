@@ -100,3 +100,60 @@ TEST_F(ApuTest, Pulse_SetVolume) {
     pulse.WriteControl(0x0A);
     EXPECT_EQ(0x0A, pulse.Volume);
 }
+
+TEST_F(ApuTest, Pulse_WriteLength) {
+    Byte counters[0x20] = {
+        10,254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
+        12, 16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30
+    };
+    for (int i = 0; i < 0x20; ++i) {
+        pulse.WritePeriodHigh(i << 3);
+        EXPECT_EQ(counters[i], pulse.Length);
+    }
+}
+
+TEST_F(ApuTest, Pulse_LengthClearedOnDisable) {
+    pulse.WritePeriodHigh(0x80);
+    EXPECT_TRUE(pulse.Length > 0);
+
+    pulse.Enable(false);
+    EXPECT_TRUE(pulse.Length == 0);
+}
+
+TEST_F(ApuTest, Pulse_SilentAfterLength) {
+    pulse.Enable(true);
+    pulse.WritePeriodLow(0x08);
+    pulse.WriteControl(0x0A);
+    pulse.WritePeriodHigh(0x80); // Length is 12 (index 0x10 in the lookup table)
+    
+    bool isSilent = true;
+    for (int i = 0; i < 12; ++i) {
+        EXPECT_EQ(1, pulse.TickLength());
+    }
+
+    isSilent = true;
+    for (int i = 0; i < 12; ++i) {
+        EXPECT_EQ(0, pulse.TickLength());
+    }
+}
+
+TEST_F(ApuTest, Pulse_LengthPausedDuringHalt) {
+    pulse.Enable(true);
+    pulse.WritePeriodLow(0x08);
+    pulse.WriteControl(0x0A);
+    pulse.WritePeriodHigh(0x80); // Length is 12 (index 0x10 in the lookup table)
+
+    bool isSilent = true;
+    for (int i = 0; i < 6; ++i) EXPECT_EQ(1, pulse.TickLength());
+
+    pulse.WriteControl(0x2A);
+    isSilent = true;
+    for (int i = 0; i < 6; ++i) EXPECT_EQ(1, pulse.TickLength());
+    
+    pulse.WriteControl(0x0A);
+    isSilent = true;
+    for (int i = 0; i < 6; ++i) EXPECT_EQ(1, pulse.TickLength());
+
+    isSilent = true;
+    for (int i = 0; i < 12; ++i) EXPECT_EQ(0, pulse.TickLength());
+}
