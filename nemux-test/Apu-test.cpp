@@ -9,6 +9,7 @@
 struct ApuTest : public ::testing::Test {
     Apu apu;
     Pulse pulse;
+    FrameCounter frame;
 
     ApuTest() {}
 };
@@ -40,26 +41,31 @@ TEST_F(ApuTest, Pulse_SilentIfPeriodSmallerThan8) {
     pulse.WritePeriodHigh(0x00);
     
     bool isSilent = true;
-    for (int i = 0; i < 100; ++i) isSilent = isSilent && (pulse.Tick() == 0);
+    for (int i = 0; i < 100; ++i) isSilent = (pulse.Tick() == 0) && isSilent;
     EXPECT_FALSE(isSilent);
 
     pulse.WritePeriodLow(0x07);
     isSilent = true;
-    for (int i = 0; i < 100; ++i) isSilent = isSilent && (pulse.Tick() == 0);
+    for (int i = 0; i < 100; ++i) isSilent = (pulse.Tick() == 0) && isSilent;
     EXPECT_TRUE(isSilent);
 }
 
 TEST_F(ApuTest, Pulse_SilentIfDisabled) {
     pulse.Enable(true);
     pulse.WritePeriodLow(0x08);
-    pulse.WriteControl(0x0A);
+    pulse.WritePeriodHigh(0xF0);
+    pulse.WriteControl(0x2A);
     bool isSilent = true;
-    for (int i = 0; i < 100; ++i) isSilent = isSilent && (pulse.Tick() == 0);
+    for (int i = 0; i < 100; ++i) {
+        isSilent = (pulse.Tick() == 0) && isSilent;
+    }
     EXPECT_FALSE(isSilent);
 
     pulse.Enable(false);
     isSilent = true;
-    for (int i = 0; i < 100; ++i) isSilent = isSilent && (pulse.Tick() == 0);
+    for (int i = 0; i < 100; ++i) {
+        isSilent = (pulse.Tick() == 0) && isSilent;
+    }
     EXPECT_TRUE(isSilent);
 }
 
@@ -156,4 +162,189 @@ TEST_F(ApuTest, Pulse_LengthPausedDuringHalt) {
 
     isSilent = true;
     for (int i = 0; i < 12; ++i) EXPECT_EQ(0, pulse.TickLength());
+}
+
+TEST_F(ApuTest, FrameCounter_Mode4) {
+    frame.WriteControl(0x00);
+    const auto ExpectCounter = [](bool expHalf, bool expQuarter, FrameCounter::Clock actual) {
+        EXPECT_EQ(expHalf, actual.HalfFrame);
+        EXPECT_EQ(expQuarter, actual.QuarterFrame);
+    };
+    for (size_t i = 0; i < 29830; i++) {
+        if (i == 7457) ExpectCounter(false, true, frame.Tick());
+        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
+        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
+        else if (i == 29829) ExpectCounter(true, true, frame.Tick());
+        else ExpectCounter(false, false, frame.Tick());
+    }
+    // Loop
+    for (size_t i = 0; i < 29830; i++) {
+        if (i == 7457) ExpectCounter(false, true, frame.Tick());
+        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
+        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
+        else if (i == 29829) ExpectCounter(true, true, frame.Tick());
+        else ExpectCounter(false, false, frame.Tick());
+    }
+}
+
+TEST_F(ApuTest, FrameCounter_Mode5) {
+    frame.WriteControl(0x80);
+    const auto ExpectCounter = [](bool expHalf, bool expQuarter, FrameCounter::Clock actual) {
+        EXPECT_EQ(expHalf, actual.HalfFrame);
+        EXPECT_EQ(expQuarter, actual.QuarterFrame);
+    };
+    for (size_t i = 0; i < 37282; i++) {
+        if (i == 7457) ExpectCounter(false, true, frame.Tick());
+        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
+        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
+        else if (i == 37281) ExpectCounter(true, true, frame.Tick());
+        else ExpectCounter(false, false, frame.Tick());
+    }
+    // Loop
+    for (size_t i = 0; i < 37282; i++) {
+        if (i == 7457) ExpectCounter(false, true, frame.Tick());
+        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
+        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
+        else if (i == 37281) ExpectCounter(true, true, frame.Tick());
+        else ExpectCounter(false, false, frame.Tick());
+    }
+}
+
+TEST_F(ApuTest, Pulse_Sweep_SetValues) {
+    pulse.WriteSweep(0x00);
+    EXPECT_EQ(false, pulse.SweepEnabled);
+
+    pulse.WriteSweep(0x80);
+    EXPECT_EQ(true, pulse.SweepEnabled);
+
+    pulse.WriteSweep(0x00);
+    EXPECT_EQ(false, pulse.SweepNegate);
+
+    pulse.WriteSweep(0x08);
+    EXPECT_EQ(true, pulse.SweepNegate);
+
+    pulse.WriteSweep(0x50);
+    EXPECT_EQ(5, pulse.SweepPeriod);
+
+    pulse.WriteSweep(0x05);
+    EXPECT_EQ(5, pulse.SweepAmount);
+}
+
+TEST_F(ApuTest, Pulse_Sweep_TargetPeriods) {
+    // Shift 2 bits, add
+    pulse.Period = 0x0142;
+    pulse.WriteSweep(0x02);
+    pulse.TickSweep(true);
+    EXPECT_EQ(0x0142 + 0x0050, pulse.SweepTargetPeriod);
+
+    // Shift 5 bits, substract
+    pulse.Period = 0x0142;
+    pulse.WriteSweep(0x0D);
+    pulse.TickSweep(true);
+    EXPECT_EQ(0x0142 - 0x000A, pulse.SweepTargetPeriod);
+}
+
+TEST_F(ApuTest, Pulse_Sweep_MuteOnInvalidTargetPeriod) {
+    // Shift 0 bits, add
+    pulse.Period = 0x03FF;
+    pulse.WriteSweep(0x00);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    
+    pulse.Period = 0x0400;
+    pulse.WriteSweep(0x00);
+    EXPECT_EQ(0, pulse.TickSweep(true));
+
+    // Mute on period < 8 (shift 8 bits, negate -> no period change)
+    pulse.Period = 0x04;
+    pulse.WriteSweep(0x0F);
+    EXPECT_EQ(0, pulse.TickSweep(true));
+}
+
+TEST_F(ApuTest, Pulse_Sweep_UpdatePeriod) {
+    // Enabled, Period = 4 half-frames
+    pulse.Period = 0x0142;
+    pulse.WriteSweep(0xC2);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142 + 0x0050, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142 + 0x0050, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142 + 0x0050, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142 + 0x0050, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142 + 0x0050 + 0x0064, pulse.Period);
+
+    // Disabled, Period = 4 half-frames
+    pulse.Period = 0x0142;
+    pulse.WriteSweep(0x72);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);
+
+}
+
+TEST_F(ApuTest, Pulse_Sweep_NoUpdateWhenMuting) {
+    // Enabled, Period = 4 half-frames
+    // Muted
+    pulse.Period = 0x0800;
+    pulse.WriteSweep(0xC2);
+    EXPECT_EQ(0, pulse.TickSweep(true));
+    EXPECT_EQ(0x0800, pulse.Period);
+    EXPECT_EQ(0, pulse.TickSweep(true));
+    EXPECT_EQ(0x0800, pulse.Period);
+    EXPECT_EQ(0, pulse.TickSweep(true));
+    EXPECT_EQ(0x0800, pulse.Period);
+    EXPECT_EQ(0, pulse.TickSweep(true));
+    EXPECT_EQ(0x0800, pulse.Period);
+}
+
+TEST_F(ApuTest, Pulse_Sweep_NoUpdateWhenShiftIsZero) {
+    // Enabled, Period = 4 half-frames
+    pulse.Period = 0x0142;
+    pulse.WriteSweep(0xC0);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);
+}
+
+TEST_F(ApuTest, Pulse_Sweep_Reload) {
+    // Enabled, Period = 5
+    pulse.Period = 0x0100;
+    pulse.WriteSweep(0xD1);
+    EXPECT_EQ(5, pulse.SweepPeriod);
+    EXPECT_EQ(0, pulse.SweepT);
+    pulse.TickSweep(true);
+    EXPECT_EQ(5, pulse.SweepPeriod);
+    EXPECT_EQ(5, pulse.SweepT);
+    pulse.WriteSweep(0xE1);
+    EXPECT_EQ(6, pulse.SweepPeriod);
+    EXPECT_EQ(5, pulse.SweepT);
+    pulse.TickSweep(true);
+    EXPECT_EQ(6, pulse.SweepPeriod);
+    EXPECT_EQ(6, pulse.SweepT);
 }

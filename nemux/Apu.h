@@ -16,7 +16,45 @@
 //static constexpr size_t VIDEO_HEIGHT = 262;
 //static constexpr size_t VIDEO_SIZE = VIDEO_WIDTH * VIDEO_HEIGHT;
 
+struct FrameCounter {
+    struct Clock {
+        bool HalfFrame;
+        bool QuarterFrame;
+    };
+
+    int Ticks = 0;
+    Clock Tick() {
+        static constexpr int QuarterTicks[2][4] = {
+            { 7457, 14913, 22371, 29829 },
+            { 7457, 14913, 22371, 37281 }
+        };
+        static constexpr int HalfTicks[2][2] = {
+            { 14913, 29829 },
+            { 14913, 37281 }
+        };
+        static constexpr int Periods[2] = { 29830, 37282 };
+        Clock result;
+        result.HalfFrame =
+            (Ticks == HalfTicks[Mode][0])
+            || (Ticks == HalfTicks[Mode][1]);
+        result.QuarterFrame =
+            (Ticks == QuarterTicks[Mode][0])
+            || (Ticks == QuarterTicks[Mode][1])
+            || (Ticks == QuarterTicks[Mode][2])
+            || (Ticks == QuarterTicks[Mode][3]);
+        Ticks = (Ticks + 1) % Periods[Mode];
+        return result;
+    }
+
+    int Mode = 0;
+    void WriteControl(const Byte value) {
+        Mode = Bit<7>(value);
+    }
+};
+
 struct Pulse {
+    FrameCounter Frame;
+
     Word Period = 1;
     Word T = 0;
 
@@ -49,12 +87,55 @@ struct Pulse {
             0xC0, 0x18, 0x48, 0x1A, 0x10, 0x1C, 0x20, 0x1E
         };
         Length = Lengths[value >> 3];
+        LengthCounter = (Length == 0) ? 0 : 1;
     }
 
     bool Enabled = false;
     void Enable(bool enabled) {
         Enabled = enabled;
         if (!Enabled) Length = 0;
+    }
+
+    bool SweepEnabled = false;
+    Byte SweepPeriod = 0;
+    Byte SweepT = 0;
+    bool SweepNegate = false;
+    Byte SweepAmount = 0;
+    int SweepTargetPeriod = 0;
+    bool SweepReload = false;
+    void WriteSweep(const Byte value) {
+        SweepEnabled = IsBitSet<7>(value);
+        SweepPeriod = (value >> 4) & 0x07;
+        SweepNegate = IsBitSet<3>(value);
+        SweepAmount = value & 0x07;
+        SweepReload = true;
+    }
+
+    Byte TickSweep(const bool halfFrame) {
+        auto result = 1;
+        if (SweepNegate) {
+            SweepTargetPeriod = Period - (Period >> SweepAmount);
+        }
+        else {
+            SweepTargetPeriod = Period + (Period >> SweepAmount);
+        }
+        if (SweepTargetPeriod >= 0x0800) result = 0;
+        if (Period < 8) result = 0;
+
+        if (halfFrame) {
+            if ((SweepT == 0) && SweepEnabled && (result == 1) && (SweepAmount > 0)) {
+                Period = SweepTargetPeriod;
+            }
+
+            if ((SweepT == 0) || SweepReload) {
+                SweepT = SweepPeriod;
+                SweepReload = false;
+            }
+            else {
+                --SweepT;
+            }
+        }
+        return result;
     }
 
     bool FlipFlop = false;
@@ -90,25 +171,29 @@ struct Pulse {
         return 1;
     }
 
+    Byte LengthCounter = 0;
     Byte Sequence = 0;
     Byte Tick() {
         if (!Enabled) return 0;
         if (Period < 9) return 0;
         Byte v = Volume;
         if (TickTimer()) Sequence = TickSequence();
-        return v * Sequence;
+        const auto clock = Frame.Tick();
+        if (clock.HalfFrame) LengthCounter = TickLength();
+        const auto sweep = TickSweep(clock.HalfFrame);
+        return v * Sequence * LengthCounter * sweep;
     }
 };
 
 class Apu {
 public:
     void WritePulse1Control(const Byte value) { Pulse1.WriteControl(value); }
-    void WritePulse1Sweep(const Byte value) {}
+    void WritePulse1Sweep(const Byte value) { Pulse1.WriteSweep(value); }
     void WritePulse1PeriodLo(const Byte value) { Pulse1.WritePeriodLow(value); }
     void WritePulse1PeriodHi(const Byte value) { Pulse1.WritePeriodHigh(value); }
     
     void WritePulse2Control(const Byte value) { Pulse2.WriteControl(value); }
-    void WritePulse2Sweep(const Byte value) {}
+    void WritePulse2Sweep(const Byte value) { Pulse2.WriteSweep(value); }
     void WritePulse2PeriodLo(const Byte value) { Pulse2.WritePeriodLow(value); }
     void WritePulse2PeriodHi(const Byte value) { Pulse2.WritePeriodHigh(value); }
 
@@ -129,7 +214,10 @@ public:
         Pulse1.Enable(IsBitSet<0>(value));
         Pulse2.Enable(IsBitSet<1>(value));
     }
-    void WriteCommonControl(const Byte value) {}
+    void WriteCommonControl(const Byte value) {
+        Pulse1.Frame.WriteControl(value);
+        Pulse2.Frame.WriteControl(value);
+    }
 
     Byte ReadStatus() const { return 0; }
 
