@@ -348,3 +348,87 @@ TEST_F(ApuTest, Pulse_Sweep_Reload) {
     EXPECT_EQ(6, pulse.SweepPeriod);
     EXPECT_EQ(6, pulse.SweepT);
 }
+
+TEST_F(ApuTest, Pulse_Envelope_ConstantVolume) {
+    // Set Volume to constant at 0x0A
+    pulse.WriteControl(0x1A);
+    for (size_t i = 0; i < 20; i++) {
+        EXPECT_EQ(0x0A, pulse.Envelope.Tick(false));
+    }
+    for (size_t i = 0; i < 20; i++) {
+        EXPECT_EQ(0x0A, pulse.Envelope.Tick(true));
+    }
+}
+
+TEST_F(ApuTest, Pulse_Envelope_DecreasingEnvelope) {
+    pulse.WriteControl(0x00);
+
+    // Write CounterLength sets restart flag
+    EXPECT_FALSE(pulse.Envelope.Restart);
+    pulse.WritePeriodHigh(0x22);
+    EXPECT_TRUE(pulse.Envelope.Restart);
+
+    // First tick reloads
+    EXPECT_EQ(15, pulse.Envelope.Tick(true));
+    EXPECT_FALSE(pulse.Envelope.Restart);
+
+    // Non-looping envelope
+    for (size_t i = 1   ; i <= 15; i++) {
+        EXPECT_EQ(15 - i, pulse.Envelope.Tick(true));
+    }
+    for (size_t i = 0; i <= 15; i++) {
+        EXPECT_EQ(0, pulse.Envelope.Tick(true));
+    }
+}
+
+TEST_F(ApuTest, Pulse_Envelope_DecreasingEnvelopeNotOnNonQuarterFrames) {
+    pulse.WriteControl(0x00);
+    pulse.WritePeriodHigh(0x22);
+
+    // First tick reloads
+    EXPECT_EQ(15, pulse.Envelope.Tick(true));
+
+    // Further non-QFrame ticks don't change anything
+    for (size_t i = 1; i <= 15; i++) {
+        EXPECT_EQ(15, pulse.Envelope.Tick(false));
+    }
+    for (size_t i = 0; i <= 15; i++) {
+        EXPECT_EQ(15, pulse.Envelope.Tick(false));
+    }
+}
+
+TEST_F(ApuTest, Pulse_Envelope_DecreasingEnvelopeOnLoop) {
+    // Looping envelope
+    pulse.WriteControl(0x20);
+    pulse.WritePeriodHigh(0x22);
+    for (size_t i = 0; i <= 15; i++) {
+        EXPECT_EQ(15 - i, pulse.Envelope.Tick(true));
+    }
+    for (size_t i = 0; i <= 15; i++) {
+        EXPECT_EQ(15 - i, pulse.Envelope.Tick(true));
+    }
+}
+
+TEST_F(ApuTest, Pulse_Envelope_DividerWithLoop) {
+    // Looping envelope, Period 4+1
+    pulse.WriteControl(0x24);
+
+    // Write CounterLength sets restart flag
+    pulse.WritePeriodHigh(0x22);
+    EXPECT_EQ(15, pulse.Envelope.Tick(true));
+    EXPECT_EQ(4 + 1, pulse.Envelope.Divider);
+    
+    for (size_t i = 0; i <= 15; i++) {
+        for (size_t j = 0; j < 4+1; j++)
+        {
+            if (i == 0 && j == 0) continue;
+            EXPECT_EQ(15 - i, pulse.Envelope.Tick(true));
+        }
+    }
+    for (size_t i = 0; i <= 15; i++) {
+        for (size_t j = 0; j < 4+1; j++)
+        {
+            EXPECT_EQ(15 - i, pulse.Envelope.Tick(true));
+        }
+    }
+}

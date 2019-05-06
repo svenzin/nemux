@@ -52,8 +52,36 @@ struct FrameCounter {
     }
 };
 
+struct EnvelopeGenerator {
+    bool Restart = false;
+    bool Loop = false;
+    bool Enabled = false;
+    int Value = 0;
+    int Divider = 1;
+    int Volume = 0;
+    
+    Byte Tick(const bool quarterFrame) {
+        if (quarterFrame) {
+            --Divider;
+            if (Divider == 0) {
+                Divider = Volume + 1;
+                if (Restart) {
+                    Restart = false;
+                    Value = 0xF;
+                }
+                else {
+                    if (Value > 0) --Value;
+                    else if (Loop) Value = 0x0F;
+                }
+            }
+        }
+        return (Enabled ? Value : Volume);
+    }
+};
+
 struct Pulse {
     FrameCounter Frame;
+    EnvelopeGenerator Envelope;
 
     Word Period = 1;
     Word T = 0;
@@ -66,6 +94,10 @@ struct Pulse {
         Duty = value >> 6;
         Volume = value & 0x0F;
         Halt = IsBitSet<5>(value);
+
+        Envelope.Enabled = IsBitClear<4>(value);
+        Envelope.Loop = IsBitSet<5>(value);
+        Envelope.Volume = Volume;
     }
 
     void WritePeriodLow(const Byte value) {
@@ -88,6 +120,8 @@ struct Pulse {
         };
         Length = Lengths[value >> 3];
         LengthCounter = (Length == 0) ? 0 : 1;
+
+        Envelope.Restart = true;
     }
 
     bool Enabled = false;
@@ -176,12 +210,13 @@ struct Pulse {
     Byte Tick() {
         if (!Enabled) return 0;
         if (Period < 9) return 0;
-        Byte v = Volume;
-        if (TickTimer()) Sequence = TickSequence();
+
         const auto clock = Frame.Tick();
-        if (clock.HalfFrame) LengthCounter = TickLength();
+        const auto volume = Envelope.Tick(clock.QuarterFrame);
         const auto sweep = TickSweep(clock.HalfFrame);
-        return v * Sequence * LengthCounter * sweep;
+        if (TickTimer()) Sequence = TickSequence();
+        if (clock.HalfFrame) LengthCounter = TickLength();
+        return volume * Sequence * LengthCounter * sweep;
     }
 };
 
