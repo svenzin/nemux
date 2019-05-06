@@ -237,9 +237,14 @@ enum class Options
 static std::vector<float> samples;
 void FillAudioDeviceBuffer(void* UserData, Uint8* DeviceBuffer, int Length)
 {
+    if (samples.size() == 0) {
+        std::fill_n(DeviceBuffer, Length, Uint8(0));
+        return;
+    }
+
     Sint16* SampleBuffer = (Sint16*)DeviceBuffer;
     int SamplesToWrite = Length / 2;
-    int step = 1789 / 48;
+    int step = 36;// 1789 / 48;
     int size = samples.size();
     for (int SampleIndex = 0;
         SampleIndex < SamplesToWrite;
