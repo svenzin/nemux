@@ -14,10 +14,12 @@
 #include "Ppu.h"
 #include "Controllers.h"
 
+using std::boolalpha;
 using std::hex;
 using std::dec;
 using std::setfill;
 using std::setw;
+using std::endl;
 
 #undef main
 
@@ -62,6 +64,32 @@ namespace debug {
         case Addressing::Accumulator: break;
         case Addressing::Unknown: oss << " ????";
         }
+        return oss.str();
+    }
+
+    std::string GetPlayer1(const Controllers & ctrl) {
+        std::stringstream oss;
+        oss << "P1 ";
+        oss << (ctrl.P1_Up     ? "U" : "u");
+        oss << (ctrl.P1_Down   ? "D" : "d");
+        oss << (ctrl.P1_Left   ? "L" : "l");
+        oss << (ctrl.P1_Right  ? "R" : "r");
+        oss << (ctrl.P1_Select ? "S" : "s");
+        oss << (ctrl.P1_Start  ? "S" : "s");
+        oss << (ctrl.P1_B      ? "B" : "b");
+        oss << (ctrl.P1_A      ? "A" : "a");
+        return oss.str();
+    }
+
+    std::string GetAPU(const Apu & apu) {
+        std::stringstream oss;
+        oss << "APU Frame Counter " << endl
+            << "        Mode " << ((apu.Pulse1.Frame.Mode == 0) ? 4 : 5) << " steps" << endl
+            << "        Counter " << apu.Pulse1.Frame.Ticks << endl
+            << "    Pulse 1 " << dec << apu.Pulse1.Enabled << endl
+            << "        P " << apu.Pulse1.Period << " T " << apu.Pulse1.T << " D " << apu.Pulse1.Duty << endl
+            << "        SE " << apu.Pulse1.SweepEnabled << " SP " << Word{ apu.Pulse1.SweepPeriod } << " ST " << Word{ apu.Pulse1.SweepT } << " SN " << apu.Pulse1.SweepNegate << " SA " << Word{ apu.Pulse1.SweepAmount } << endl
+            << "        LC " << apu.Pulse1.Length << " Halt " << apu.Pulse1.Halt;
         return oss.str();
     }
 }
@@ -427,6 +455,14 @@ int main(int argc, char ** argv) {
                         SDL::SetScale(3);
                         SDL::Show(VIDEO_WIDTH, VIDEO_HEIGHT, p.data());
                     }
+                    else if (line == "p1 up")     ctrl.P1_Up = !ctrl.P1_Up;
+                    else if (line == "p1 down")   ctrl.P1_Down = !ctrl.P1_Down;
+                    else if (line == "p1 left")   ctrl.P1_Left = !ctrl.P1_Left;
+                    else if (line == "p1 right")  ctrl.P1_Right = !ctrl.P1_Right;
+                    else if (line == "p1 select") ctrl.P1_Select = !ctrl.P1_Select;
+                    else if (line == "p1 start")  ctrl.P1_Start = !ctrl.P1_Start;
+                    else if (line == "p1 b")      ctrl.P1_B = !ctrl.P1_B;
+                    else if (line == "p1 a")      ctrl.P1_A = !ctrl.P1_A;
                     else {
                         try {
                             step = std::stoll(line);
@@ -444,16 +480,18 @@ int main(int argc, char ** argv) {
                     --step;
                     ++counter;
 
-                    cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick();
+                    cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick(); apu.Tick();
                     while (cpu.CurrentTick < cpu.Ticks) {
-                        cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick();
+                        cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick(); apu.Tick();
                     }
                 }
 
                 if (step == 0) {
                     std::cout << dec << counter
-                        << " " << setfill(' ') << setw(12) << std::left << debug::GetCPUInstruction(cpu)
-                        << " " << cpu.ToMiniString() << " ";
+                        << " " << setfill(' ') << setw(12) << std::left << debug::GetCPUInstruction(cpu) << std::endl
+                        << " " << cpu.ToMiniString() << std::endl
+                        << " " << debug::GetPlayer1(ctrl) << std::endl
+                        << " " << debug::GetAPU(apu) << std::endl;
                 }
             }
         }
