@@ -10,6 +10,7 @@ struct ApuTest : public ::testing::Test {
     Apu apu;
     Pulse pulse;
     FrameCounter frame;
+    LengthCounter length;
 
     ApuTest() {}
 
@@ -57,10 +58,10 @@ TEST_F(ApuTest, Pulse_SilentIfPeriodSmallerThan8) {
 }
 
 TEST_F(ApuTest, Pulse_SilentIfDisabled) {
-    // Enabled, Period 0x0A08, Length 0x1E, Duty 0, Halt length, Constant Volume, Volume A
+    // Enabled, Period 0x0A08, Length 0, Duty 0, Halt length, Constant Volume, Volume A
     pulse.Enable(true);
     pulse.WritePeriodLow(0x08);
-    pulse.WritePeriodHigh(0xF0);
+    pulse.WritePeriodHigh(0x00);
     const auto ctrl = CreatePulseControl(0, true, true, 0xA);
     pulse.WriteControl(ctrl);
     bool isSilent = true;
@@ -126,59 +127,48 @@ TEST_F(ApuTest, Pulse_WriteLength) {
         12, 16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30
     };
     for (int i = 0; i < 0x20; ++i) {
-        pulse.WritePeriodHigh(i << 3);
-        EXPECT_EQ(counters[i], pulse.Length);
+        length.SetCountIndex(i);
+        EXPECT_EQ(counters[i], length.Count);
     }
 }
 
 TEST_F(ApuTest, Pulse_LengthClearedOnDisable) {
     pulse.WritePeriodHigh(0x80);
-    EXPECT_TRUE(pulse.Length > 0);
+    EXPECT_TRUE(pulse.Length.Count > 0);
 
     pulse.Enable(false);
-    EXPECT_TRUE(pulse.Length == 0);
+    EXPECT_TRUE(pulse.Length.Count == 0);
 }
 
 TEST_F(ApuTest, Pulse_SilentAfterLength) {
-    pulse.Enable(true);
-    pulse.WritePeriodLow(0x08);
-    const auto ctrl = CreatePulseControl(0, false, false, 0xA);
-    pulse.WriteControl(ctrl);
-    pulse.WritePeriodHigh(0x80); // Length is 12 (index 0x10 in the lookup table)
-    
-    bool isSilent = true;
+    length.SetCountIndex(0x10);
     for (int i = 0; i < 12; ++i) {
-        EXPECT_EQ(1, pulse.TickLength());
+        EXPECT_EQ(1, length.Tick(true));
     }
-
-    isSilent = true;
     for (int i = 0; i < 12; ++i) {
-        EXPECT_EQ(0, pulse.TickLength());
+        EXPECT_EQ(0, length.Tick(true));
+    }
+}
+
+TEST_F(ApuTest, Pulse_LengthNoChangeWhenNotHalfFrame) {
+    length.SetCountIndex(0x10);
+
+    for (int i = 0; i < 12; ++i) {
+        EXPECT_EQ(1, length.Tick(false));
+    }
+    for (int i = 0; i < 12; ++i) {
+        EXPECT_EQ(1, length.Tick(false));
     }
 }
 
 TEST_F(ApuTest, Pulse_LengthPausedDuringHalt) {
-    pulse.Enable(true);
-    pulse.WritePeriodLow(0x08);
-    auto ctrl = CreatePulseControl(0, false, false, 0xA);
-    pulse.WriteControl(ctrl);
-    pulse.WritePeriodHigh(0x80); // Length is 12 (index 0x10 in the lookup table)
-
-    bool isSilent = true;
-    for (int i = 0; i < 6; ++i) EXPECT_EQ(1, pulse.TickLength());
-
-    ctrl = CreatePulseControl(0, true, false, 0xA);
-    pulse.WriteControl(ctrl);
-    isSilent = true;
-    for (int i = 0; i < 6; ++i) EXPECT_EQ(1, pulse.TickLength());
-    
-    ctrl = CreatePulseControl(0, false, false, 0xA);
-    pulse.WriteControl(ctrl);
-    isSilent = true;
-    for (int i = 0; i < 6; ++i) EXPECT_EQ(1, pulse.TickLength());
-
-    isSilent = true;
-    for (int i = 0; i < 12; ++i) EXPECT_EQ(0, pulse.TickLength());
+    length.SetCountIndex(0x10);
+    for (int i = 0; i < 6; ++i) EXPECT_EQ(1, length.Tick(true));
+    length.Halt = true;
+    for (int i = 0; i < 6; ++i) EXPECT_EQ(1, length.Tick(true));
+    length.Halt = false;
+    for (int i = 0; i < 6; ++i) EXPECT_EQ(1, length.Tick(true));
+    for (int i = 0; i < 12; ++i) EXPECT_EQ(0, length.Tick(true));
 }
 
 TEST_F(ApuTest, FrameCounter_Mode4) {

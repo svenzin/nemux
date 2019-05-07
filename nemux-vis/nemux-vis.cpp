@@ -92,7 +92,7 @@ namespace debug {
             << "    Pulse 1 " << dec << apu.Pulse1.Enabled << endl
             << "        P " << apu.Pulse1.Period << " T " << apu.Pulse1.T << " D " << apu.Pulse1.Duty << endl
             << "        SE " << apu.Pulse1.SweepEnabled << " SP " << Word{ apu.Pulse1.SweepPeriod } << " ST " << Word{ apu.Pulse1.SweepT } << " SN " << apu.Pulse1.SweepNegate << " SA " << Word{ apu.Pulse1.SweepAmount } << endl
-            << "        LC " << apu.Pulse1.Length << " Halt " << apu.Pulse1.Halt;
+            << "        LC " << apu.Pulse1.Length.Count << " Halt " << apu.Pulse1.Length.Halt;
         return oss.str();
     }
 }

@@ -79,21 +79,42 @@ struct EnvelopeGenerator {
     }
 };
 
+struct LengthCounter {
+    int Count = 0;
+    void SetCountIndex(const int value) {
+        static constexpr Byte Lengths[0x20] = {
+            0x0A, 0xFE, 0x14, 0x02, 0x28, 0x04, 0x50, 0x06,
+            0xA0, 0x08, 0x3C, 0x0A, 0x0E, 0x0C, 0x1A, 0x0E,
+            0x0C, 0x10, 0x18, 0x12, 0x30, 0x14, 0x60, 0x16,
+            0xC0, 0x18, 0x48, 0x1A, 0x10, 0x1C, 0x20, 0x1E
+        };
+        Count = Lengths[value];
+    }
+    bool Halt = false;
+    Byte Tick(const bool halfFrame) {
+        if (Count == 0) return 0;
+        if (halfFrame && !Halt) --Count;
+        return 1;
+    }
+    void Clear() {
+        Count = 0;
+    }
+};
+
 struct Pulse {
     FrameCounter Frame;
     EnvelopeGenerator Envelope;
+    LengthCounter Length;
 
     Word Period = 1;
     Word T = 0;
 
-    Byte Length;
-
     Byte Volume = 0;
-    bool Halt = false;
     void WriteControl(const Byte value) {
         Duty = value >> 6;
         Volume = value & 0x0F;
-        Halt = IsBitSet<5>(value);
+        
+        Length.Halt = IsBitSet<5>(value);
 
         Envelope.Enabled = IsBitClear<4>(value);
         Envelope.Loop = IsBitSet<5>(value);
@@ -112,14 +133,7 @@ struct Pulse {
         Period = t + 1;
         Phase = 0;
 
-        static constexpr Byte Lengths[0x20] = {
-            0x0A, 0xFE, 0x14, 0x02, 0x28, 0x04, 0x50, 0x06,
-            0xA0, 0x08, 0x3C, 0x0A, 0x0E, 0x0C, 0x1A, 0x0E,
-            0x0C, 0x10, 0x18, 0x12, 0x30, 0x14, 0x60, 0x16,
-            0xC0, 0x18, 0x48, 0x1A, 0x10, 0x1C, 0x20, 0x1E
-        };
-        Length = Lengths[value >> 3];
-        LengthCounter = (Length == 0) ? 0 : 1;
+        Length.SetCountIndex(value >> 3);
 
         Envelope.Restart = true;
     }
@@ -127,7 +141,7 @@ struct Pulse {
     bool Enabled = false;
     void Enable(bool enabled) {
         Enabled = enabled;
-        if (!Enabled) Length = 0;
+        if (!Enabled) Length.Clear();
     }
 
     bool SweepEnabled = false;
@@ -203,13 +217,6 @@ struct Pulse {
         return value;
     }
 
-    Byte TickLength() {
-        if (Length == 0) return 0;
-        if (!Halt) --Length;
-        return 1;
-    }
-
-    Byte LengthCounter = 0;
     Byte Sequence = 0;
     Byte Tick() {
         if (!Enabled) return 0;
@@ -219,8 +226,8 @@ struct Pulse {
         const auto volume = Envelope.Tick(clock.QuarterFrame);
         const auto sweep = TickSweep(clock.HalfFrame);
         if (TickTimer()) Sequence = TickSequence();
-        if (clock.HalfFrame) LengthCounter = TickLength();
-        return volume * Sequence * LengthCounter * sweep;
+        const auto length = Length.Tick(clock.HalfFrame);
+        return volume * Sequence * length * sweep;
     }
 };
 
