@@ -14,6 +14,8 @@
 #include "MemoryMap.h"
 
 #include <array>
+#include <iostream>
+#include <iomanip>
 
 static constexpr size_t FRAME_WIDTH = 256;
 static constexpr size_t FRAME_HEIGHT = 240;
