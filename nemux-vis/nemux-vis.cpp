@@ -5,11 +5,14 @@
 #include <string>
 #include <iomanip>
 #include <sstream>
+#include <memory>
+#include <iterator>
 
 #include "SDL.h"
 
 #include "NesFile.h"
 #include "Mapper_0.h"
+#include "Mapper_2.h"
 #include "Cpu.h"
 #include "Ppu.h"
 #include "Controllers.h"
@@ -296,14 +299,16 @@ int main(int argc, char ** argv) {
         log("Done.");
 
         Controllers ctrl;
-        Mapper_000 mapper(rom);
+        std::unique_ptr<NesMapper> mapper;
+        if (rom.Header.MapperNumber == 0) mapper.reset(new Mapper_000(rom));
+        else mapper.reset(new Mapper_002(rom));
 
-        PpuMemoryMap<Palette> ppumap(nullptr, &mapper);
+        PpuMemoryMap<Palette> ppumap(nullptr, mapper.get());
         Ppu ppu(&ppumap);
 
         Apu apu;
 
-        CpuMemoryMap<Cpu, Ppu, Controllers, Apu> cpumap(nullptr, &apu, &ppu, &mapper, &ctrl);
+        CpuMemoryMap<Cpu, Ppu, Controllers, Apu> cpumap(nullptr, &apu, &ppu, mapper.get(), &ctrl);
         Cpu cpu("6502", &cpumap);
         cpumap.CPU = &cpu;
 
