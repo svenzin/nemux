@@ -205,7 +205,7 @@ public:
                             if (SpriteHeight == 8) taddr += SpriteTable + 16 * td;
                             else {
                                 if (taddr >= 8) taddr += 8;
-                                taddr += ((td % 1) * 0x1000) + 16 * (td & 0xFE);
+                                taddr += ((td % 2) * 0x1000) + 16 * (td & 0xFE);
                             }
                             auto b = Map->GetByteAt(taddr);
                             int v;
