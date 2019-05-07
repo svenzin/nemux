@@ -12,6 +12,10 @@ struct ApuTest : public ::testing::Test {
     FrameCounter frame;
 
     ApuTest() {}
+
+    Byte CreatePulseControl(int duty, bool halt, bool constant, int volume) {
+        return ((duty & 0x03) << 6) + Mask<5>(halt) + Mask<4>(constant) + (volume & 0x0F);
+    }
 };
 
 TEST_F(ApuTest, Pulse_WritePeriod) {
@@ -24,7 +28,8 @@ TEST_F(ApuTest, Pulse_WritePeriod) {
 }
 
 TEST_F(ApuTest, Pulse_WritePeriodHiRestartSequencer) {
-    pulse.WriteControl(0x00);
+    const auto ctrl = CreatePulseControl(0, false, false, 0);
+    pulse.WriteControl(ctrl);
     for (Byte x : { 0, 1, 0, 0 }) {
         EXPECT_EQ(x, pulse.TickSequence());
     }
@@ -36,7 +41,8 @@ TEST_F(ApuTest, Pulse_WritePeriodHiRestartSequencer) {
 
 TEST_F(ApuTest, Pulse_SilentIfPeriodSmallerThan8) {
     pulse.Enable(true);
-    pulse.WriteControl(0x0F);
+    const auto ctrl = CreatePulseControl(0, false, true, 0xF);
+    pulse.WriteControl(ctrl);
     pulse.WritePeriodLow(0x08);
     pulse.WritePeriodHigh(0x00);
     
@@ -51,10 +57,12 @@ TEST_F(ApuTest, Pulse_SilentIfPeriodSmallerThan8) {
 }
 
 TEST_F(ApuTest, Pulse_SilentIfDisabled) {
+    // Enabled, Period 0x0A08, Length 0x1E, Duty 0, Halt length, Constant Volume, Volume A
     pulse.Enable(true);
     pulse.WritePeriodLow(0x08);
     pulse.WritePeriodHigh(0xF0);
-    pulse.WriteControl(0x2A);
+    const auto ctrl = CreatePulseControl(0, true, true, 0xA);
+    pulse.WriteControl(ctrl);
     bool isSilent = true;
     for (int i = 0; i < 100; ++i) {
         isSilent = (pulse.Tick() == 0) && isSilent;
@@ -81,29 +89,34 @@ TEST_F(ApuTest, Pulse_TimerTicksEveryTwoClocks) {
 }
 
 TEST_F(ApuTest, Pulse_Sequence) {
-    pulse.WriteControl(0x00);
+    auto ctrl = CreatePulseControl(0, false, false, 0);
+    pulse.WriteControl(ctrl);
     for (Byte x : { 0, 1, 0, 0, 0, 0, 0, 0 }) {
         EXPECT_EQ(x, pulse.TickSequence());
     }
     
-    pulse.WriteControl(0x40);
+    ctrl = CreatePulseControl(1, false, false, 0);
+    pulse.WriteControl(ctrl);
     for (Byte x : { 0, 1, 1, 0, 0, 0, 0, 0 }) {
         EXPECT_EQ(x, pulse.TickSequence());
     }
 
-    pulse.WriteControl(0x80);
+    ctrl = CreatePulseControl(2, false, false, 0);
+    pulse.WriteControl(ctrl);
     for (Byte x : { 0, 1, 1, 1, 1, 0, 0, 0 }) {
         EXPECT_EQ(x, pulse.TickSequence());
     }
 
-    pulse.WriteControl(0xC0);
+    ctrl = CreatePulseControl(3, false, false, 0);
+    pulse.WriteControl(ctrl);
     for (Byte x : { 1, 0, 0, 1, 1, 1, 1, 1 }) {
         EXPECT_EQ(x, pulse.TickSequence());
     }
 }
 
 TEST_F(ApuTest, Pulse_SetVolume) {
-    pulse.WriteControl(0x0A);
+    const auto ctrl = CreatePulseControl(0, false, false, 0xA);
+    pulse.WriteControl(ctrl);
     EXPECT_EQ(0x0A, pulse.Volume);
 }
 
@@ -129,7 +142,8 @@ TEST_F(ApuTest, Pulse_LengthClearedOnDisable) {
 TEST_F(ApuTest, Pulse_SilentAfterLength) {
     pulse.Enable(true);
     pulse.WritePeriodLow(0x08);
-    pulse.WriteControl(0x0A);
+    const auto ctrl = CreatePulseControl(0, false, false, 0xA);
+    pulse.WriteControl(ctrl);
     pulse.WritePeriodHigh(0x80); // Length is 12 (index 0x10 in the lookup table)
     
     bool isSilent = true;
@@ -146,17 +160,20 @@ TEST_F(ApuTest, Pulse_SilentAfterLength) {
 TEST_F(ApuTest, Pulse_LengthPausedDuringHalt) {
     pulse.Enable(true);
     pulse.WritePeriodLow(0x08);
-    pulse.WriteControl(0x0A);
+    auto ctrl = CreatePulseControl(0, false, false, 0xA);
+    pulse.WriteControl(ctrl);
     pulse.WritePeriodHigh(0x80); // Length is 12 (index 0x10 in the lookup table)
 
     bool isSilent = true;
     for (int i = 0; i < 6; ++i) EXPECT_EQ(1, pulse.TickLength());
 
-    pulse.WriteControl(0x2A);
+    ctrl = CreatePulseControl(0, true, false, 0xA);
+    pulse.WriteControl(ctrl);
     isSilent = true;
     for (int i = 0; i < 6; ++i) EXPECT_EQ(1, pulse.TickLength());
     
-    pulse.WriteControl(0x0A);
+    ctrl = CreatePulseControl(0, false, false, 0xA);
+    pulse.WriteControl(ctrl);
     isSilent = true;
     for (int i = 0; i < 6; ++i) EXPECT_EQ(1, pulse.TickLength());
 
@@ -231,6 +248,8 @@ TEST_F(ApuTest, Pulse_Sweep_SetValues) {
 }
 
 TEST_F(ApuTest, Pulse_Sweep_TargetPeriods) {
+    EXPECT_FALSE(pulse.SweepAlternativeNegate);
+
     // Shift 2 bits, add
     pulse.Period = 0x0142;
     pulse.WriteSweep(0x02);
@@ -242,6 +261,13 @@ TEST_F(ApuTest, Pulse_Sweep_TargetPeriods) {
     pulse.WriteSweep(0x0D);
     pulse.TickSweep(true);
     EXPECT_EQ(0x0142 - 0x000A, pulse.SweepTargetPeriod);
+
+    // Shift 5 bits, substract, alternative method (add -N-1)
+    pulse.Period = 0x0142;
+    pulse.WriteSweep(0x0D);
+    pulse.SweepAlternativeNegate = true;
+    pulse.TickSweep(true);
+    EXPECT_EQ(0x0142 - 0x000A - 1, pulse.SweepTargetPeriod);
 }
 
 TEST_F(ApuTest, Pulse_Sweep_MuteOnInvalidTargetPeriod) {
@@ -330,7 +356,8 @@ TEST_F(ApuTest, Pulse_Sweep_NoUpdateWhenShiftIsZero) {
     EXPECT_EQ(0x0142, pulse.Period);
     EXPECT_EQ(1, pulse.TickSweep(true));
     EXPECT_EQ(0x0142, pulse.Period);
-}
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142, pulse.Period);}
 
 TEST_F(ApuTest, Pulse_Sweep_Reload) {
     // Enabled, Period = 5
@@ -351,7 +378,8 @@ TEST_F(ApuTest, Pulse_Sweep_Reload) {
 
 TEST_F(ApuTest, Pulse_Envelope_ConstantVolume) {
     // Set Volume to constant at 0x0A
-    pulse.WriteControl(0x1A);
+    const auto ctrl = CreatePulseControl(0, false, true, 0xA);
+    pulse.WriteControl(ctrl);
     for (size_t i = 0; i < 20; i++) {
         EXPECT_EQ(0x0A, pulse.Envelope.Tick(false));
     }
@@ -361,7 +389,8 @@ TEST_F(ApuTest, Pulse_Envelope_ConstantVolume) {
 }
 
 TEST_F(ApuTest, Pulse_Envelope_DecreasingEnvelope) {
-    pulse.WriteControl(0x00);
+    const auto ctrl = CreatePulseControl(0, false, false, 0);
+    pulse.WriteControl(ctrl);
 
     // Write CounterLength sets restart flag
     EXPECT_FALSE(pulse.Envelope.Restart);
@@ -382,7 +411,8 @@ TEST_F(ApuTest, Pulse_Envelope_DecreasingEnvelope) {
 }
 
 TEST_F(ApuTest, Pulse_Envelope_DecreasingEnvelopeNotOnNonQuarterFrames) {
-    pulse.WriteControl(0x00);
+    const auto ctrl = CreatePulseControl(0, false, false, 0);
+    pulse.WriteControl(ctrl);
     pulse.WritePeriodHigh(0x22);
 
     // First tick reloads
@@ -399,7 +429,8 @@ TEST_F(ApuTest, Pulse_Envelope_DecreasingEnvelopeNotOnNonQuarterFrames) {
 
 TEST_F(ApuTest, Pulse_Envelope_DecreasingEnvelopeOnLoop) {
     // Looping envelope
-    pulse.WriteControl(0x20);
+    const auto ctrl = CreatePulseControl(0, true, false, 0);
+    pulse.WriteControl(ctrl);
     pulse.WritePeriodHigh(0x22);
     for (size_t i = 0; i <= 15; i++) {
         EXPECT_EQ(15 - i, pulse.Envelope.Tick(true));
@@ -411,7 +442,8 @@ TEST_F(ApuTest, Pulse_Envelope_DecreasingEnvelopeOnLoop) {
 
 TEST_F(ApuTest, Pulse_Envelope_DividerWithLoop) {
     // Looping envelope, Period 4+1
-    pulse.WriteControl(0x24);
+    const auto ctrl = CreatePulseControl(0, true, false, 4);
+    pulse.WriteControl(ctrl);
 
     // Write CounterLength sets restart flag
     pulse.WritePeriodHigh(0x22);

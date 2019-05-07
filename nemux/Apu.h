@@ -134,6 +134,7 @@ struct Pulse {
     Byte SweepPeriod = 0;
     Byte SweepT = 0;
     bool SweepNegate = false;
+    bool SweepAlternativeNegate = false;
     Byte SweepAmount = 0;
     int SweepTargetPeriod = 0;
     bool SweepReload = false;
@@ -149,6 +150,9 @@ struct Pulse {
         auto result = 1;
         if (SweepNegate) {
             SweepTargetPeriod = Period - (Period >> SweepAmount);
+            if (SweepAlternativeNegate) {
+                SweepTargetPeriod -= 1;
+            }
         }
         else {
             SweepTargetPeriod = Period + (Period >> SweepAmount);
@@ -222,6 +226,10 @@ struct Pulse {
 
 class Apu {
 public:
+    explicit Apu() {
+        Pulse1.SweepAlternativeNegate = true;
+    }
+
     void WritePulse1Control(const Byte value) { Pulse1.WriteControl(value); }
     void WritePulse1Sweep(const Byte value) { Pulse1.WriteSweep(value); }
     void WritePulse1PeriodLo(const Byte value) { Pulse1.WritePeriodLow(value); }
