@@ -15,7 +15,7 @@ public:
     explicit Mapper_000(const NesFile & rom) {
         if (rom.Header.MapperNumber != 0) throw invalid_format("Invalid mapper");
         if (rom.Header.PrgRomPages != 1 && rom.Header.PrgRomPages != 2) throw unsupported_format("Not an NROM-128/256 rom");
-        if (rom.Header.ChrRomPages != 1) throw unsupported_format("Not an NROM-128/256 rom");
+        if (rom.Header.ChrRomPages > 1) throw unsupported_format("Not an NROM-128/256 rom");
         if ((rom.Header.ScreenMode != NesFile::HeaderDesc::HorizontalMirroring)
             && (rom.Header.ScreenMode != NesFile::HeaderDesc::VerticalMirroring))
             throw unsupported_format("Not an NROM-128/256 rom");
@@ -23,7 +23,8 @@ public:
         Horizontal = (rom.Header.ScreenMode == NesFile::HeaderDesc::HorizontalMirroring);
         Mirror = (rom.Header.PrgRomPages == 1);
         PrgRom = rom.PrgRomPages;
-        ChrRom = rom.ChrRomPages[0];
+        IsReadOnly = (rom.Header.ChrRomPages > 0);
+        if (IsReadOnly) ChrRom = rom.ChrRomPages[0];
     }
 
     virtual ~Mapper_000() {}
@@ -59,12 +60,13 @@ public:
     }
 
     void SetPpuAt(const Word address, const Byte value) override {
-
+        if (!IsReadOnly) ChrRom[TranslatePpu(address)] = value;
     }
 
 private:
     bool Mirror;
     bool Horizontal;
+    bool IsReadOnly;
     std::vector<NesFile::PrgBank> PrgRom;
     NesFile::ChrBank ChrRom;
 };
