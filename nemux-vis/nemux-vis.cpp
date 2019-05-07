@@ -240,25 +240,47 @@ enum class Options
 static std::vector<float> samples;
 void FillAudioDeviceBuffer(void* UserData, Uint8* DeviceBuffer, int Length)
 {
+    std::fill_n(DeviceBuffer, Length, Uint8(0));
     if (samples.size() == 0) {
-        std::fill_n(DeviceBuffer, Length, Uint8(0));
         return;
     }
 
     Sint16* SampleBuffer = (Sint16*)DeviceBuffer;
     int SamplesToWrite = Length / 2;
-    int step = 36;// 1789 / 48;
+    int step = 38; // 1.789773 MHz / 48 kHz ~= 37.29 APU samples per audio sample
+    int wanted = step * SamplesToWrite;
     int size = samples.size();
-    for (int SampleIndex = 0;
-        SampleIndex < SamplesToWrite;
-        SampleIndex++)
-    {
-        float s = 0.0f;
-        for (int i = 0; i < step; ++i) s += samples[(step * SampleIndex + i) % size];
-        Sint16 SampleValue = 20000 * (s / float(step)) - 10000;
-        *SampleBuffer++ = SampleValue;
+    int leftover = size - wanted;
+    //std::cout << "Wanted " << wanted
+    //    << " samples, got " << size
+    //    << " samples, left " << leftover << std::endl;
+    if (size < wanted) {
+        for (int SampleIndex = 0;
+            SampleIndex < SamplesToWrite;
+            SampleIndex++)
+        {
+            float s = 0.0f;
+            for (int i = 0; i < step; ++i) s += samples[(step * SampleIndex + i) % size];
+            Sint16 SampleValue = 20000 * (s / float(step)) - 10000;
+            *SampleBuffer++ = SampleValue;
+        }
+        samples.clear();
     }
-    samples.clear();
+    else {
+        for (int SampleIndex = 0;
+            SampleIndex < SamplesToWrite;
+            SampleIndex++)
+        {
+            float s = 0.0f;
+            for (int i = 0; i < step; ++i) s += samples[step * SampleIndex + i];
+            Sint16 SampleValue = 20000 * (s / float(step)) - 10000;
+            *SampleBuffer++ = SampleValue;
+        }
+        for (int i = 0; i + wanted < size; ++i) {
+            samples[i] = samples[i + wanted];
+        }
+        samples.resize(leftover);
+    }
 }
 
 int main(int argc, char ** argv) {
