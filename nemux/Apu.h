@@ -23,6 +23,8 @@ struct FrameCounter {
     };
 
     int Ticks = 0;
+    int Mode = 0;
+
     Clock Tick() {
         static constexpr int QuarterTicks[2][4] = {
             { 7457, 14913, 22371, 29829 },
@@ -46,7 +48,6 @@ struct FrameCounter {
         return result;
     }
 
-    int Mode = 0;
     void WriteControl(const Byte value) {
         Mode = Bit<7>(value);
     }
@@ -81,6 +82,8 @@ struct EnvelopeGenerator {
 
 struct LengthCounter {
     int Count = 0;
+    bool Halt = false;
+
     void SetCountIndex(const int value) {
         static constexpr Byte Lengths[0x20] = {
             0x0A, 0xFE, 0x14, 0x02, 0x28, 0x04, 0x50, 0x06,
@@ -90,14 +93,62 @@ struct LengthCounter {
         };
         Count = Lengths[value];
     }
-    bool Halt = false;
+
     Byte Tick(const bool halfFrame) {
         if (Count == 0) return 0;
         if (halfFrame && !Halt) --Count;
         return 1;
     }
+
     void Clear() {
         Count = 0;
+    }
+};
+
+struct Sequencer {
+    int Duty = 0;
+    int Phase = 0;
+
+    Byte Tick(const bool timer) {
+        static constexpr Byte Sequences[4][8] = {
+            { 0, 1, 0, 0, 0, 0, 0, 0 },
+            { 0, 1, 1, 0, 0, 0, 0, 0 },
+            { 0, 1, 1, 1, 1, 0, 0, 0 },
+            { 1, 0, 0, 1, 1, 1, 1, 1 }
+        };
+        const auto value = Sequences[Duty][Phase];
+        if (timer) Phase = (Phase + 1) % 8;
+        return value;
+    }
+};
+
+struct Timer {
+    Word Period = 1;
+    Word T = 0;
+    bool FlipFlop = false;
+
+    bool Tick() {
+        FlipFlop = !FlipFlop;
+        if (FlipFlop) {
+            if (T == 0) {
+                T = Period - 1;
+                return true;
+            }
+            --T;
+        }
+        return false;
+    }
+
+    void SetPeriodLow(const Byte lo) {
+        auto t = Period - 1;
+        t = (t & WORD_HI_MASK) | lo;
+        Period = t + 1;
+    }
+    
+    void SetPeriodHigh(const Byte hi) {
+        auto t = Period - 1;
+        t = (t & WORD_LO_MASK) | (hi << BYTE_WIDTH);
+        Period = t + 1;
     }
 };
 
@@ -105,33 +156,27 @@ struct Pulse {
     FrameCounter Frame;
     EnvelopeGenerator Envelope;
     LengthCounter Length;
+    Sequencer Sequence;
+    Timer T;
 
-    Word Period = 1;
-    Word T = 0;
-
-    Byte Volume = 0;
     void WriteControl(const Byte value) {
-        Duty = value >> 6;
-        Volume = value & 0x0F;
-        
+        Sequence.Duty = value >> 6;
+
         Length.Halt = IsBitSet<5>(value);
 
         Envelope.Enabled = IsBitClear<4>(value);
         Envelope.Loop = IsBitSet<5>(value);
-        Envelope.Volume = Volume;
+        Envelope.Volume = (value & 0x0F);
     }
 
     void WritePeriodLow(const Byte value) {
-        auto t = Period - 1;
-        t = (t & WORD_HI_MASK) | value;
-        Period = t + 1;
+        T.SetPeriodLow(value);
     }
 
     void WritePeriodHigh(const Byte value) {
-        auto t = Period - 1;
-        t = (t & WORD_LO_MASK) | ((value & 0x07) << BYTE_WIDTH);
-        Period = t + 1;
-        Phase = 0;
+        T.SetPeriodHigh(value & 0x07);
+        
+        Sequence.Phase = 0;
 
         Length.SetCountIndex(value >> 3);
 
@@ -161,22 +206,23 @@ struct Pulse {
     }
 
     Byte TickSweep(const bool halfFrame) {
+        const auto period = T.Period;
         auto result = 1;
         if (SweepNegate) {
-            SweepTargetPeriod = Period - (Period >> SweepAmount);
+            SweepTargetPeriod = period - (period >> SweepAmount);
             if (SweepAlternativeNegate) {
                 SweepTargetPeriod -= 1;
             }
         }
         else {
-            SweepTargetPeriod = Period + (Period >> SweepAmount);
+            SweepTargetPeriod = period + (period >> SweepAmount);
         }
         if (SweepTargetPeriod >= 0x0800) result = 0;
-        if (Period < 8) result = 0;
+        if (period < 9) result = 0;
 
         if (halfFrame) {
             if ((SweepT == 0) && SweepEnabled && (result == 1) && (SweepAmount > 0)) {
-                Period = SweepTargetPeriod;
+                T.Period = SweepTargetPeriod;
             }
 
             if ((SweepT == 0) || SweepReload) {
@@ -190,44 +236,16 @@ struct Pulse {
         return result;
     }
 
-    bool FlipFlop = false;
-    bool TickTimer() {
-        FlipFlop = !FlipFlop;
-        if (FlipFlop) {
-            if (T == 0) {
-                T = Period - 1;
-                return true;
-            }
-            --T;
-        }
-        return false;
-    }
-
-    int Duty = 0;
-    int Phase = 0;
-    Byte TickSequence() {
-        static constexpr Byte Sequences[4][8] = {
-            { 0, 1, 0, 0, 0, 0, 0, 0 },
-            { 0, 1, 1, 0, 0, 0, 0, 0 },
-            { 0, 1, 1, 1, 1, 0, 0, 0 },
-            { 1, 0, 0, 1, 1, 1, 1, 1 }
-        };
-        const auto value = Sequences[Duty][Phase];
-        Phase = (Phase + 1) % 8;
-        return value;
-    }
-
-    Byte Sequence = 0;
     Byte Tick() {
         if (!Enabled) return 0;
-        if (Period < 9) return 0;
 
         const auto clock = Frame.Tick();
         const auto volume = Envelope.Tick(clock.QuarterFrame);
         const auto sweep = TickSweep(clock.HalfFrame);
-        if (TickTimer()) Sequence = TickSequence();
+        const auto timer = T.Tick();
+        const auto sequence = Sequence.Tick(timer);
         const auto length = Length.Tick(clock.HalfFrame);
-        return volume * Sequence * length * sweep;
+        return volume * sequence * length * sweep;
     }
 };
 
