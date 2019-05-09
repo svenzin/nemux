@@ -92,7 +92,15 @@ namespace debug {
             << "    Pulse 1 " << dec << apu.Pulse1.Enabled << endl
             << "        P " << apu.Pulse1.T.Period << " T " << apu.Pulse1.T.T << " D " << apu.Pulse1.Sequence.Duty << " " << apu.Pulse1.Sequence.Phase << std::endl
             << "        SE " << apu.Pulse1.SweepEnabled << " SP " << Word{ apu.Pulse1.SweepPeriod } << " ST " << Word{ apu.Pulse1.SweepT } << " SN " << apu.Pulse1.SweepNegate << " SA " << Word{ apu.Pulse1.SweepAmount } << endl
-            << "        LC " << apu.Pulse1.Length.Count << " Halt " << apu.Pulse1.Length.Halt;
+            << "        LC " << apu.Pulse1.Length.Count << " Halt " << apu.Pulse1.Length.Halt << endl
+            << "    Pulse 2 " << dec << apu.Pulse2.Enabled << endl
+            << "        P " << apu.Pulse2.T.Period << " T " << apu.Pulse2.T.T << " D " << apu.Pulse2.Sequence.Duty << " " << apu.Pulse2.Sequence.Phase << std::endl
+            << "        SE " << apu.Pulse2.SweepEnabled << " SP " << Word{ apu.Pulse2.SweepPeriod } << " ST " << Word{ apu.Pulse2.SweepT } << " SN " << apu.Pulse2.SweepNegate << " SA " << Word{ apu.Pulse2.SweepAmount } << endl
+            << "        LC " << apu.Pulse2.Length.Count << " Halt " << apu.Pulse2.Length.Halt << endl
+            << "    Triangle " << apu.Triangle1.Enabled << endl
+            << "        P " << apu.Triangle1.T.Period << " T " << apu.Triangle1.T.T << " Phase " << apu.Triangle1.Sequence.Phase << endl
+            << "        CC " << apu.Triangle1.Counter.Count << " CRV " << apu.Triangle1.Counter.ReloadValue << " CR " << apu.Triangle1.Counter.Reload << " CC " << apu.Triangle1.Counter.Control << endl
+            << "        LC " << apu.Triangle1.Length.Count << " Halt " << apu.Triangle1.Length.Halt << endl;
         return oss.str();
     }
 }
