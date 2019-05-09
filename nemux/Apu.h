@@ -122,20 +122,61 @@ struct Sequencer {
     }
 };
 
+struct TriangleSequencer {
+    int Phase = 0;
+
+    Byte Tick(const bool timer) {
+        static constexpr Byte Sequence[32] = {
+            0xF, 0xE, 0xD, 0xC, 0xB, 0xA, 0x9, 0x8,
+            0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1, 0x0,
+            0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,
+            0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF
+        };
+        const auto value = Sequence[Phase];
+        if (timer)
+            Phase = (Phase + 1) % 32;
+        return value;
+    }
+};
+
+struct LinearCounter {
+    int Count = 0;
+    int ReloadValue = 0;
+    bool Reload = false;
+    bool Control = true;
+
+    int Tick(const bool quarterFrame) {
+        if (quarterFrame) {
+            if (Reload) {
+                Count = ReloadValue;
+            }
+            else {
+                if (Count > 0) --Count;
+            }
+            if (!Control) Reload = false;
+        }
+        return ((Count > 0) ? 1 : 0);
+    }
+};
+
+struct FlipFlop {
+    bool State = false;
+    operator bool() {
+        State = !State;
+        return State;
+    }
+};
+
 struct Timer {
     Word Period = 1;
     Word T = 0;
-    bool FlipFlop = false;
 
     bool Tick() {
-        FlipFlop = !FlipFlop;
-        if (FlipFlop) {
-            if (T == 0) {
-                T = Period - 1;
-                return true;
-            }
-            --T;
+        if (T == 0) {
+            T = Period - 1;
+            return true;
         }
+        --T;
         return false;
     }
 
@@ -158,6 +199,7 @@ struct Pulse {
     LengthCounter Length;
     Sequencer Sequence;
     Timer T;
+    FlipFlop flipflop;
 
     void WriteControl(const Byte value) {
         Sequence.Duty = value >> 6;
@@ -237,15 +279,60 @@ struct Pulse {
     }
 
     Byte Tick() {
+        const auto clock = Frame.Tick();
+        
         if (!Enabled) return 0;
 
-        const auto clock = Frame.Tick();
         const auto volume = Envelope.Tick(clock.QuarterFrame);
         const auto sweep = TickSweep(clock.HalfFrame);
-        const auto timer = T.Tick();
+        const auto timer = (flipflop) ? T.Tick() : false;
         const auto sequence = Sequence.Tick(timer);
         const auto length = Length.Tick(clock.HalfFrame);
         return volume * sequence * length * sweep;
+    }
+};
+
+struct Triangle {
+    bool Enabled = false;
+    TriangleSequencer Sequence;
+    LengthCounter Length;
+    LinearCounter Counter;
+    FrameCounter Frame;
+    Timer T;
+
+    void WriteControl(const Byte value) {
+        Counter.Control = IsBitSet<7>(value);
+        Counter.ReloadValue = (value & 0x7F);
+        Counter.Reload = true;
+        
+        Length.Halt = IsBitSet<7>(value);
+    }
+
+    void WritePeriodLow(const Byte value) {
+        T.SetPeriodLow(value);
+    }
+
+    void WritePeriodHigh(const Byte value) {
+        T.SetPeriodHigh(value & 0x07);
+
+        Length.SetCountIndex(value >> 3);
+
+        Counter.Reload = true;
+    }
+
+    Byte Tick() {
+        const auto clock = Frame.Tick();
+
+        if (!Enabled) return Sequence.Tick(false);
+
+        const bool mute = (T.Period <= 2);
+        
+        const bool timer = T.Tick();
+        const auto counter = Counter.Tick(clock.QuarterFrame);
+        const auto length = Length.Tick(clock.HalfFrame);
+        const auto valid = timer && (counter * length > 0);
+        const auto volume = Sequence.Tick(valid && !mute);
+        return volume;
     }
 };
 
@@ -265,9 +352,9 @@ public:
     void WritePulse2PeriodLo(const Byte value) { Pulse2.WritePeriodLow(value); }
     void WritePulse2PeriodHi(const Byte value) { Pulse2.WritePeriodHigh(value); }
 
-    void WriteTriangleControl(const Byte value) {}
-    void WriteTrianglePeriodLo(const Byte value) {}
-    void WriteTrianglePeriodHi(const Byte value) {}
+    void WriteTriangleControl(const Byte value) { Triangle1.WriteControl(value); }
+    void WriteTrianglePeriodLo(const Byte value) { Triangle1.WritePeriodLow(value); }
+    void WriteTrianglePeriodHi(const Byte value) { Triangle1.WritePeriodHigh(value); }
 
     void WriteNoiseControl(const Byte value) {}
     void WriteNoisePeriod(const Byte value) {}
@@ -281,10 +368,12 @@ public:
     void WriteCommonEnable(const Byte value) {
         Pulse1.Enable(IsBitSet<0>(value));
         Pulse2.Enable(IsBitSet<1>(value));
+        Triangle1.Enabled = IsBitSet<2>(value);
     }
     void WriteCommonControl(const Byte value) {
         Pulse1.Frame.WriteControl(value);
         Pulse2.Frame.WriteControl(value);
+        Triangle1.Frame.WriteControl(value);
     }
 
     Byte ReadStatus() const { return 0; }
@@ -294,12 +383,17 @@ public:
         const auto square2 = Pulse2.Tick();
 
         const auto squareOut = 95.88f / (100.0f + 8128.0f / (square1 + square2));
-        
-        return squareOut;
+
+        auto triangle = Triangle1.Tick();
+
+        const auto tndOut = 159.79f / (100.0f + 1.0f / (triangle / 8227.0f));
+
+        return squareOut + tndOut;
     }
 
     Pulse Pulse1;
     Pulse Pulse2;
+    Triangle Triangle1;
 };
 
 #endif /* APU_H_ */

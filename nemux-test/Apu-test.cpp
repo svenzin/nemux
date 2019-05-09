@@ -12,6 +12,8 @@ struct ApuTest : public ::testing::Test {
     FrameCounter frame;
     LengthCounter length;
     Timer timer;
+    TriangleSequencer tri;
+    LinearCounter linear;
 
     ApuTest() {}
 
@@ -82,10 +84,10 @@ TEST_F(ApuTest, Pulse_SilentIfDisabled) {
 TEST_F(ApuTest, Pulse_TimerTicksEveryTwoClocks) {
     pulse.WritePeriodLow(0x08);
     for (size_t n = 0; n < 4; n++) {
-        EXPECT_TRUE(pulse.T.Tick()) << n;
+        EXPECT_EQ(0, pulse.T.T);
         for (size_t i = 0; i < 17; i++)
         {
-            EXPECT_FALSE(pulse.T.Tick()) << n << " " << i;
+            EXPECT_NE(0, pulse.T.T);
         }
     }
 }
@@ -462,4 +464,94 @@ TEST_F(ApuTest, Pulse_Envelope_DividerWithLoop) {
             EXPECT_EQ(15 - i, pulse.Envelope.Tick(true));
         }
     }
+}
+
+TEST_F(ApuTest, Triangle_Sequence) {
+    for (auto i : {
+        15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+    }) {
+        EXPECT_EQ(i, tri.Tick(true));
+    }
+}
+
+TEST_F(ApuTest, Triangle_SequenceNoChangeWhenNotTimer) {
+    for (auto i : {
+        15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+    }) {
+        EXPECT_EQ(i, tri.Tick(true));
+    }
+    EXPECT_EQ(11, tri.Tick(false));
+    EXPECT_EQ(11, tri.Tick(false));
+    EXPECT_EQ(11, tri.Tick(false));
+    for (auto i : { 11, 12, 13, 14, 15 }) {
+        EXPECT_EQ(i, tri.Tick(true));
+    }
+}
+
+TEST_F(ApuTest, Triangle_LinearCounter) {
+    linear.Count = 100;
+    for (int i = 0; i < 100; ++i) {
+        EXPECT_EQ(1, linear.Tick(true));
+    }
+    EXPECT_EQ(0, linear.Tick(true));
+    EXPECT_EQ(0, linear.Tick(true));
+    EXPECT_EQ(0, linear.Tick(true));
+    EXPECT_EQ(0, linear.Tick(true));
+}
+
+TEST_F(ApuTest, Triangle_LinearCounterReload) {
+    linear.Count = 100;
+    linear.ReloadValue = 100;
+    linear.Tick(true);
+    EXPECT_EQ(99, linear.Count);
+    linear.Reload = true;
+    linear.Tick(true);
+    EXPECT_EQ(100, linear.Count);
+    linear.Reload = false;
+    linear.Tick(true);
+    EXPECT_EQ(99, linear.Count);
+}
+
+TEST_F(ApuTest, Triangle_LinearCounterClearReloadOnControl) {
+    EXPECT_FALSE(linear.Reload);
+    EXPECT_TRUE(linear.Control);
+    
+    linear.Tick(true);
+    EXPECT_FALSE(linear.Reload);
+
+    linear.Reload = true;
+    linear.Tick(true);
+    EXPECT_TRUE(linear.Reload);
+
+    linear.Control = false;
+    linear.Tick(true);
+    EXPECT_FALSE(linear.Reload);
+
+    linear.Tick(true);
+    EXPECT_FALSE(linear.Reload);
+}
+
+TEST_F(ApuTest, Triangle_LinearCounterNoChangeWhenNoQFrame) {
+    linear.Count = 100;
+    linear.ReloadValue = 100;
+
+    EXPECT_EQ(1, linear.Tick(true));
+    EXPECT_EQ(99, linear.Count);
+
+    EXPECT_EQ(1, linear.Tick(false));
+    EXPECT_EQ(99, linear.Count);
+
+    linear.Reload = true;
+    linear.Tick(false);
+    EXPECT_EQ(99, linear.Count);
+    linear.Tick(true);
+    EXPECT_EQ(100, linear.Count);
+
+    linear.Control = false;
+    linear.Tick(false);
+    EXPECT_TRUE(linear.Reload);
+    linear.Tick(true);
+    EXPECT_FALSE(linear.Reload);
 }
