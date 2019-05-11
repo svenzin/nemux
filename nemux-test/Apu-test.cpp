@@ -620,3 +620,25 @@ TEST_F(ApuTest, Noise_Mode1) {
     EXPECT_EQ(0, shift.Tick(true)); // Shift bit 0 out
     EXPECT_EQ(0x33A5, shift.Value); // 0 xor 1 = 1 -> **11 0011 1010 0101 b
 }
+
+TEST_F(ApuTest, Status_ReadLengths) {
+    apu.Pulse1.Length.Clear();
+    EXPECT_FALSE(IsBitSet<0>(apu.ReadStatus()));
+    apu.Pulse1.Length.Count = 10;
+    EXPECT_TRUE(IsBitSet<0>(apu.ReadStatus()));
+
+    apu.Pulse2.Length.Clear();
+    EXPECT_FALSE(IsBitSet<1>(apu.ReadStatus()));
+    apu.Pulse2.Length.Count = 10;
+    EXPECT_TRUE(IsBitSet<1>(apu.ReadStatus()));
+
+    apu.Triangle1.Length.Clear();
+    EXPECT_FALSE(IsBitSet<2>(apu.ReadStatus()));
+    apu.Triangle1.Length.Count = 10;
+    EXPECT_TRUE(IsBitSet<2>(apu.ReadStatus()));
+
+    apu.Noise1.Length.Clear();
+    EXPECT_FALSE(IsBitSet<3>(apu.ReadStatus()));
+    apu.Noise1.Length.Count = 10;
+    EXPECT_TRUE(IsBitSet<3>(apu.ReadStatus()));
+}

@@ -438,7 +438,12 @@ public:
         Noise1.Frame.WriteControl(value);
     }
 
-    Byte ReadStatus() const { return 0; }
+    Byte ReadStatus() const {
+        return Mask<0>(Pulse1.Length.Count > 0)
+            + Mask<1>(Pulse2.Length.Count > 0)
+            + Mask<2>(Triangle1.Length.Count > 0)
+            + Mask<3>(Noise1.Length.Count > 0);
+    }
 
     float Tick() {
         const auto square1 = Pulse1.Tick();
