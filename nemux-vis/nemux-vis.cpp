@@ -245,50 +245,91 @@ enum class Options
     Debug
 };
 
-static std::vector<float> samples;
+static int frames = 0;
+static std::vector<Sint16> SDLaudio;
+void PushFrameSamples(const std::vector<float> & frame) {
+    frames++;
+    //const int step = 37; // 1.789773 MHz / 48 kHz ~= 37.29 APU samples per audio sample
+    // Single frame samples (1/60th of a second)
+    //std::cout << " " << SDLaudio.size();
+    //const float fstep = frame.size() / 800.0f;
+    //float step = fstep;
+    //int i = 0;
+    //float s = 0.0f;
+    //const int size = frame.size();
+    //while (i < size) {
+    //    s += frame[i];
+    //    ++i;
+    //    if (i > step) {
+    //        Sint16 SampleValue = 20000 * (s / fstep) - 10000;
+    //        SDLaudio.push_back(SampleValue);
+    //        s = 0.0f;
+    //        step += fstep;
+    //    }
+    //}
+    //std::cout << " " << SDLaudio.size() << std::endl;
+    //if ((size % step) != 0) {
+    //    Sint16 SampleValue = 20000 * (s / float(size % step)) - 10000;
+    //    SDLaudio.push_back(SampleValue);
+    //}
+
+    enum DownsamplingMethod {
+        DropSamples,
+        AverageSamples,
+    };
+
+    const DownsamplingMethod method = DropSamples;
+    switch (method)
+    {
+    case AverageSamples: {
+        const int size = frame.size();
+        const int step = 37; // 1.789773 MHz / 48 kHz ~= 37.29 APU samples per audio sample
+        for (size_t i = 0; i + step < size; i += step) {
+            float s = 0.0f;
+            for (size_t j = 0; j < step; j++)
+                s += frame[i + j];
+            Sint16 SampleValue = 20000 * (s / float(step)) - 10000;
+            SDLaudio.push_back(SampleValue);
+        }
+    } break;
+    case DropSamples:
+    default: {
+        const int step = 37; // 1.789773 MHz / 48 kHz ~= 37.29 APU samples per audio sample
+        for (size_t i = 0; i < 800; i++) {
+            const float s = frame[step * i];
+            Sint16 SampleValue = 20000 * s - 10000;
+            SDLaudio.push_back(SampleValue);
+        }
+    } break;
+    }
+}
 void FillAudioDeviceBuffer(void* UserData, Uint8* DeviceBuffer, int Length)
 {
     std::fill_n(DeviceBuffer, Length, Uint8(0));
-    if (samples.size() == 0) {
+
+    //if (frames < 2) return;
+    const int SamplesToWrite = Length / 2;
+    if (SDLaudio.size() < SamplesToWrite) {
         return;
+    }
+    if (SDLaudio.size() > 2 * SamplesToWrite) {
+        SDLaudio.resize(2 * SamplesToWrite);
     }
 
     Sint16* SampleBuffer = (Sint16*)DeviceBuffer;
-    int SamplesToWrite = Length / 2;
-    int step = 38; // 1.789773 MHz / 48 kHz ~= 37.29 APU samples per audio sample
-    int wanted = step * SamplesToWrite;
-    int size = samples.size();
-    int leftover = size - wanted;
-    //std::cout << "Wanted " << wanted
-    //    << " samples, got " << size
-    //    << " samples, left " << leftover << std::endl;
-    if (size < wanted) {
-        for (int SampleIndex = 0;
-            SampleIndex < SamplesToWrite;
-            SampleIndex++)
-        {
-            float s = 0.0f;
-            for (int i = 0; i < step; ++i) s += samples[(step * SampleIndex + i) % size];
-            Sint16 SampleValue = 20000 * (s / float(step)) - 10000;
-            *SampleBuffer++ = SampleValue;
-        }
-        samples.clear();
+    for (int SampleIndex = 0;
+        SampleIndex < SamplesToWrite;
+        SampleIndex++)
+    {
+        Sint16 SampleValue = SDLaudio[SampleIndex];
+        *SampleBuffer++ = SampleValue;
     }
-    else {
-        for (int SampleIndex = 0;
-            SampleIndex < SamplesToWrite;
-            SampleIndex++)
-        {
-            float s = 0.0f;
-            for (int i = 0; i < step; ++i) s += samples[step * SampleIndex + i];
-            Sint16 SampleValue = 20000 * (s / float(step)) - 10000;
-            *SampleBuffer++ = SampleValue;
-        }
-        for (int i = 0; i + wanted < size; ++i) {
-            samples[i] = samples[i + wanted];
-        }
-        samples.resize(leftover);
+    for (int i = 0; i + SamplesToWrite < SDLaudio.size(); ++i) {
+        SDLaudio[i] = SDLaudio[i + SamplesToWrite];
     }
+    //samples.resize(10000);
+    SDLaudio.resize(SDLaudio.size() - SamplesToWrite);
+    //samples.clear();
 }
 
 int main(int argc, char ** argv) {
@@ -572,6 +613,7 @@ int main(int argc, char ** argv) {
             SDL_PauseAudioDevice(DeviceID, 0);
 
             bool quit = false;
+            std::vector<float> samples;
             while (!quit) {
                 const auto frame = ppu.FrameCount;
                 cpu.Tick();
@@ -582,6 +624,8 @@ int main(int argc, char ** argv) {
                 samples.push_back(sample);
 
                 if (ppu.FrameCount != frame) {
+                    PushFrameSamples(samples);
+                    samples.clear();
                     SDL_Event e;
                     while (SDL_PollEvent(&e) > 0)
                     {
