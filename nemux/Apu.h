@@ -336,6 +336,66 @@ struct Triangle {
     }
 };
 
+struct ShiftRegister {
+    bool Mode = false;
+    int Value = 1;
+    Byte Tick(bool timer) {
+        const Byte bit0 = Bit<0>(Value);
+        const Byte bitN = (Mode ? Bit<6>(Value) : Bit<1>(Value));
+        const int mask = (bit0 ^ bitN) << 13;
+        Value = (Value >> 1) | mask;
+        return bit0;
+    }
+};
+
+struct Noise {
+    bool Enabled = false;
+    FrameCounter Frame;
+    Timer T;
+    EnvelopeGenerator Envelope;
+    LengthCounter Length;
+    FlipFlop flipflop;
+    ShiftRegister Shifter;
+
+    void WriteControl(const Byte value) {
+        Length.Halt = IsBitSet<5>(value);
+
+        Envelope.Enabled = IsBitClear<4>(value);
+        Envelope.Loop = IsBitSet<5>(value);
+        Envelope.Volume = (value & 0x0F);
+    }
+
+    void WritePeriod(const Byte value) {
+        static constexpr Word Periods[0x10] = {
+            0x0004, 0x0008, 0x0010, 0x0020,
+            0x0040, 0x0060, 0x0080, 0x00A0,
+            0x00CA, 0x00FE, 0x017C, 0x01FC,
+            0x02FA, 0x03F8, 0x07F2, 0x0FE4
+        };
+        T.Period = Periods[value & 0x0F];
+
+        Shifter.Mode = IsBitSet<7>(value);
+    }
+
+    void WriteLength(const Byte value) {
+        Length.SetCountIndex(value >> 3);
+
+        Envelope.Restart = true;
+    }
+
+    Byte Tick() {
+        const auto clock = Frame.Tick();
+
+        if (!Enabled) return 0;
+
+        const auto volume = Envelope.Tick(clock.QuarterFrame);
+        const auto timer = (flipflop) ? T.Tick() : false;
+        const auto shifter = Shifter.Tick(timer);
+        const auto length = Length.Tick(clock.HalfFrame);
+        return volume * length * (1 - shifter);
+    }
+};
+
 class Apu {
 public:
     explicit Apu() {
@@ -356,9 +416,9 @@ public:
     void WriteTrianglePeriodLo(const Byte value) { Triangle1.WritePeriodLow(value); }
     void WriteTrianglePeriodHi(const Byte value) { Triangle1.WritePeriodHigh(value); }
 
-    void WriteNoiseControl(const Byte value) {}
-    void WriteNoisePeriod(const Byte value) {}
-    void WriteNoiseLength(const Byte value) {}
+    void WriteNoiseControl(const Byte value) { Noise1.WriteControl(value); }
+    void WriteNoisePeriod(const Byte value) { Noise1.WritePeriod(value); }
+    void WriteNoiseLength(const Byte value) { Noise1.WriteLength(value); }
 
     void WriteDMCFrequency(const Byte value) {}
     void WriteDMCDAC(const Byte value) {}
@@ -369,11 +429,13 @@ public:
         Pulse1.Enable(IsBitSet<0>(value));
         Pulse2.Enable(IsBitSet<1>(value));
         Triangle1.Enabled = IsBitSet<2>(value);
+        Noise1.Enabled = IsBitSet<3>(value);
     }
     void WriteCommonControl(const Byte value) {
         Pulse1.Frame.WriteControl(value);
         Pulse2.Frame.WriteControl(value);
         Triangle1.Frame.WriteControl(value);
+        Noise1.Frame.WriteControl(value);
     }
 
     Byte ReadStatus() const { return 0; }
@@ -384,16 +446,19 @@ public:
 
         const auto squareOut = 95.88f / (100.0f + 8128.0f / (square1 + square2));
 
-        auto triangle = Triangle1.Tick();
+        const auto triangle = 0*Triangle1.Tick();
+        const auto noise = Noise1.Tick();
 
-        const auto tndOut = 159.79f / (100.0f + 1.0f / (triangle / 8227.0f));
+        const auto tndOut = 159.79f / (100.0f + 1.0f / (triangle / 8227.0f + noise / 12241.0f));
 
+        //return tndOut;
         return squareOut + tndOut;
     }
 
     Pulse Pulse1;
     Pulse Pulse2;
     Triangle Triangle1;
+    Noise Noise1;
 };
 
 #endif /* APU_H_ */

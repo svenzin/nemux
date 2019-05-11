@@ -14,6 +14,8 @@ struct ApuTest : public ::testing::Test {
     Timer timer;
     TriangleSequencer tri;
     LinearCounter linear;
+    Noise noise;
+    ShiftRegister shift;
 
     ApuTest() {}
 
@@ -82,13 +84,20 @@ TEST_F(ApuTest, Pulse_SilentIfDisabled) {
 }
 
 TEST_F(ApuTest, Pulse_TimerTicksEveryTwoClocks) {
+    pulse.Enable(true);
     pulse.WritePeriodLow(0x08);
     for (size_t n = 0; n < 4; n++) {
-        EXPECT_EQ(0, pulse.T.T);
-        for (size_t i = 0; i < 17; i++)
+        EXPECT_EQ(0, pulse.T.T) << n;
+        pulse.Tick();
+        for (size_t i = 0; i < 8; i++)
         {
-            EXPECT_NE(0, pulse.T.T);
+            EXPECT_NE(0, pulse.T.T) << n << " " << i;
+            pulse.Tick();
+            EXPECT_NE(0, pulse.T.T) << n << " " << i;
+            pulse.Tick();
         }
+        EXPECT_EQ(0, pulse.T.T) << n;
+        pulse.Tick();
     }
 }
 
@@ -554,4 +563,60 @@ TEST_F(ApuTest, Triangle_LinearCounterNoChangeWhenNoQFrame) {
     EXPECT_TRUE(linear.Reload);
     linear.Tick(true);
     EXPECT_FALSE(linear.Reload);
+}
+
+TEST_F(ApuTest, Noise_RandomSetPeriod) {
+    int Periods[0x10] = {
+        4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068
+    };
+    for (size_t i = 0; i < 0x10; i++) {
+        noise.WritePeriod(i);
+        EXPECT_EQ(Periods[i], noise.T.Period);
+    }
+}
+
+TEST_F(ApuTest, Noise_PowerUpState) {
+    // Loaded with 1 on power-up
+    EXPECT_EQ(1, shift.Value);
+}
+
+TEST_F(ApuTest, Noise_Mode0) {
+    // Mode 0 creates a new bit from bit0 XOR bit1 before shifting
+    shift.Value = 0x29A6; //  **10 1001 1010 0110 b
+
+    EXPECT_EQ(0, shift.Tick(true)); // Shift bit 0 out
+    EXPECT_EQ(0x34D3, shift.Value); // 0 xor 1 = 1 -> **11 0100 1101 0011 b
+
+    EXPECT_EQ(1, shift.Tick(true)); // Shift bit 0 out
+    EXPECT_EQ(0x1A69, shift.Value); // 1 xor 1 = 0 -> **01 1010 0110 1001 b
+
+    EXPECT_EQ(1, shift.Tick(true)); // Shift bit 0 out
+    EXPECT_EQ(0x2D34, shift.Value); // 1 xor 0 = 1 -> **10 1101 0011 0100 b
+
+    EXPECT_EQ(0, shift.Tick(true)); // Shift bit 0 out
+    EXPECT_EQ(0x169A, shift.Value); // 0 xor 0 = 0 -> **01 0110 1001 1010 b
+}
+
+TEST_F(ApuTest, Noise_Mode1) {
+    // Mode 1 creates a new bit from bit0 XOR bit6 before shifting
+    shift.Value = 0x2956; //  **10 1001 0101 0110 b
+    shift.Mode = true;
+
+    EXPECT_EQ(0, shift.Tick(true)); // Shift bit 0 out
+    EXPECT_EQ(0x34AB, shift.Value); // 0 xor 1 = 1 -> **11 0100 1010 1011 b
+
+    EXPECT_EQ(1, shift.Tick(true)); // Shift bit 0 out
+    EXPECT_EQ(0x3A55, shift.Value); // 1 xor 0 = 1 -> **11 1010 0101 0101 b
+
+    EXPECT_EQ(1, shift.Tick(true)); // Shift bit 0 out
+    EXPECT_EQ(0x1D2A, shift.Value); // 1 xor 1 = 0 -> **01 1101 0010 1010 b
+
+    EXPECT_EQ(0, shift.Tick(true)); // Shift bit 0 out
+    EXPECT_EQ(0x0E95, shift.Value); // 0 xor 0 = 0 -> **00 1110 1001 0101 b
+
+    EXPECT_EQ(1, shift.Tick(true)); // Shift bit 0 out
+    EXPECT_EQ(0x274A, shift.Value); // 1 xor 0 = 1 -> **10 0111 0100 1010 b
+
+    EXPECT_EQ(0, shift.Tick(true)); // Shift bit 0 out
+    EXPECT_EQ(0x33A5, shift.Value); // 0 xor 1 = 1 -> **11 0011 1010 0101 b
 }
