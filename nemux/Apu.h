@@ -20,12 +20,17 @@ struct FrameCounter {
     struct Clock {
         bool HalfFrame;
         bool QuarterFrame;
+        bool Interrupt;
     };
 
     int Ticks = 0;
     int Mode = 0;
+    bool HideInterrupt = false;
+    bool Interrupt = false;
 
     Clock Tick() {
+        static constexpr int SetInterruptTick = 29828;
+        static constexpr int ResetInterruptTick = 1;
         static constexpr int QuarterTicks[2][4] = {
             { 7457, 14913, 22371, 29829 },
             { 7457, 14913, 22371, 37281 }
@@ -35,6 +40,7 @@ struct FrameCounter {
             { 14913, 37281 }
         };
         static constexpr int Periods[2] = { 29830, 37282 };
+        
         Clock result;
         result.HalfFrame =
             (Ticks == HalfTicks[Mode][0])
@@ -44,12 +50,24 @@ struct FrameCounter {
             || (Ticks == QuarterTicks[Mode][1])
             || (Ticks == QuarterTicks[Mode][2])
             || (Ticks == QuarterTicks[Mode][3]);
-        Ticks = (Ticks + 1) % Periods[Mode];
+
+        if (Mode == 1 || HideInterrupt) {
+            Interrupt = false;
+        }
+        else {
+            if (Ticks == SetInterruptTick) Interrupt = true;
+            if (Ticks == ResetInterruptTick) Interrupt = false;
+        }
+        result.Interrupt = Interrupt;
+
+        Ticks = ((Ticks + 1) % Periods[Mode]);
+
         return result;
     }
 
     void WriteControl(const Byte value) {
         Mode = Bit<7>(value);
+        HideInterrupt = IsBitSet<6>(value);
     }
 };
 
@@ -194,7 +212,6 @@ struct Timer {
 };
 
 struct Pulse {
-    FrameCounter Frame;
     EnvelopeGenerator Envelope;
     LengthCounter Length;
     Sequencer Sequence;
@@ -278,9 +295,7 @@ struct Pulse {
         return result;
     }
 
-    Byte Tick() {
-        const auto clock = Frame.Tick();
-        
+    Byte Tick(const FrameCounter::Clock clock) {
         if (!Enabled) return 0;
 
         const auto volume = Envelope.Tick(clock.QuarterFrame);
@@ -297,7 +312,6 @@ struct Triangle {
     TriangleSequencer Sequence;
     LengthCounter Length;
     LinearCounter Counter;
-    FrameCounter Frame;
     Timer T;
 
     void WriteControl(const Byte value) {
@@ -320,9 +334,7 @@ struct Triangle {
         Counter.Reload = true;
     }
 
-    Byte Tick() {
-        const auto clock = Frame.Tick();
-
+    Byte Tick(const FrameCounter::Clock clock) {
         if (!Enabled) return Sequence.Tick(false);
 
         const bool mute = (T.Period <= 2);
@@ -350,7 +362,6 @@ struct ShiftRegister {
 
 struct Noise {
     bool Enabled = false;
-    FrameCounter Frame;
     Timer T;
     EnvelopeGenerator Envelope;
     LengthCounter Length;
@@ -383,9 +394,7 @@ struct Noise {
         Envelope.Restart = true;
     }
 
-    Byte Tick() {
-        const auto clock = Frame.Tick();
-
+    Byte Tick(const FrameCounter::Clock clock) {
         if (!Enabled) return 0;
 
         const auto volume = Envelope.Tick(clock.QuarterFrame);
@@ -432,27 +441,29 @@ public:
         Noise1.Enabled = IsBitSet<3>(value);
     }
     void WriteCommonControl(const Byte value) {
-        Pulse1.Frame.WriteControl(value);
-        Pulse2.Frame.WriteControl(value);
-        Triangle1.Frame.WriteControl(value);
-        Noise1.Frame.WriteControl(value);
+        Frame.WriteControl(value);
     }
 
-    Byte ReadStatus() const {
+    Byte ReadStatus() {
+        Frame.Interrupt = false;
         return Mask<0>(Pulse1.Length.Count > 0)
             + Mask<1>(Pulse2.Length.Count > 0)
             + Mask<2>(Triangle1.Length.Count > 0)
-            + Mask<3>(Noise1.Length.Count > 0);
+            + Mask<3>(Noise1.Length.Count > 0)
+            + Mask<6>(FrameInterrupt);
     }
 
     float Tick() {
-        const auto square1 = Pulse1.Tick();
-        const auto square2 = Pulse2.Tick();
+        const auto clock = Frame.Tick();
+        FrameInterrupt = clock.Interrupt;
+
+        const auto square1 = Pulse1Output * Pulse1.Tick(clock);
+        const auto square2 = Pulse2Output * Pulse2.Tick(clock);
 
         const auto squareOut = 95.88f / (100.0f + 8128.0f / (square1 + square2));
 
-        const auto triangle = 0*Triangle1.Tick();
-        const auto noise = Noise1.Tick();
+        const auto triangle = Triangle1Output * Triangle1.Tick(clock);
+        const auto noise = Noise1Output * Noise1.Tick(clock);
 
         const auto tndOut = 159.79f / (100.0f + 1.0f / (triangle / 8227.0f + noise / 12241.0f));
 
@@ -460,9 +471,19 @@ public:
         return squareOut + tndOut;
     }
 
+    FrameCounter Frame;
+    bool FrameInterrupt = false;
+
+    int Pulse1Output = 1;
     Pulse Pulse1;
+
+    int Pulse2Output = 1;
     Pulse Pulse2;
+
+    int Triangle1Output = 1;
     Triangle Triangle1;
+
+    int Noise1Output = 1;
     Noise Noise1;
 };
 

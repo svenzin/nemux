@@ -87,8 +87,8 @@ namespace debug {
     std::string GetAPU(const Apu & apu) {
         std::stringstream oss;
         oss << "APU Frame Counter " << endl
-            << "        Mode " << ((apu.Pulse1.Frame.Mode == 0) ? 4 : 5) << " steps" << endl
-            << "        Counter " << apu.Pulse1.Frame.Ticks << endl
+            << "        Mode " << ((apu.Frame.Mode == 0) ? 4 : 5) << " steps" << endl
+            << "        Counter " << apu.Frame.Ticks << endl
             << "    Pulse 1 " << dec << apu.Pulse1.Enabled << endl
             << "        P " << apu.Pulse1.T.Period << " T " << apu.Pulse1.T.T << " D " << apu.Pulse1.Sequence.Duty << " " << apu.Pulse1.Sequence.Phase << std::endl
             << "        SE " << apu.Pulse1.SweepEnabled << " SP " << Word{ apu.Pulse1.SweepPeriod } << " ST " << Word{ apu.Pulse1.SweepT } << " SN " << apu.Pulse1.SweepNegate << " SA " << Word{ apu.Pulse1.SweepAmount } << endl
@@ -600,6 +600,10 @@ int main(int argc, char ** argv) {
                             if (e.key.keysym.sym == SDLK_p) ctrl.P1_Start = true;
                             if (e.key.keysym.sym == SDLK_s) ctrl.P1_A = true;
                             if (e.key.keysym.sym == SDLK_q) ctrl.P1_B = true;
+                            if (e.key.keysym.sym == SDLK_F1) apu.Pulse1Output = 1 - apu.Pulse1Output;
+                            if (e.key.keysym.sym == SDLK_F2) apu.Pulse2Output = 1 - apu.Pulse2Output;
+                            if (e.key.keysym.sym == SDLK_F3) apu.Triangle1Output = 1 - apu.Triangle1Output;
+                            if (e.key.keysym.sym == SDLK_F4) apu.Noise1Output = 1 - apu.Noise1Output;
                             break;
                         }
                         case SDL_KEYUP: {

@@ -53,12 +53,18 @@ TEST_F(ApuTest, Pulse_SilentIfPeriodSmallerThan8) {
     pulse.WritePeriodHigh(0x00);
     
     bool isSilent = true;
-    for (int i = 0; i < 100; ++i) isSilent = (pulse.Tick() == 0) && isSilent;
+    for (int i = 0; i < 100; ++i) {
+        auto clock = frame.Tick();
+        isSilent = (pulse.Tick(clock) == 0) && isSilent;
+    }
     EXPECT_FALSE(isSilent);
 
     pulse.WritePeriodLow(0x07);
     isSilent = true;
-    for (int i = 0; i < 100; ++i) isSilent = (pulse.Tick() == 0) && isSilent;
+    for (int i = 0; i < 100; ++i) {
+        auto clock = frame.Tick();
+        isSilent = (pulse.Tick(clock) == 0) && isSilent;
+    }
     EXPECT_TRUE(isSilent);
 }
 
@@ -71,14 +77,16 @@ TEST_F(ApuTest, Pulse_SilentIfDisabled) {
     pulse.WriteControl(ctrl);
     bool isSilent = true;
     for (int i = 0; i < 100; ++i) {
-        isSilent = (pulse.Tick() == 0) && isSilent;
+        auto clock = frame.Tick();
+        isSilent = (pulse.Tick(clock) == 0) && isSilent;
     }
     EXPECT_FALSE(isSilent);
 
     pulse.Enable(false);
     isSilent = true;
     for (int i = 0; i < 100; ++i) {
-        isSilent = (pulse.Tick() == 0) && isSilent;
+        auto clock = frame.Tick();
+        isSilent = (pulse.Tick(clock) == 0) && isSilent;
     }
     EXPECT_TRUE(isSilent);
 }
@@ -88,16 +96,16 @@ TEST_F(ApuTest, Pulse_TimerTicksEveryTwoClocks) {
     pulse.WritePeriodLow(0x08);
     for (size_t n = 0; n < 4; n++) {
         EXPECT_EQ(0, pulse.T.T) << n;
-        pulse.Tick();
+        pulse.Tick(frame.Tick());
         for (size_t i = 0; i < 8; i++)
         {
             EXPECT_NE(0, pulse.T.T) << n << " " << i;
-            pulse.Tick();
+            pulse.Tick(frame.Tick());
             EXPECT_NE(0, pulse.T.T) << n << " " << i;
-            pulse.Tick();
+            pulse.Tick(frame.Tick());
         }
         EXPECT_EQ(0, pulse.T.T) << n;
-        pulse.Tick();
+        pulse.Tick(frame.Tick());
     }
 }
 
@@ -191,11 +199,13 @@ TEST_F(ApuTest, Pulse_LengthPausedDuringHalt) {
     for (int i = 0; i < 12; ++i) EXPECT_EQ(0, length.Tick(true));
 }
 
-TEST_F(ApuTest, FrameCounter_Mode4) {
-    frame.WriteControl(0x00);
+TEST_F(ApuTest, FrameCounter_Mode4WithoutInterrupt) {
+    frame.WriteControl(0x40);
+    EXPECT_TRUE(frame.HideInterrupt);
     const auto ExpectCounter = [](bool expHalf, bool expQuarter, FrameCounter::Clock actual) {
         EXPECT_EQ(expHalf, actual.HalfFrame);
         EXPECT_EQ(expQuarter, actual.QuarterFrame);
+        EXPECT_FALSE(actual.Interrupt);
     };
     for (size_t i = 0; i < 29830; i++) {
         if (i == 7457) ExpectCounter(false, true, frame.Tick());
@@ -214,11 +224,46 @@ TEST_F(ApuTest, FrameCounter_Mode4) {
     }
 }
 
+TEST_F(ApuTest, FrameCounter_Mode4WithInterrupt) {
+    frame.WriteControl(0x00);
+    EXPECT_FALSE(frame.HideInterrupt);
+    const auto ExpectCounter = [](bool expHalf, bool expQuarter, bool expInterrupt, FrameCounter::Clock actual) {
+        EXPECT_EQ(expHalf, actual.HalfFrame);
+        EXPECT_EQ(expQuarter, actual.QuarterFrame);
+        EXPECT_EQ(expInterrupt, actual.Interrupt);
+    };
+    for (size_t i = 0; i < 29830; i++) {
+        if (i < 7457) ExpectCounter(false, false, false, frame.Tick());
+        else if (i == 7457) ExpectCounter(false, true, false, frame.Tick());
+        else if (i < 14913) ExpectCounter(false, false, false, frame.Tick());
+        else if (i == 14913) ExpectCounter(true, true, false, frame.Tick());
+        else if (i < 22371) ExpectCounter(false, false, false, frame.Tick());
+        else if (i == 22371) ExpectCounter(false, true, false, frame.Tick());
+        else if (i < 29828) ExpectCounter(false, false, false, frame.Tick());
+        else if (i == 29828) ExpectCounter(false, false, true, frame.Tick());
+        else if (i == 29829) ExpectCounter(true, true, true, frame.Tick());
+    }
+    // Loop
+    for (size_t i = 0; i < 29830; i++) {
+        if (i == 0) ExpectCounter(false, false, true, frame.Tick());
+        else if (i < 7457) ExpectCounter(false, false, false, frame.Tick());
+        else if (i == 7457) ExpectCounter(false, true, false, frame.Tick());
+        else if (i < 14913) ExpectCounter(false, false, false, frame.Tick());
+        else if (i == 14913) ExpectCounter(true, true, false, frame.Tick());
+        else if (i < 22371) ExpectCounter(false, false, false, frame.Tick());
+        else if (i == 22371) ExpectCounter(false, true, false, frame.Tick());
+        else if (i < 29828) ExpectCounter(false, false, false, frame.Tick());
+        else if (i == 29828) ExpectCounter(false, false, true, frame.Tick());
+        else if (i == 29829) ExpectCounter(true, true, true, frame.Tick());
+    }
+}
+
 TEST_F(ApuTest, FrameCounter_Mode5) {
     frame.WriteControl(0x80);
     const auto ExpectCounter = [](bool expHalf, bool expQuarter, FrameCounter::Clock actual) {
         EXPECT_EQ(expHalf, actual.HalfFrame);
         EXPECT_EQ(expQuarter, actual.QuarterFrame);
+        EXPECT_FALSE(actual.Interrupt);
     };
     for (size_t i = 0; i < 37282; i++) {
         if (i == 7457) ExpectCounter(false, true, frame.Tick());
@@ -235,6 +280,41 @@ TEST_F(ApuTest, FrameCounter_Mode5) {
         else if (i == 37281) ExpectCounter(true, true, frame.Tick());
         else ExpectCounter(false, false, frame.Tick());
     }
+}
+
+TEST_F(ApuTest, FrameCounter_ReadStatus) {
+    apu.WriteCommonControl(0x00);
+    
+    // Reading status clears frame interrupt for the rest of the frame
+    for (size_t i = 0; i < 29828; i++) {
+        apu.Tick();
+        EXPECT_FALSE(apu.FrameInterrupt);
+    }
+    EXPECT_FALSE(IsBitSet<6>(apu.ReadStatus()));
+
+    apu.Tick();
+    EXPECT_TRUE(apu.FrameInterrupt);
+    EXPECT_TRUE(IsBitSet<6>(apu.ReadStatus()));
+
+    apu.Tick();
+    EXPECT_FALSE(apu.FrameInterrupt);
+    EXPECT_FALSE(IsBitSet<6>(apu.ReadStatus()));
+
+    // Next frame
+    apu.Tick();
+    EXPECT_FALSE(apu.FrameInterrupt); // First frame tick is previous frame's interrupt
+    for (size_t i = 1; i < 29828; i++) {
+        apu.Tick();
+        EXPECT_FALSE(apu.FrameInterrupt);
+    }
+    apu.Tick();
+    EXPECT_TRUE(apu.FrameInterrupt);
+    apu.Tick();
+    EXPECT_TRUE(apu.FrameInterrupt);
+    apu.Tick();
+    EXPECT_TRUE(apu.FrameInterrupt);
+    apu.Tick();
+    EXPECT_FALSE(apu.FrameInterrupt);
 }
 
 TEST_F(ApuTest, Pulse_Sweep_SetValues) {
