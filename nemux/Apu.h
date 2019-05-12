@@ -20,7 +20,6 @@ struct FrameCounter {
     struct Clock {
         bool HalfFrame;
         bool QuarterFrame;
-        bool Interrupt;
     };
 
     int Ticks = 0;
@@ -58,8 +57,7 @@ struct FrameCounter {
             if (Ticks == SetInterruptTick) Interrupt = true;
             if (Ticks == ResetInterruptTick) Interrupt = false;
         }
-        result.Interrupt = Interrupt;
-
+        
         Ticks = ((Ticks + 1) % Periods[Mode]);
 
         return result;

@@ -205,7 +205,6 @@ TEST_F(ApuTest, FrameCounter_Mode4WithoutInterrupt) {
     const auto ExpectCounter = [](bool expHalf, bool expQuarter, FrameCounter::Clock actual) {
         EXPECT_EQ(expHalf, actual.HalfFrame);
         EXPECT_EQ(expQuarter, actual.QuarterFrame);
-        EXPECT_FALSE(actual.Interrupt);
     };
     for (size_t i = 0; i < 29830; i++) {
         if (i == 7457) ExpectCounter(false, true, frame.Tick());
@@ -213,6 +212,7 @@ TEST_F(ApuTest, FrameCounter_Mode4WithoutInterrupt) {
         else if (i == 22371) ExpectCounter(false, true, frame.Tick());
         else if (i == 29829) ExpectCounter(true, true, frame.Tick());
         else ExpectCounter(false, false, frame.Tick());
+        EXPECT_FALSE(frame.Interrupt);
     }
     // Loop
     for (size_t i = 0; i < 29830; i++) {
@@ -221,40 +221,49 @@ TEST_F(ApuTest, FrameCounter_Mode4WithoutInterrupt) {
         else if (i == 22371) ExpectCounter(false, true, frame.Tick());
         else if (i == 29829) ExpectCounter(true, true, frame.Tick());
         else ExpectCounter(false, false, frame.Tick());
+        EXPECT_FALSE(frame.Interrupt);
     }
 }
 
 TEST_F(ApuTest, FrameCounter_Mode4WithInterrupt) {
     frame.WriteControl(0x00);
     EXPECT_FALSE(frame.HideInterrupt);
-    const auto ExpectCounter = [](bool expHalf, bool expQuarter, bool expInterrupt, FrameCounter::Clock actual) {
+    const auto ExpectCounter = [](bool expHalf, bool expQuarter, FrameCounter::Clock actual) {
         EXPECT_EQ(expHalf, actual.HalfFrame);
         EXPECT_EQ(expQuarter, actual.QuarterFrame);
-        EXPECT_EQ(expInterrupt, actual.Interrupt);
     };
     for (size_t i = 0; i < 29830; i++) {
-        if (i < 7457) ExpectCounter(false, false, false, frame.Tick());
-        else if (i == 7457) ExpectCounter(false, true, false, frame.Tick());
-        else if (i < 14913) ExpectCounter(false, false, false, frame.Tick());
-        else if (i == 14913) ExpectCounter(true, true, false, frame.Tick());
-        else if (i < 22371) ExpectCounter(false, false, false, frame.Tick());
-        else if (i == 22371) ExpectCounter(false, true, false, frame.Tick());
-        else if (i < 29828) ExpectCounter(false, false, false, frame.Tick());
-        else if (i == 29828) ExpectCounter(false, false, true, frame.Tick());
-        else if (i == 29829) ExpectCounter(true, true, true, frame.Tick());
+        if (i < 7457) ExpectCounter(false, false, frame.Tick());
+        else if (i == 7457) ExpectCounter(false, true, frame.Tick());
+        else if (i < 14913) ExpectCounter(false, false, frame.Tick());
+        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
+        else if (i < 22371) ExpectCounter(false, false, frame.Tick());
+        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
+        else if (i < 29828) ExpectCounter(false, false, frame.Tick());
+        else if (i == 29828) ExpectCounter(false, false, frame.Tick());
+        else if (i == 29829) ExpectCounter(true, true, frame.Tick());
+
+        if (i == 29828) EXPECT_TRUE(frame.Interrupt);
+        else if (i == 29829) EXPECT_TRUE(frame.Interrupt);
+        else EXPECT_FALSE(frame.Interrupt);
     }
     // Loop
     for (size_t i = 0; i < 29830; i++) {
-        if (i == 0) ExpectCounter(false, false, true, frame.Tick());
-        else if (i < 7457) ExpectCounter(false, false, false, frame.Tick());
-        else if (i == 7457) ExpectCounter(false, true, false, frame.Tick());
-        else if (i < 14913) ExpectCounter(false, false, false, frame.Tick());
-        else if (i == 14913) ExpectCounter(true, true, false, frame.Tick());
-        else if (i < 22371) ExpectCounter(false, false, false, frame.Tick());
-        else if (i == 22371) ExpectCounter(false, true, false, frame.Tick());
-        else if (i < 29828) ExpectCounter(false, false, false, frame.Tick());
-        else if (i == 29828) ExpectCounter(false, false, true, frame.Tick());
-        else if (i == 29829) ExpectCounter(true, true, true, frame.Tick());
+        if (i == 0) ExpectCounter(false, false, frame.Tick());
+        else if (i < 7457) ExpectCounter(false, false, frame.Tick());
+        else if (i == 7457) ExpectCounter(false, true, frame.Tick());
+        else if (i < 14913) ExpectCounter(false, false, frame.Tick());
+        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
+        else if (i < 22371) ExpectCounter(false, false, frame.Tick());
+        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
+        else if (i < 29828) ExpectCounter(false, false, frame.Tick());
+        else if (i == 29828) ExpectCounter(false, false, frame.Tick());
+        else if (i == 29829) ExpectCounter(true, true, frame.Tick());
+        
+        if (i == 0) EXPECT_TRUE(frame.Interrupt);
+        else if (i == 29828) EXPECT_TRUE(frame.Interrupt);
+        else if (i == 29829) EXPECT_TRUE(frame.Interrupt);
+        else EXPECT_FALSE(frame.Interrupt);
     }
 }
 
@@ -263,7 +272,6 @@ TEST_F(ApuTest, FrameCounter_Mode5) {
     const auto ExpectCounter = [](bool expHalf, bool expQuarter, FrameCounter::Clock actual) {
         EXPECT_EQ(expHalf, actual.HalfFrame);
         EXPECT_EQ(expQuarter, actual.QuarterFrame);
-        EXPECT_FALSE(actual.Interrupt);
     };
     for (size_t i = 0; i < 37282; i++) {
         if (i == 7457) ExpectCounter(false, true, frame.Tick());
@@ -271,6 +279,7 @@ TEST_F(ApuTest, FrameCounter_Mode5) {
         else if (i == 22371) ExpectCounter(false, true, frame.Tick());
         else if (i == 37281) ExpectCounter(true, true, frame.Tick());
         else ExpectCounter(false, false, frame.Tick());
+        EXPECT_FALSE(frame.Interrupt);
     }
     // Loop
     for (size_t i = 0; i < 37282; i++) {
@@ -279,6 +288,7 @@ TEST_F(ApuTest, FrameCounter_Mode5) {
         else if (i == 22371) ExpectCounter(false, true, frame.Tick());
         else if (i == 37281) ExpectCounter(true, true, frame.Tick());
         else ExpectCounter(false, false, frame.Tick());
+        EXPECT_FALSE(frame.Interrupt);
     }
 }
 
