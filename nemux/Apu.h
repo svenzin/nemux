@@ -445,6 +445,7 @@ public:
     }
 
     Byte ReadStatus() {
+        const auto FrameInterrupt = Frame.Interrupt;
         Frame.Interrupt = false;
         return Mask<0>(Pulse1.Length.Count > 0)
             + Mask<1>(Pulse2.Length.Count > 0)
@@ -455,7 +456,6 @@ public:
 
     float Tick() {
         const auto clock = Frame.Tick();
-        FrameInterrupt = clock.Interrupt;
 
         const auto square1 = Pulse1Output * Pulse1.Tick(clock);
         const auto square2 = Pulse2Output * Pulse2.Tick(clock);
@@ -472,7 +472,6 @@ public:
     }
 
     FrameCounter Frame;
-    bool FrameInterrupt = false;
 
     int Pulse1Output = 1;
     Pulse Pulse1;

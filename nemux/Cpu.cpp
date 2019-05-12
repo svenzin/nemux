@@ -274,13 +274,18 @@ void Cpu::Tick() {
             TriggerNMI();
         }
         nmi = m->PPU->NMIActive;
+
+        if (I == 0 && m->APU->Frame.Interrupt) {
+            TriggerIRQ();
+        }
+    
     }
     if (CurrentTick > Ticks) {
         if (PendingInterrupt == InterruptType::Rst) {
             Reset();
         } else if (PendingInterrupt == InterruptType::Nmi) {
             NMI();
-        } else if (I == 0 && PendingInterrupt == InterruptType::Irq) {
+        } else if (PendingInterrupt == InterruptType::Irq) {
             IRQ();
         } else {
             const auto instruction = ReadByteAt(PC);

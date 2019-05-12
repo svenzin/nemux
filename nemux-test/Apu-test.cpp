@@ -288,33 +288,33 @@ TEST_F(ApuTest, FrameCounter_ReadStatus) {
     // Reading status clears frame interrupt for the rest of the frame
     for (size_t i = 0; i < 29828; i++) {
         apu.Tick();
-        EXPECT_FALSE(apu.FrameInterrupt);
+        EXPECT_FALSE(apu.Frame.Interrupt);
     }
     EXPECT_FALSE(IsBitSet<6>(apu.ReadStatus()));
 
     apu.Tick();
-    EXPECT_TRUE(apu.FrameInterrupt);
+    EXPECT_TRUE(apu.Frame.Interrupt);
     EXPECT_TRUE(IsBitSet<6>(apu.ReadStatus()));
 
     apu.Tick();
-    EXPECT_FALSE(apu.FrameInterrupt);
+    EXPECT_FALSE(apu.Frame.Interrupt);
     EXPECT_FALSE(IsBitSet<6>(apu.ReadStatus()));
 
     // Next frame
     apu.Tick();
-    EXPECT_FALSE(apu.FrameInterrupt); // First frame tick is previous frame's interrupt
+    EXPECT_FALSE(apu.Frame.Interrupt); // First frame tick is previous frame's interrupt
     for (size_t i = 1; i < 29828; i++) {
         apu.Tick();
-        EXPECT_FALSE(apu.FrameInterrupt);
+        EXPECT_FALSE(apu.Frame.Interrupt);
     }
     apu.Tick();
-    EXPECT_TRUE(apu.FrameInterrupt);
+    EXPECT_TRUE(apu.Frame.Interrupt);
     apu.Tick();
-    EXPECT_TRUE(apu.FrameInterrupt);
+    EXPECT_TRUE(apu.Frame.Interrupt);
     apu.Tick();
-    EXPECT_TRUE(apu.FrameInterrupt);
+    EXPECT_TRUE(apu.Frame.Interrupt);
     apu.Tick();
-    EXPECT_FALSE(apu.FrameInterrupt);
+    EXPECT_FALSE(apu.Frame.Interrupt);
 }
 
 TEST_F(ApuTest, Pulse_Sweep_SetValues) {
