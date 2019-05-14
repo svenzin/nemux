@@ -251,3 +251,73 @@ TEST_F(CpuTest, TickingWithInhibitedInterrupt) {
     EXPECT_EQ(0x0203, cpu.PC);
 }
 
+TEST_F(CpuTest, OAMDMA) {
+    MemoryBlock<0x0400> mem;
+    for (Word i = 0; i < 0x0400; i += 4) {
+        mem.SetByteAt(i + 0, 0xDE);
+        mem.SetByteAt(i + 1, 0xAD);
+        mem.SetByteAt(i + 2, 0xBE);
+        mem.SetByteAt(i + 3, 0xEF);
+    }
+    for (Word i = 0; i < 0x0100; ++i) {
+        mem.SetByteAt(0x0100 + i, i & WORD_LO_MASK);
+    }
+
+    std::array<Byte, 0x0100> page;
+    cpu.Map = &mem;
+    cpu.DMA(1, page, 0x00);
+
+    EXPECT_EQ(513, cpu.Ticks);
+    for (Word i = 0; i < 0x0100; ++i) {
+        EXPECT_EQ(i, page[i]);
+    }
+}
+
+TEST_F(CpuTest, OAMDMA_OnOddCycle) {
+    MemoryBlock<0x0400> mem;
+    for (Word i = 0; i < 0x0400; i += 4) {
+        mem.SetByteAt(i + 0, 0xDE);
+        mem.SetByteAt(i + 1, 0xAD);
+        mem.SetByteAt(i + 2, 0xBE);
+        mem.SetByteAt(i + 3, 0xEF);
+    }
+    for (Word i = 0; i < 0x0100; ++i) {
+        mem.SetByteAt(0x0100 + i, i & WORD_LO_MASK);
+    }
+
+    std::array<Byte, 0x0100> page;
+    cpu.Map = &mem;
+    cpu.Ticks = cpu.CurrentTick = 1;
+    cpu.DMA(1, page, 0x00);
+
+    EXPECT_EQ(1 + 514, cpu.Ticks);
+    for (Word i = 0; i < 0x0100; ++i) {
+        EXPECT_EQ(i, page[i]);
+    }
+}
+
+TEST_F(CpuTest, OAMDMA_NonZeroOffset) {
+    MemoryBlock<0x0400> mem;
+    for (Word i = 0; i < 0x0400; i += 4) {
+        mem.SetByteAt(i + 0, 0xDE);
+        mem.SetByteAt(i + 1, 0xAD);
+        mem.SetByteAt(i + 2, 0xBE);
+        mem.SetByteAt(i + 3, 0xEF);
+    }
+    for (Word i = 0; i < 0x0100; ++i) {
+        mem.SetByteAt(0x0100 + i, i & WORD_LO_MASK);
+    }
+
+    std::array<Byte, 0x0100> page;
+    cpu.Map = &mem;
+    cpu.DMA(1, page, 0x20);
+
+    EXPECT_EQ(513, cpu.Ticks);
+    for (Word i = 0; i < 0xE0; ++i) {
+        EXPECT_EQ(i, page[i + 0x20]);
+    }
+    for (Word i = 0xE0; i < 0x0100; ++i) {
+        EXPECT_EQ(i, page[i - 0xE0]);
+    }
+}
+

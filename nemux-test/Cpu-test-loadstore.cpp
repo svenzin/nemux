@@ -97,6 +97,14 @@ TEST_F(CpuTestLoadStore, LDX_ZeroPageY) {
               Opcode(LDX, ZeroPageY, 2, 4), 0);
 }
 
+TEST_F(CpuTestLoadStore, LDX_ZeroPageY_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.Y = 0x10;
+    Test_Load(Getter(cpu.X), Setter(0x0000),
+              Opcode(LDX, ZeroPageY, 2, 4), 0);
+}
+
 TEST_F(CpuTestLoadStore, LDX_Absolute) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
@@ -142,6 +150,14 @@ TEST_F(CpuTestLoadStore, LDY_ZeroPageX) {
               Opcode(LDY, ZeroPageX, 2, 4), 0);
 }
 
+TEST_F(CpuTestLoadStore, LDY_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+    Test_Load(Getter(cpu.Y), Setter(0x0000),
+              Opcode(LDY, ZeroPageX, 2, 4), 0);
+}
+
 TEST_F(CpuTestLoadStore, LDY_Absolute) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
@@ -183,6 +199,14 @@ TEST_F(CpuTestLoadStore, LDA_ZeroPageX) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
     Test_Load(Getter(cpu.A), Setter(0x0028),
+              Opcode(LDA, ZeroPageX, 2, 4), 0);
+}
+
+TEST_F(CpuTestLoadStore, LDA_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+    Test_Load(Getter(cpu.A), Setter(0x0000),
               Opcode(LDA, ZeroPageX, 2, 4), 0);
 }
 
@@ -234,13 +258,22 @@ TEST_F(CpuTestLoadStore, LDA_IndexedIndirect) {
               Opcode(LDA, IndexedIndirect, 2, 6), 0);
 }
 
+TEST_F(CpuTestLoadStore, LDA_IndexedIndirect_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x0F;
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    Test_Load(Getter(cpu.A), Setter(0x0120),
+              Opcode(LDA, IndexedIndirect, 2, 6), 0);
+}
+
 TEST_F(CpuTestLoadStore, LDA_IndirectIndexed) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x0120);
     cpu.Y = 0x08;
-    cpu.WriteWordAt(0x0128, 0x0200);
-    Test_Load(Getter(cpu.A), Setter(0x0200),
+    Test_Load(Getter(cpu.A), Setter(0x0128),
               Opcode(LDA, IndirectIndexed, 2, 5), 0);
 }
 
@@ -249,9 +282,27 @@ TEST_F(CpuTestLoadStore, LDA_IndirectIndexed_CrossingPage) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x0120);
     cpu.Y = 0xF0;
-    cpu.WriteWordAt(0x0210, 0x0200);
-    Test_Load(Getter(cpu.A), Setter(0x0200),
-              Opcode(LDA, IndirectIndexed, 2, 5), 1);
+    Test_Load(Getter(cpu.A), Setter(0x0210),
+        Opcode(LDA, IndirectIndexed, 2, 5), 1);
+}
+
+TEST_F(CpuTestLoadStore, LDA_IndirectIndexed_CrossingWordsize) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0xFFFF);
+    cpu.Y = 0x10;
+    Test_Load(Getter(cpu.A), Setter(0x000F),
+        Opcode(LDA, IndirectIndexed, 2, 5), 1);
+}
+
+TEST_F(CpuTestLoadStore, LDA_IndirectIndexed_BaseFromZeroPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xFF);
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    cpu.Y = 0x10;
+    Test_Load(Getter(cpu.A), Setter(0x0130),
+        Opcode(LDA, IndirectIndexed, 2, 5), 0);
 }
 
 TEST_F(CpuTestLoadStore, STX_ZeroPage) {
@@ -268,6 +319,15 @@ TEST_F(CpuTestLoadStore, STX_ZeroPageY) {
     cpu.Y = 0x08;
 
     Test_Set(Getter(0x0028), Setter(cpu.X),
+             Opcode(STX, ZeroPageY, 2, 4));
+}
+
+TEST_F(CpuTestLoadStore, STX_ZeroPageY_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.Y = 0x10;
+
+    Test_Set(Getter(0x0000), Setter(cpu.X),
              Opcode(STX, ZeroPageY, 2, 4));
 }
 
@@ -296,6 +356,15 @@ TEST_F(CpuTestLoadStore, STY_ZeroPageX) {
              Opcode(STY, ZeroPageX, 2, 4));
 }
 
+TEST_F(CpuTestLoadStore, STY_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+
+    Test_Set(Getter(0x0000), Setter(cpu.Y),
+             Opcode(STY, ZeroPageX, 2, 4));
+}
+
 TEST_F(CpuTestLoadStore, STY_Absolute) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
@@ -318,6 +387,15 @@ TEST_F(CpuTestLoadStore, STA_ZeroPageX) {
     cpu.X = 0x08;
 
     Test_Set(Getter(0x0028), Setter(cpu.A),
+             Opcode(STA, ZeroPageX, 2, 4));
+}
+
+TEST_F(CpuTestLoadStore, STA_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+
+    Test_Set(Getter(0x0000), Setter(cpu.A),
              Opcode(STA, ZeroPageX, 2, 4));
 }
 
@@ -359,14 +437,48 @@ TEST_F(CpuTestLoadStore, STA_IndexedIndirect) {
              Opcode(STA, IndexedIndirect, 2, 6));
 }
 
+TEST_F(CpuTestLoadStore, STA_IndexedIndirect_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x0F;
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    cpu.WriteByteAt(0x120, 0x00);
+
+    Test_Set(Getter(0x0120), Setter(cpu.A),
+             Opcode(STA, IndexedIndirect, 2, 6));
+}
+
 TEST_F(CpuTestLoadStore, STA_IndirectIndexed) {
     // Same page
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0x08;
-    cpu.WriteWordAt(0x0128, 0x0200);
 
-    Test_Set(Getter(0x0200), Setter(cpu.A),
+    Test_Set(Getter(0x0128), Setter(cpu.A),
              Opcode(STA, IndirectIndexed, 2, 6));
+}
+
+TEST_F(CpuTestLoadStore, STA_IndirectIndexed_CrossingWordsize) {
+    // Same page
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0xFFFF);
+    cpu.Y = 0x10;
+
+    Test_Set(Getter(0x000F), Setter(cpu.A),
+        Opcode(STA, IndirectIndexed, 2, 6));
+}
+
+TEST_F(CpuTestLoadStore, STA_IndirectIndexed_BaseFromZeroPage) {
+    // Same page
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xFF);
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    cpu.Y = 0x10;
+
+    Test_Set(Getter(0x0130), Setter(cpu.A),
+        Opcode(STA, IndirectIndexed, 2, 6));
 }

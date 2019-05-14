@@ -7,6 +7,8 @@
 #include "Cpu.h"
 
 #include "BitUtil.h"
+#include "Ppu.h"
+#include "Controllers.h"
 
 #include <iomanip>
 #include <sstream>
@@ -86,8 +88,8 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     m_opcodes[0x49] = Opcode(EOR, Immediate, 2, 2);
     m_opcodes[0x45] = Opcode(EOR, ZeroPage,  2, 3);
     m_opcodes[0x55] = Opcode(EOR, ZeroPageX, 2, 4);
-    m_opcodes[0x40] = Opcode(EOR, Absolute,  3, 4);
-    m_opcodes[0x50] = Opcode(EOR, AbsoluteX, 3, 4);
+    m_opcodes[0x4D] = Opcode(EOR, Absolute,  3, 4);
+    m_opcodes[0x5D] = Opcode(EOR, AbsoluteX, 3, 4);
     m_opcodes[0x59] = Opcode(EOR, AbsoluteY, 3, 4);
     m_opcodes[0x41] = Opcode(EOR, IndexedIndirect, 2, 6);
     m_opcodes[0x51] = Opcode(EOR, IndirectIndexed, 2, 5);
@@ -265,12 +267,25 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
 
 void Cpu::Tick() {
     ++CurrentTick;
+    static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers, Apu> *>(Map);
+    static bool nmi = false;
+    if (m != nullptr) {
+        if (!nmi && m->PPU->NMIActive) {
+            TriggerNMI();
+        }
+        nmi = m->PPU->NMIActive;
+
+        if (I == 0 && m->APU->Frame.Interrupt) {
+            TriggerIRQ();
+        }
+    
+    }
     if (CurrentTick > Ticks) {
         if (PendingInterrupt == InterruptType::Rst) {
             Reset();
         } else if (PendingInterrupt == InterruptType::Nmi) {
             NMI();
-        } else if (I == 0 && PendingInterrupt == InterruptType::Irq) {
+        } else if (PendingInterrupt == InterruptType::Irq) {
             IRQ();
         } else {
             const auto instruction = ReadByteAt(PC);
@@ -287,39 +302,49 @@ Opcode Cpu::Decode(const Byte &byte) const {
 }
 
 address_t Cpu::BuildAddress(const Addressing::Type & type) const {
+    const Word PC_1 = PC + 1;
     switch (type) {
         case Immediate: {
-            return { PC + 1, false };
+            return { PC_1, false };
         }
         case ZeroPage: {
-            return { ReadByteAt(PC + 1), false };
+            return { ReadByteAt(PC_1), false };
         }
         case ZeroPageX: {
-            return { static_cast<Word>(ReadByteAt(PC + 1) + X), false };
+            const auto address = (ReadByteAt(PC_1) + X) & WORD_LO_MASK;
+            return { static_cast<Word>(address), false };
         }
         case ZeroPageY: {
-            return { static_cast<Word>(ReadByteAt(PC + 1) + Y), false };
+            const auto address = (ReadByteAt(PC_1) + Y) & WORD_LO_MASK;
+            return { static_cast<Word>(address), false };
         }
         case Absolute: {
-            return { ReadWordAt(PC + 1), false };
+            return { ReadWordAt(PC_1), false };
         }
         case AbsoluteX: {
-            const auto address = ReadWordAt(PC + 1) + X;
+            const Word address = ReadWordAt(PC_1) + X;
             return { address, (X > (address & BYTE_MASK)) };
         }
         case AbsoluteY: {
-            const auto address = ReadWordAt(PC + 1) + Y;
+            const Word address = ReadWordAt(PC_1) + Y;
             return { address, (Y > (address & BYTE_MASK)) };
         }
         case IndexedIndirect: {
-            return { ReadWordAt(ReadByteAt(PC + 1) + X), false };
+            const Word base = ReadWordAt(PC_1) + X;
+            const Word lo = base & WORD_LO_MASK;
+            const Word hi = (base + 1) & WORD_LO_MASK;
+            const Word addr = ReadByteAt(hi) << BYTE_WIDTH | ReadByteAt(lo);
+            return { addr, false };
         }
         case IndirectIndexed: {
-            const auto base = ReadWordAt(ReadByteAt(PC + 1)) + Y;
-            return { ReadWordAt(base), (Y > (base & BYTE_MASK)) };
+            const Word base = ReadByteAt(PC_1);
+            const Word lo = ReadByteAt(base);
+            const Word hi = ReadByteAt((base + 1) & WORD_LO_MASK);
+            const Word addr = (hi << BYTE_WIDTH) + lo + Y;
+            return { addr, (Y > (addr & BYTE_MASK)) };
         }
         case Indirect: {
-            const Word base = ReadWordAt(PC + 1);
+            const Word base = ReadWordAt(PC_1);
             const Word lo = base;
             const Word hi = (base & WORD_HI_MASK) | ((base + 1) & WORD_LO_MASK);
             const Word addr = ReadByteAt(hi) << BYTE_WIDTH | ReadByteAt(lo);
@@ -344,17 +369,17 @@ void Cpu::Compare(const Byte lhs, const Byte rhs) {
     const auto r = lhs - rhs;
     C = (r >= 0) ? 1 : 0;
     Z = (r == 0) ? 1 : 0;
-    N = (r  < 0) ? 1 : 0;
+    N = (IsBitSet<BYTE_SIGN_BIT>(r)) ? 1 : 0;
 }
 void Cpu::BranchIf(const bool condition, const Opcode & op) {
-    const auto basePC = PC;
+    const auto basePC = PC + op.Bytes;
     const auto M = ReadByteAt(BuildAddress(Immediate).Address);
     if (condition) {
         Word offset = Bit<Neg>(M) * WORD_HI_MASK | M;
-        PC = (PC + offset) & WORD_MASK;
+        PC = (PC + op.Bytes + offset) & WORD_MASK;
         Ticks += op.Cycles + 1;
         if ((PC & WORD_HI_MASK) != (basePC & WORD_HI_MASK)) {
-            Ticks += 2;
+            Ticks += 1;
         }
     } else {
         PC += op.Bytes; Ticks += op.Cycles;
@@ -384,7 +409,7 @@ void Cpu::SetStatus(const Byte & status) {
     Z = Bit<Zer>(status);
     C = Bit<Car>(status);
 }
-Byte Cpu::GetStatus() {
+Byte Cpu::GetStatus() const {
     return Mask<Neg>(N)      | Mask<Ovf>(V) |
            Mask<Unu>(Unused) | Mask<Brk>(B) |
            Mask<Dec>(D)      | Mask<Int>(I) |
@@ -405,12 +430,15 @@ void Cpu::Interrupt(const Flag & isBRK,
     Ticks += InterruptCycles;
 }
 void Cpu::Reset() {
+    PendingInterrupt = InterruptType::None;
     Interrupt(0, VectorRST, true);
 }
 void Cpu::NMI() {
+    PendingInterrupt = InterruptType::None;
     Interrupt(0, VectorNMI);
 }
 void Cpu::IRQ() {
+    PendingInterrupt = InterruptType::None;
     Interrupt(0, VectorIRQ);
 }
 void Cpu::TriggerReset() {
@@ -424,6 +452,18 @@ void Cpu::TriggerNMI() {
 void Cpu::TriggerIRQ() {
     if (PendingInterrupt == InterruptType::None) {
         PendingInterrupt = InterruptType::Irq;
+    }
+}
+void Cpu::DMA(const Byte page,
+    std::array<Byte, 0x0100> & target,
+    const Byte offset) {
+    const Word base = page << BYTE_WIDTH;
+    for (Word i = 0; i < 0x0100; ++i) {
+        target[(i + offset) & WORD_LO_MASK] = ReadByteAt(base + i);
+    }
+    Ticks += 513;
+    if (CurrentTick % 2 == 1) {
+        ++Ticks;
     }
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
@@ -625,7 +665,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
             const auto aa = BuildAddress(op.Addressing);
             const auto M = ReadByteAt(aa.Address);
             Word a = A - M - (1 - C);
-            C = (a > BYTE_MASK) ? 1 : 0;
+            C = (a > BYTE_MASK) ? 0 : 1;
             V = Bit<Neg>(A ^ M) & Bit<Neg>(A ^ a);
             Transfer(a & BYTE_MASK, A);
             if (aa.HasCrossedPage) ++Ticks;
@@ -774,11 +814,11 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
 string Cpu::ToString() const {
     ostringstream value;
     value << "Cpu " << Name << endl
-          << "- Registers PC " << setw(10) << PC << endl
-          << "            SP " << setw(10) << SP << endl
-          << "             A " << setw(10) <<  A << endl
-          << "             X " << setw(10) <<  X << endl
-          << "             Y " << setw(10) <<  Y << endl
+          << "- Registers PC 0x" << hex << setfill('0') << setw(4) << PC << "(" << dec << PC << ")" << endl
+          << "            SP 0x" << hex << setfill('0') << setw(2) << SP << "(" << dec << SP << ")" << endl
+          << "             A 0x" << hex << setfill('0') << setw(2) <<  A << "(" << dec <<  A << ")" << endl
+          << "             X 0x" << hex << setfill('0') << setw(2) <<  X << "(" << dec <<  X << ")" << endl
+          << "             Y 0x" << hex << setfill('0') << setw(2) <<  Y << "(" << dec <<  Y << ")" << endl
           << "- Flags C " << setw(5) << boolalpha << (C != 0) << endl
           << "        Z " << setw(5) << boolalpha << (Z != 0) << endl
           << "        I " << setw(5) << boolalpha << (I != 0) << endl
@@ -786,5 +826,27 @@ string Cpu::ToString() const {
           << "        B " << setw(5) << boolalpha << (B != 0) << endl
           << "        V " << setw(5) << boolalpha << (V != 0) << endl
           << "        N " << setw(5) << boolalpha << (N != 0) << endl;
+    return value.str();
+}
+
+std::string Cpu::ToMiniString() const {
+    ostringstream value;
+    const auto P = GetStatus();
+    value << "Cpu " << Name
+          << " " << CurrentTick << "@" << Ticks
+          << " PC=$" << hex << setfill('0') << setw(4) << PC
+          << " S=$" << hex << setfill('0') << setw(2) << Word{SP}
+          << " A=$" << hex << setfill('0') << setw(2) << Word{A}
+          << " X=$" << hex << setfill('0') << setw(2) << Word{X}
+          << " Y=$" << hex << setfill('0') << setw(2) << Word{Y}
+          << " P=$" << hex << setfill('0') << setw(2) << Word{P}
+          << " "
+          << (C == 0 ? 'c' : 'C')
+          << (Z == 0 ? 'z' : 'Z')
+          << (I == 0 ? 'i' : 'I')
+          << (D == 0 ? 'd' : 'D')
+          << (B == 0 ? 'b' : 'B')
+          << (V == 0 ? 'v' : 'V')
+          << (N == 0 ? 'n' : 'N');
     return value.str();
 }

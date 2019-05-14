@@ -14,6 +14,7 @@ message ("cxx flags: " ${CMAKE_CXX_FLAGS})
 
 add_subdirectory (nemux)
 add_subdirectory (nemux-cli)
+add_subdirectory (nemux-vis)
 add_subdirectory (3rd-party/googletest)
 add_subdirectory (nemux-test)
 

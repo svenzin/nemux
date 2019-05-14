@@ -112,9 +112,9 @@ public:
     const Flag Unused;
 
     Word StackPage = 0x0100;
-    Word VectorRST;
-    Word VectorNMI;
-    Word VectorIRQ;
+    Word VectorRST = 0xFFFC;
+    Word VectorNMI = 0xFFFA;
+    Word VectorIRQ = 0xFFFE;
 
     int Ticks;
     int InterruptCycles;
@@ -129,6 +129,7 @@ public:
     MemoryMap * Map;
 
     std::string ToString() const;
+    std::string ToMiniString() const;
 
     void Decrement(Byte & value);
     void Increment(Byte & value);
@@ -143,7 +144,7 @@ public:
     Word PullWord();
 
     void SetStatus(const Byte & status);
-    Byte GetStatus();
+    Byte GetStatus() const;
 
     void Interrupt(const Flag & isBRK, const Word & vector, const bool readOnly = false);
 
@@ -155,6 +156,8 @@ public:
     void TriggerReset();
     void TriggerNMI();
     void TriggerIRQ();
+
+    void DMA(const Byte page, std::array<Byte, 0x0100> & target, const Byte offset);
 
 private:
 //    std::vector<Instruction> m_opcodes;

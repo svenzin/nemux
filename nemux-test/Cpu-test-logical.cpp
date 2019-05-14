@@ -130,6 +130,13 @@ TEST_F(CpuTestLogical, EOR_ZeroPageX) {
     Test_EOR(Setter(0x0028), Opcode(EOR, ZeroPageX, 2, 4), 0);
 }
 
+TEST_F(CpuTestLogical, EOR_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+    Test_EOR(Setter(0x0000), Opcode(EOR, ZeroPageX, 2, 4), 0);
+}
+
 TEST_F(CpuTestLogical, EOR_Absolute) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
@@ -172,13 +179,21 @@ TEST_F(CpuTestLogical, EOR_IndexedIndirect) {
     Test_EOR(Setter(0x0120), Opcode(EOR, IndexedIndirect, 2, 6), 0);
 }
 
+TEST_F(CpuTestLogical, EOR_IndexedIndirect_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x0F;
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    Test_EOR(Setter(0x0120), Opcode(EOR, IndexedIndirect, 2, 6), 0);
+}
+
 TEST_F(CpuTestLogical, EOR_IndirectIndexed) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x0120);
     cpu.Y = 0x08;
-    cpu.WriteWordAt(0x0128, 0x0200);
-    Test_EOR(Setter(0x0200), Opcode(EOR, IndirectIndexed, 2, 5), 0);
+    Test_EOR(Setter(0x0128), Opcode(EOR, IndirectIndexed, 2, 5), 0);
 }
 
 TEST_F(CpuTestLogical, EOR_IndirectIndexed_CrossingPage) {
@@ -186,8 +201,24 @@ TEST_F(CpuTestLogical, EOR_IndirectIndexed_CrossingPage) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x0120);
     cpu.Y = 0xF0;
-    cpu.WriteWordAt(0x0210, 0x0200);
-    Test_EOR(Setter(0x0200), Opcode(EOR, IndirectIndexed, 2, 5), 1);
+    Test_EOR(Setter(0x0210), Opcode(EOR, IndirectIndexed, 2, 5), 1);
+}
+
+TEST_F(CpuTestLogical, EOR_IndirectIndexed_CrossingWordsize) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0xFFFF);
+    cpu.Y = 0x10;
+    Test_EOR(Setter(0x000F), Opcode(EOR, IndirectIndexed, 2, 5), 1);
+}
+
+TEST_F(CpuTestLogical, EOR_IndirectIndexed_BaseFromZeroPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xFF);
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    cpu.Y = 0x10;
+    Test_EOR(Setter(0x0130), Opcode(EOR, IndirectIndexed, 2, 5), 0);
 }
 
 TEST_F(CpuTestLogical, ORA_Immediate) {
@@ -206,6 +237,13 @@ TEST_F(CpuTestLogical, ORA_ZeroPageX) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
     Test_ORA(Setter(0x0028), Opcode(ORA, ZeroPageX, 2, 4), 0);
+}
+
+TEST_F(CpuTestLogical, ORA_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+    Test_ORA(Setter(0x0000), Opcode(ORA, ZeroPageX, 2, 4), 0);
 }
 
 TEST_F(CpuTestLogical, ORA_Absolute) {
@@ -250,13 +288,21 @@ TEST_F(CpuTestLogical, ORA_IndexedIndirect) {
     Test_ORA(Setter(0x0120), Opcode(ORA, IndexedIndirect, 2, 6), 0);
 }
 
+TEST_F(CpuTestLogical, ORA_IndexedIndirect_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x0F;
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    Test_ORA(Setter(0x0120), Opcode(ORA, IndexedIndirect, 2, 6), 0);
+}
+
 TEST_F(CpuTestLogical, ORA_IndirectIndexed) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x0120);
     cpu.Y = 0x08;
-    cpu.WriteWordAt(0x0128, 0x0200);
-    Test_ORA(Setter(0x0200), Opcode(ORA, IndirectIndexed, 2, 5), 0);
+    Test_ORA(Setter(0x0128), Opcode(ORA, IndirectIndexed, 2, 5), 0);
 }
 
 TEST_F(CpuTestLogical, ORA_IndirectIndexed_CrossingPage) {
@@ -264,10 +310,25 @@ TEST_F(CpuTestLogical, ORA_IndirectIndexed_CrossingPage) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x0120);
     cpu.Y = 0xF0;
-    cpu.WriteWordAt(0x0210, 0x0200);
-    Test_ORA(Setter(0x0200), Opcode(ORA, IndirectIndexed, 2, 5), 1);
+    Test_ORA(Setter(0x0210), Opcode(ORA, IndirectIndexed, 2, 5), 1);
 }
 
+TEST_F(CpuTestLogical, ORA_IndirectIndexed_CrossingWordsize) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0xFFFF);
+    cpu.Y = 0x10;
+    Test_ORA(Setter(0x000F), Opcode(ORA, IndirectIndexed, 2, 5), 1);
+}
+
+TEST_F(CpuTestLogical, ORA_IndirectIndexed_BaseFromZeroPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xFF);
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    cpu.Y = 0x10;
+    Test_ORA(Setter(0x0130), Opcode(ORA, IndirectIndexed, 2, 5), 0);
+}
 
 TEST_F(CpuTestLogical, AND_Immediate) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
@@ -292,6 +353,16 @@ TEST_F(CpuTestLogical, AND_ZeroPageX) {
     cpu.X = 0x08;
 
     Test_AND(Setter(0x0028),
+             Opcode(AND, ZeroPageX, 2, 4),
+             false);
+}
+
+TEST_F(CpuTestLogical, AND_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+
+    Test_AND(Setter(0x0000),
              Opcode(AND, ZeroPageX, 2, 4),
              false);
 }
@@ -360,15 +431,26 @@ TEST_F(CpuTestLogical, AND_IndexedIndirect) {
              false);
 }
 
+TEST_F(CpuTestLogical, AND_IndexedIndirect_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x0F;
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+
+    Test_AND(Setter(0x0120),
+             Opcode(AND, IndexedIndirect, 2, 6),
+             false);
+}
+
 TEST_F(CpuTestLogical, AND_IndirectIndexed) {
     // Same page
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0x08;
-    cpu.WriteWordAt(0x0128, 0x0200);
 
-    Test_AND(Setter(0x0200),
+    Test_AND(Setter(0x0128),
              Opcode(AND, IndirectIndexed, 2, 5),
              false);
 }
@@ -379,11 +461,35 @@ TEST_F(CpuTestLogical, AND_IndirectIndexed_CrossingPage) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.WriteWordAt(0x20, 0x120);
     cpu.Y = 0xF0;
-    cpu.WriteWordAt(0x0210, 0x0200);
 
-    Test_AND(Setter(0x0200),
+    Test_AND(Setter(0x0210),
              Opcode(AND, IndirectIndexed, 2, 5),
              true);
+}
+
+TEST_F(CpuTestLogical, AND_IndirectIndexed_CrossingWordsize) {
+    // Crossing page
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0xFFFF);
+    cpu.Y = 0x10;
+
+    Test_AND(Setter(0x000F),
+             Opcode(AND, IndirectIndexed, 2, 5),
+             true);
+}
+
+TEST_F(CpuTestLogical, AND_IndirectIndexed_BaseFromZeroPage) {
+    // Crossing page
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xFF);
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    cpu.Y = 0x10;
+
+    Test_AND(Setter(0x0130),
+        Opcode(AND, IndirectIndexed, 2, 5),
+        false);
 }
 
 TEST_F(CpuTestLogical, BIT_ZeroPage) {

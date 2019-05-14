@@ -11,8 +11,17 @@
 #include "Types.h"
 #include "BitUtil.h"
 #include "Palette.h"
+#include "MemoryMap.h"
 
 #include <array>
+#include <iostream>
+#include <iomanip>
+
+static constexpr size_t FRAME_WIDTH = 256;
+static constexpr size_t FRAME_HEIGHT = 240;
+static constexpr size_t VIDEO_WIDTH = 341;
+static constexpr size_t VIDEO_HEIGHT = 262;
+static constexpr size_t VIDEO_SIZE = VIDEO_WIDTH * VIDEO_HEIGHT;
 
 class Ppu {
 public:
@@ -39,10 +48,12 @@ public:
 
     Byte ReadStatus() {
         Latch.Reset();
-        return Mask<4>(IgnoreVramWrites)
+        const auto status = Mask<4>(IgnoreVramWrites)
             | Mask<5>(SpriteOverflow)
             | Mask<6>(SpriteZeroHit)
             | Mask<7>(VBlank);
+        VBlank = false;
+        return status;
     }
 
     void WriteOAMAddress(Byte value) {
@@ -82,10 +93,10 @@ public:
         Byte data;
         if (Address >= 0x3F00) {
             data = PpuPalette.ReadAt(Address - 0x3F00);
-            ReadDataBuffer = Data[Address & 0x2FFF];
+            ReadDataBuffer = Map->GetByteAt(Address & 0x2FFF);
         } else {
             data = ReadDataBuffer;
-            ReadDataBuffer = Data[Address];
+            ReadDataBuffer = Map->GetByteAt(Address);
         }
         Address = (Address + AddressIncrement) & 0x3FFF;
         return data;
@@ -95,18 +106,165 @@ public:
         if (Address >= 0x3F00) {
             PpuPalette.WriteAt(Address - 0x3F00, value);
         } else {
-            Data[Address] = value;
+            Map->SetByteAt(Address, value);
         }
         Address = (Address + AddressIncrement) & 0x3FFF;
     }
 
-    explicit Ppu() {
+    Byte SpriteMultiplexer(Byte background, Byte sprite, bool isBehind) const {
+        if ((background & 0x03) != 0) {
+            if ((sprite & 0x03) != 0) {
+                if (isBehind) {
+                    return background;
+                }
+                else {
+                    return sprite;
+                }
+            }
+            else {
+                return background;
+            }
+        }
+        else {
+            if ((sprite & 0x03) != 0) {
+                return sprite;
+            }
+            else {
+                return 0;
+            }
+        }
+    }
+
+    bool SpriteHit(Byte background, Byte foreground, unsigned int x) const {
+        if (x == 255) return false;
+        if (!ShowBackground || !ShowSprite) return false;
+        if ((ClipBackground || ClipSprite) && (x < 8)) return false;
+
+        const bool hit = (((background & 0x03) > 0) && ((foreground & 0x03) > 0));
+        return hit;
+    }
+
+    std::vector<std::tuple<int, std::array<Byte, 4>>> sprites;
+    void Tick() {
+        const auto y = FrameTicks / VIDEO_WIDTH;
+        const auto x = FrameTicks % VIDEO_WIDTH;
+        //if ((FrameCount%2)==0)
+        if ((y < FRAME_HEIGHT) && (x < FRAME_WIDTH)) {
+            if (x == 0) {
+                sprites.clear();
+                for (auto s = 0; s < 64; s++) {
+                    const auto sy = y - SprRam[4 * s + 0] - 1;
+                    if ((0 <= sy) && (sy < SpriteHeight)) {
+                        sprites.push_back({
+                            s,
+                            {
+                                SprRam[4 * s + 0], SprRam[4 * s + 1],
+                                SprRam[4 * s + 2], SprRam[4 * s + 3]
+                            }
+                        });
+                    }
+                }
+            }
+            auto bg = 0;
+            auto fg = 0;
+            bool isbg = true;
+            if (ShowBackground) {
+                auto tx = (x + ScrollX) / 8; const auto xx = (x + ScrollX) % 8;
+                auto ty = (y + ScrollY) / 8; const auto yy = (y + ScrollY) % 8;
+                auto nt = NameTable;
+                if (tx >= 32) { tx -= 32; nt ^= 0x0400; }
+                if (ty >= 30) { ty -= 30; nt ^= 0x0800; }
+                const auto td = Map->GetByteAt(nt + 32 * ty + tx);
+                const auto taddr = BackgroundTable + 16 * td + yy;
+                auto b = Map->GetByteAt(taddr);
+                auto v = (b >> (7 - xx)) & 0x01;
+                b = Map->GetByteAt(taddr + 8);
+                v += ((b >> (7 - xx)) & 0x01) << 1;
+                const auto atx = tx / 4; const auto aty = ty / 4;
+                const auto a = Map->GetByteAt(nt + 0x03C0 + 8 * aty + atx);
+                v += ((a >> (2 * (tx / 2 % 2) + 4 * (ty / 2 % 2))) & 0x3) << 2;
+                bg = v;
+            }
+            if (ShowSprite) {
+                for (auto i = 0; i < sprites.size(); ++i) {
+                    auto sprite = sprites[i];
+                    auto s = std::get<0>(sprite);
+                    auto data = std::get<1>(sprite);
+                    const auto sy = y - data[0] - 1;
+                    if ((0 <= sy) && (sy < SpriteHeight)) {
+                        const auto sx = x - data[3];
+                        if ((0 <= sx) && (sx < 8)) {
+                            const auto td = data[1];
+                            const auto at = data[2];
+                            const auto flipX = IsBitSet<6>(at);
+                            const auto flipY = IsBitSet<7>(at);
+                            isbg = IsBitSet<5>(at);
+                            int taddr;
+                            if (flipY) taddr = (SpriteHeight - 1 - sy);
+                            else taddr = sy;
+                            if (SpriteHeight == 8) taddr += SpriteTable + 16 * td;
+                            else {
+                                if (taddr >= 8) taddr += 8;
+                                taddr += ((td % 2) * 0x1000) + 16 * (td & 0xFE);
+                            }
+                            auto b = Map->GetByteAt(taddr);
+                            int v;
+                            if (flipX) v = (b >> sx) & 0x01;
+                            else v = (b >> (7 - sx)) & 0x01;
+                            b = Map->GetByteAt(taddr + 8);
+                            if (flipX) v += ((b >> sx) & 0x01) << 1;
+                            else v += ((b >> (7 - sx)) & 0x01) << 1;
+                            v += (at & 0x3) << 2;
+                            v += 0x10;
+                            fg = v;
+
+                            if (s == 0)
+                                SpriteZeroHit = SpriteZeroHit || SpriteHit(bg, fg, x);
+                            if ((fg & 0x03) != 0) break;
+                        }
+                    }
+                }
+            }
+            const auto ci = SpriteMultiplexer(bg, fg, isbg);
+            Frame[VIDEO_WIDTH * y + x] = PpuPalette.ReadAt(ci);
+        }
+
+        //// NMI is activated on tick 1 (second tick) of scanline 241
+        //if ((y == 241) && (x == 1) && NMIOnVBlank)
+        //    NMIActive = true;
+        //// NMI is deactivated after the last tick of scanline 260 (i.e. on (0, 261) (?))
+        //if ((y == 261) && (x == 0))
+        //    NMIActive = false;
+        static constexpr auto NMI_START = 241 * 341 + 1;
+        static constexpr auto NMI_STOP = 261 * 341;
+        if (FrameTicks == NMI_START) VBlank = true;
+        if (FrameTicks == NMI_STOP) VBlank = false;
+        NMIActive = (NMIOnVBlank && VBlank);
+
+        static const auto SPRITE_ZERO_HIT_RESET = 261 * 341;
+        if (FrameTicks == SPRITE_ZERO_HIT_RESET) SpriteZeroHit = false;
+        
+        ++FrameTicks;
+        if (FrameCount % 2 == 1 && FrameTicks == VIDEO_SIZE - 1 && (ShowBackground || ShowSprite)) 
+            ++FrameTicks;
+        if (FrameTicks == VIDEO_SIZE) {
+            FrameTicks = 0;
+            ++FrameCount;
+        }
+    }
+
+    std::array<Byte, 89342> FrameBuffer;
+    void Render() {
+        FrameBuffer.fill(0);
+    }
+
+    explicit Ppu(MemoryMap * map = nullptr) {
         OAMAddress = 0x00;
 
         //IgnoreVramWrites;
         SpriteOverflow = true;
         SpriteZeroHit = false;
-        VBlank = true;
+        VBlank = false;// true;
 
         IsColour = true;
         ClipBackground = true;
@@ -126,8 +284,18 @@ public:
         ScrollX = 0x00;
         ScrollY = 0x00;
 
+        Map = map;
+
         Address = 0x0000;
         ReadDataBuffer = 0x00;
+
+        NMIActive = false;
+        Ticks = 0;
+        Frames = 0;
+
+        FrameTicks = 0;
+        FrameCount = 0;
+        Frame.fill(0x00);
     }
 
     struct {
@@ -165,10 +333,19 @@ public:
 
     Word Address;
 
-    std::array<Byte, 0x3F00> Data;
+    MemoryMap * Map;
+
     Byte ReadDataBuffer;
 
     Palette PpuPalette;
+
+    bool NMIActive;
+    int Ticks;
+    int Frames;
+
+    size_t FrameTicks;
+    size_t FrameCount;
+    std::array<Byte, VIDEO_SIZE> Frame;
 };
 
 #endif /* PPU_H_ */

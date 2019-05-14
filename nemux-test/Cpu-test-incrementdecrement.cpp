@@ -106,6 +106,15 @@ TEST_F(CpuTestIncrementDecrement, DEC_ZeroPageX) {
              Opcode(DEC, ZeroPageX, 2, 6));
 }
 
+TEST_F(CpuTestIncrementDecrement, DEC_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+
+    Test_DEC(Getter(0x0000), Setter(0x0000),
+             Opcode(DEC, ZeroPageX, 2, 6));
+}
+
 TEST_F(CpuTestIncrementDecrement, DEC_Absolute) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
@@ -148,6 +157,15 @@ TEST_F(CpuTestIncrementDecrement, INC_ZeroPageX) {
     cpu.X = 0x08;
 
     Test_INC(Getter(0x0028), Setter(0x0028),
+             Opcode(INC, ZeroPageX, 2, 6));
+}
+
+TEST_F(CpuTestIncrementDecrement, INC_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+
+    Test_INC(Getter(0x0000), Setter(0x0000),
              Opcode(INC, ZeroPageX, 2, 6));
 }
 

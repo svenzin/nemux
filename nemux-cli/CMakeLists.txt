@@ -6,4 +6,4 @@ file (GLOB SOURCES "*.cpp" "*.h")
 include_directories (../nemux)
 
 add_executable (nemux-cli ${SOURCES})
-target_link_libraries (nemux)
+target_link_libraries (nemux-cli nemux)

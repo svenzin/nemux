@@ -170,8 +170,19 @@ TEST_F(CpuTestShift, ASL_ZeroPageX) {
     cpu.X = 0x08;
 
     Test_ASL(
-        [&]              { return cpu.ReadByteAt(0x28); },
-        [&] (Byte value) { cpu.WriteByteAt(0x28, value); },
+        [&]             { return cpu.ReadByteAt(0x28); },
+        [&](Byte value) { cpu.WriteByteAt(0x28, value); },
+        Opcode(ASL, ZeroPageX, 2, 6));
+}
+
+TEST_F(CpuTestShift, ASL_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+
+    Test_ASL(
+        [&]             { return cpu.ReadByteAt(0x0000); },
+        [&](Byte value) { cpu.WriteByteAt(0x0000, value); },
         Opcode(ASL, ZeroPageX, 2, 6));
 }
 
@@ -216,6 +227,14 @@ TEST_F(CpuTestShift, LSR_ZeroPageX) {
              Opcode(LSR, ZeroPageX, 2, 6));
 }
 
+TEST_F(CpuTestShift, LSR_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+    Test_LSR(Getter(0x0000), Setter(0x0000),
+             Opcode(LSR, ZeroPageX, 2, 6));
+}
+
 TEST_F(CpuTestShift, LSR_Absolute) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
@@ -251,6 +270,14 @@ TEST_F(CpuTestShift, ROL_ZeroPageX) {
              Opcode(ROL, ZeroPageX, 2, 6));
 }
 
+TEST_F(CpuTestShift, ROL_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+    Test_ROL(Getter(0x0000), Setter(0x0000),
+             Opcode(ROL, ZeroPageX, 2, 6));
+}
+
 TEST_F(CpuTestShift, ROL_Absolute) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
@@ -283,6 +310,14 @@ TEST_F(CpuTestShift, ROR_ZeroPageX) {
     cpu.WriteByteAt(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
     Test_ROR(Getter(0x0028), Setter(0x0028),
+             Opcode(ROR, ZeroPageX, 2, 6));
+}
+
+TEST_F(CpuTestShift, ROR_ZeroPageX_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x10;
+    Test_ROR(Getter(0x0000), Setter(0x0000),
              Opcode(ROR, ZeroPageX, 2, 6));
 }
 
