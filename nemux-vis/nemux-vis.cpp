@@ -84,7 +84,7 @@ namespace debug {
         return oss.str();
     }
 
-    std::string GetAPU(const Apu & apu) {
+    std::string GetAPU(const Apu<Cpu> & apu) {
         std::stringstream oss;
         oss << "APU Frame Counter " << endl
             << "        Mode " << ((apu.Frame.Mode == 0) ? 4 : 5) << " steps" << endl
@@ -377,11 +377,13 @@ int main(int argc, char ** argv) {
         PpuMemoryMap<Palette> ppumap(nullptr, mapper.get());
         Ppu ppu(&ppumap);
 
-        Apu apu;
+        Apu<Cpu> apu;
 
-        CpuMemoryMap<Cpu, Ppu, Controllers, Apu> cpumap(nullptr, &apu, &ppu, mapper.get(), &ctrl);
+        CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> cpumap(nullptr, &apu, &ppu, mapper.get(), &ctrl);
         Cpu cpu("6502", &cpumap);
         cpumap.CPU = &cpu;
+
+        apu.DMC1.Output.DMA.CPU = &cpu;
 
         cpu.Reset();
 
@@ -648,6 +650,7 @@ int main(int argc, char ** argv) {
                             if (e.key.keysym.sym == SDLK_F2) apu.Pulse2Output = 1 - apu.Pulse2Output;
                             if (e.key.keysym.sym == SDLK_F3) apu.Triangle1Output = 1 - apu.Triangle1Output;
                             if (e.key.keysym.sym == SDLK_F4) apu.Noise1Output = 1 - apu.Noise1Output;
+                            if (e.key.keysym.sym == SDLK_F5) apu.DMC1Output = 1 - apu.DMC1Output;
                             break;
                         }
                         case SDL_KEYUP: {

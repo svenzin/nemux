@@ -267,7 +267,7 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
 
 void Cpu::Tick() {
     ++CurrentTick;
-    static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers, Apu> *>(Map);
+    static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> *>(Map);
     static bool nmi = false;
     if (m != nullptr) {
         if (!nmi && m->PPU->NMIActive) {
@@ -275,7 +275,9 @@ void Cpu::Tick() {
         }
         nmi = m->PPU->NMIActive;
 
-        if (I == 0 && m->APU->Frame.Interrupt) {
+        if (I == 0 && (
+            m->APU->Frame.Interrupt ||
+            m->APU->DMC1.Output.DMA.Interrupt)) {
             TriggerIRQ();
         }
     

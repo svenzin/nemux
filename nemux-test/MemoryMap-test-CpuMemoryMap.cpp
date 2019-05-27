@@ -17,7 +17,7 @@ struct MonitoredCpu {
     );
 };
 
-struct MonitoredApu : public Apu {
+struct MonitoredApu : public Apu<nullptr_t> {
     MOCK_CONST_METHOD0(ReadStatus, Byte());
 
     MOCK_METHOD1(WritePulse1Control, void(const Byte value));

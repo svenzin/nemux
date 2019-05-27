@@ -16,6 +16,33 @@
 //static constexpr size_t VIDEO_HEIGHT = 262;
 //static constexpr size_t VIDEO_SIZE = VIDEO_WIDTH * VIDEO_HEIGHT;
 
+////////////////////////////////////////////////////////////////////////////////
+// Clock divider
+
+struct Divider {
+    int Period;
+    int Counter;
+
+    void SetPeriod(const int p) {
+        Period = p;
+    }
+    
+    void Reset() {
+        Counter = Period;
+    }
+    
+    bool Tick() {
+        --Counter;
+        if (Counter <= 0) {
+            Counter = Period;
+            return true;
+        }
+        return false;
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct FrameCounter {
     struct Clock {
         bool HalfFrame;
@@ -72,7 +99,7 @@ struct FrameCounter {
 struct EnvelopeGenerator {
     bool Restart = false;
     bool Loop = false;
-    bool Enabled = false;
+    bool Enabled = true;
     int Value = 0;
     int Divider = 1;
     int Volume = 0;
@@ -97,7 +124,7 @@ struct EnvelopeGenerator {
 };
 
 struct LengthCounter {
-    int Count = 0;
+    int Count = 0x0A;   // Lengths[0]
     bool Halt = false;
 
     void SetCountIndex(const int value) {
@@ -159,7 +186,7 @@ struct LinearCounter {
     int Count = 0;
     int ReloadValue = 0;
     bool Reload = false;
-    bool Control = true;
+    bool Control = false;
 
     int Tick(const bool quarterFrame) {
         if (quarterFrame) {
@@ -210,6 +237,13 @@ struct Timer {
 };
 
 struct Pulse {
+    explicit Pulse() { //T.Period = 0; }
+        WriteControl(0);
+        WriteSweep(0);
+        WritePeriodLow(0);
+        WritePeriodHigh(0);
+    }
+    
     EnvelopeGenerator Envelope;
     LengthCounter Length;
     Sequencer Sequence;
@@ -247,7 +281,7 @@ struct Pulse {
     }
 
     bool SweepEnabled = false;
-    Byte SweepPeriod = 0;
+    Byte SweepPeriod = 1;
     Byte SweepT = 0;
     bool SweepNegate = false;
     bool SweepAlternativeNegate = false;
@@ -256,7 +290,7 @@ struct Pulse {
     bool SweepReload = false;
     void WriteSweep(const Byte value) {
         SweepEnabled = IsBitSet<7>(value);
-        SweepPeriod = (value >> 4) & 0x07;
+        SweepPeriod = ((value >> 4) & 0x07) + 1;
         SweepNegate = IsBitSet<3>(value);
         SweepAmount = value & 0x07;
         SweepReload = true;
@@ -306,6 +340,8 @@ struct Pulse {
 };
 
 struct Triangle {
+    explicit Triangle() { T.Period = 0; }
+
     bool Enabled = false;
     TriangleSequencer Sequence;
     LengthCounter Length;
@@ -359,6 +395,8 @@ struct ShiftRegister {
 };
 
 struct Noise {
+    explicit Noise() { T.Period = 4; WriteLength(0); } // Periods[0]
+    
     bool Enabled = false;
     Timer T;
     EnvelopeGenerator Envelope;
@@ -403,10 +441,161 @@ struct Noise {
     }
 };
 
+struct SampleBuffer {
+    bool IsEmpty;
+    Byte Sample;
+};
+
+template <class Cpu_t>
+struct DMAReader {
+    Cpu_t * CPU;
+
+    Word SampleAddress = 0xC000;
+    Word SampleLength = 1;
+
+    Word Address;
+    Word Length = 0;
+
+    bool LoopSample = false;
+    bool InterruptEnabled = false;
+
+    bool Interrupt = false;
+
+    SampleBuffer GetSample() {
+        if (Length == 0) return{ true, 0 }; 
+        
+        const auto sample = CPU->ReadByteAt(Address);
+        CPU->Ticks += 4;
+
+        if (Address == 0xFFFF) Address = 0x8000;
+        else ++Address;
+        
+        --Length;
+        if (Length == 0) {
+            if (LoopSample) {
+                Start();
+            }
+            else {
+                Interrupt = InterruptEnabled;
+            }
+        }
+
+        return{ false, sample };
+    }
+
+    void Start() {
+        Address = SampleAddress;
+        Length = SampleLength;
+    }
+};
+
+template <class Cpu_t>
+struct DMCOutput {
+    Byte Value = 0;
+
+    DMAReader<Cpu_t> DMA;
+
+    int BitsRemaining = 0;
+    bool Silent = true;
+    Byte Sample;
+
+    void Start() {
+        BitsRemaining = 8;
+        const auto buffer = DMA.GetSample();
+        Sample = buffer.Sample;
+        Silent = buffer.IsEmpty;
+    }
+
+    Byte Tick(const bool timer) {
+        if (timer) {
+            if (!Silent) {
+                if (IsBitSet<0>(Sample)) {
+                    if (Value <= 125) Value += 2;
+                }
+                else {
+                    if (Value >= 2) Value -= 2;
+                }
+                Sample = (Sample >> 1);
+            }
+
+            --BitsRemaining;
+            if (BitsRemaining <= 0) Start();
+        }
+        
+        return Value;
+    }
+};
+
+template <class Cpu_t>
+struct DMC {
+    explicit DMC() { T.Period = 0x1AC; } // Periods[0]
+    
+    DMCOutput<Cpu_t> Output;
+    Timer T;
+
+    void WriteDAC(const Byte value) {
+        Output.Value = value & 0x7F;
+    }
+
+    void WriteFrequency(const Byte value) {
+        static constexpr Word Periods[0x10] = {
+            0x01AC, 0x017C, 0x0154, 0x0140,
+            0x011E, 0x00FE, 0x00E2, 0x00D6,
+            0x00BE, 0x00A0, 0x008E, 0x0080,
+            0x006A, 0x0054, 0x0048, 0x0036
+        };
+        T.Period = Periods[value & 0x0F];
+
+        Output.DMA.LoopSample = IsBitSet<6>(value);
+        Output.DMA.InterruptEnabled = IsBitSet<7>(value);
+        Output.DMA.Interrupt = (Output.DMA.Interrupt && Output.DMA.InterruptEnabled);
+    }
+
+    void WriteAddress(const Byte value) {
+        Output.DMA.SampleAddress = 0xC000 | (value << 6);
+    }
+    
+    void WriteLength(const Byte value) {
+        Output.DMA.SampleLength = 0x0001 | (value << 4);
+    }
+
+    Byte Tick(const FrameCounter::Clock clock) {
+        const bool timer = T.Tick();
+        const auto output = Output.Tick(timer);
+        return output;
+    }
+};
+
+template <class Cpu_t>
 class Apu {
 public:
     explicit Apu() {
+        WriteCommonEnable(0);
+        WriteCommonControl(0);
+        
         Pulse1.SweepAlternativeNegate = true;
+        WritePulse1Control(0);
+        WritePulse1Sweep(0);
+        WritePulse1PeriodLo(0);
+        WritePulse1PeriodHi(0);
+
+        WritePulse2Control(0);
+        WritePulse2Sweep(0);
+        WritePulse2PeriodLo(0);
+        WritePulse2PeriodHi(0);
+
+        WriteTriangleControl(0);
+        WriteTrianglePeriodLo(0);
+        WriteTrianglePeriodHi(0);
+
+        WriteNoiseControl(0);
+        WriteNoisePeriod(0);
+        WriteNoiseLength(0);
+
+        WriteDMCFrequency(0);
+        WriteDMCDAC(0);
+        WriteDMCAddress(0);
+        WriteDMCLength(0);
     }
 
     void WritePulse1Control(const Byte value) { Pulse1.WriteControl(value); }
@@ -427,16 +616,25 @@ public:
     void WriteNoisePeriod(const Byte value) { Noise1.WritePeriod(value); }
     void WriteNoiseLength(const Byte value) { Noise1.WriteLength(value); }
 
-    void WriteDMCFrequency(const Byte value) {}
-    void WriteDMCDAC(const Byte value) {}
-    void WriteDMCAddress(const Byte value) {}
-    void WriteDMCLength(const Byte value) {}
+    void WriteDMCFrequency(const Byte value) { DMC1.WriteFrequency(value); }
+    void WriteDMCDAC(const Byte value) { DMC1.WriteDAC(value); }
+    void WriteDMCAddress(const Byte value) { DMC1.WriteAddress(value); }
+    void WriteDMCLength(const Byte value) { DMC1.WriteLength(value); }
     
     void WriteCommonEnable(const Byte value) {
         Pulse1.Enable(IsBitSet<0>(value));
         Pulse2.Enable(IsBitSet<1>(value));
         Triangle1.Enabled = IsBitSet<2>(value);
         Noise1.Enabled = IsBitSet<3>(value);
+        
+        const bool dmcEnabled = IsBitSet<4>(value);
+        if (dmcEnabled) {
+            if (DMC1.Output.DMA.Length == 0) DMC1.Output.DMA.Start();
+        }
+        else {
+            DMC1.Output.DMA.Length = 0;
+        }
+        DMC1.Output.DMA.Interrupt = false;
     }
     void WriteCommonControl(const Byte value) {
         Frame.WriteControl(value);
@@ -449,7 +647,9 @@ public:
             + Mask<1>(Pulse2.Length.Count > 0)
             + Mask<2>(Triangle1.Length.Count > 0)
             + Mask<3>(Noise1.Length.Count > 0)
-            + Mask<6>(FrameInterrupt);
+            + Mask<4>(DMC1.Output.DMA.Length > 0)
+            + Mask<6>(FrameInterrupt)
+            + Mask<7>(DMC1.Output.DMA.Interrupt);
     }
 
     float Tick() {
@@ -462,10 +662,10 @@ public:
 
         const auto triangle = Triangle1Output * Triangle1.Tick(clock);
         const auto noise = Noise1Output * Noise1.Tick(clock);
+        const auto dmc = DMC1Output * DMC1.Tick(clock);
 
-        const auto tndOut = 159.79f / (100.0f + 1.0f / (triangle / 8227.0f + noise / 12241.0f));
+        const auto tndOut = 159.79f / (100.0f + 1.0f / (triangle / 8227.0f + noise / 12241.0f + dmc / 22638.0f));
 
-        //return tndOut;
         return squareOut + tndOut;
     }
 
@@ -482,6 +682,9 @@ public:
 
     int Noise1Output = 1;
     Noise Noise1;
+
+    int DMC1Output = 1;
+    DMC<Cpu_t> DMC1;
 };
 
 #endif /* APU_H_ */

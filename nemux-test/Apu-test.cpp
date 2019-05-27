@@ -1,13 +1,30 @@
 #include "gtest/gtest.h"
+#include "gmock/gmock.h"
+
+using ::testing::Return;
+using ::testing::_;
 
 #include "Apu.h"
 
+#include "Cpu.h"
+#include "MemoryMap.h"
+#include "Ppu.h"
+#include "Controllers.h"
+
 //using namespace std;
+
+struct MonitoredNesMapper : public NesMapper {
+    MOCK_CONST_METHOD1(NametableAddress, Word(const Word address));
+    MOCK_CONST_METHOD1(GetCpuAt, Byte(const Word address));
+    MOCK_METHOD2(SetCpuAt, void(const Word address, const Byte value));
+    MOCK_CONST_METHOD1(GetPpuAt, Byte(const Word address));
+    MOCK_METHOD2(SetPpuAt, void(const Word address, const Byte value));
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 
 struct ApuTest : public ::testing::Test {
-    Apu apu;
+    Apu<Cpu> apu;
     Pulse pulse;
     FrameCounter frame;
     LengthCounter length;
@@ -16,8 +33,25 @@ struct ApuTest : public ::testing::Test {
     LinearCounter linear;
     Noise noise;
     ShiftRegister shift;
+    DMC<Cpu> dmc;
 
-    ApuTest() {}
+    Cpu cpu;
+    Ppu ppu;
+    Controllers ctrl;
+    CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> cpumap;
+    MonitoredNesMapper mapper;
+    DMAReader<Cpu> dma;
+    
+    DMCOutput<Cpu> output;
+
+    ApuTest() :
+        cpu(""),
+        cpumap(&cpu, &apu, &ppu, &mapper, &ctrl)
+    {
+        cpu.Map = &cpumap;
+        dma.CPU = &cpu;
+        output.DMA = dma;
+    }
 
     Byte CreatePulseControl(int duty, bool halt, bool constant, int volume) {
         return ((duty & 0x03) << 6) + Mask<5>(halt) + Mask<4>(constant) + (volume & 0x0F);
@@ -199,134 +233,6 @@ TEST_F(ApuTest, Pulse_LengthPausedDuringHalt) {
     for (int i = 0; i < 12; ++i) EXPECT_EQ(0, length.Tick(true));
 }
 
-TEST_F(ApuTest, FrameCounter_Mode4WithoutInterrupt) {
-    frame.WriteControl(0x40);
-    EXPECT_TRUE(frame.HideInterrupt);
-    const auto ExpectCounter = [](bool expHalf, bool expQuarter, FrameCounter::Clock actual) {
-        EXPECT_EQ(expHalf, actual.HalfFrame);
-        EXPECT_EQ(expQuarter, actual.QuarterFrame);
-    };
-    for (size_t i = 0; i < 29830; i++) {
-        if (i == 7457) ExpectCounter(false, true, frame.Tick());
-        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
-        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
-        else if (i == 29829) ExpectCounter(true, true, frame.Tick());
-        else ExpectCounter(false, false, frame.Tick());
-        EXPECT_FALSE(frame.Interrupt);
-    }
-    // Loop
-    for (size_t i = 0; i < 29830; i++) {
-        if (i == 7457) ExpectCounter(false, true, frame.Tick());
-        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
-        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
-        else if (i == 29829) ExpectCounter(true, true, frame.Tick());
-        else ExpectCounter(false, false, frame.Tick());
-        EXPECT_FALSE(frame.Interrupt);
-    }
-}
-
-TEST_F(ApuTest, FrameCounter_Mode4WithInterrupt) {
-    frame.WriteControl(0x00);
-    EXPECT_FALSE(frame.HideInterrupt);
-    const auto ExpectCounter = [](bool expHalf, bool expQuarter, FrameCounter::Clock actual) {
-        EXPECT_EQ(expHalf, actual.HalfFrame);
-        EXPECT_EQ(expQuarter, actual.QuarterFrame);
-    };
-    for (size_t i = 0; i < 29830; i++) {
-        if (i < 7457) ExpectCounter(false, false, frame.Tick());
-        else if (i == 7457) ExpectCounter(false, true, frame.Tick());
-        else if (i < 14913) ExpectCounter(false, false, frame.Tick());
-        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
-        else if (i < 22371) ExpectCounter(false, false, frame.Tick());
-        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
-        else if (i < 29828) ExpectCounter(false, false, frame.Tick());
-        else if (i == 29828) ExpectCounter(false, false, frame.Tick());
-        else if (i == 29829) ExpectCounter(true, true, frame.Tick());
-
-        if (i == 29828) EXPECT_TRUE(frame.Interrupt);
-        else if (i == 29829) EXPECT_TRUE(frame.Interrupt);
-        else EXPECT_FALSE(frame.Interrupt);
-    }
-    // Loop
-    for (size_t i = 0; i < 29830; i++) {
-        if (i == 0) ExpectCounter(false, false, frame.Tick());
-        else if (i < 7457) ExpectCounter(false, false, frame.Tick());
-        else if (i == 7457) ExpectCounter(false, true, frame.Tick());
-        else if (i < 14913) ExpectCounter(false, false, frame.Tick());
-        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
-        else if (i < 22371) ExpectCounter(false, false, frame.Tick());
-        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
-        else if (i < 29828) ExpectCounter(false, false, frame.Tick());
-        else if (i == 29828) ExpectCounter(false, false, frame.Tick());
-        else if (i == 29829) ExpectCounter(true, true, frame.Tick());
-        
-        if (i == 0) EXPECT_TRUE(frame.Interrupt);
-        else if (i == 29828) EXPECT_TRUE(frame.Interrupt);
-        else if (i == 29829) EXPECT_TRUE(frame.Interrupt);
-        else EXPECT_FALSE(frame.Interrupt);
-    }
-}
-
-TEST_F(ApuTest, FrameCounter_Mode5) {
-    frame.WriteControl(0x80);
-    const auto ExpectCounter = [](bool expHalf, bool expQuarter, FrameCounter::Clock actual) {
-        EXPECT_EQ(expHalf, actual.HalfFrame);
-        EXPECT_EQ(expQuarter, actual.QuarterFrame);
-    };
-    for (size_t i = 0; i < 37282; i++) {
-        if (i == 7457) ExpectCounter(false, true, frame.Tick());
-        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
-        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
-        else if (i == 37281) ExpectCounter(true, true, frame.Tick());
-        else ExpectCounter(false, false, frame.Tick());
-        EXPECT_FALSE(frame.Interrupt);
-    }
-    // Loop
-    for (size_t i = 0; i < 37282; i++) {
-        if (i == 7457) ExpectCounter(false, true, frame.Tick());
-        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
-        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
-        else if (i == 37281) ExpectCounter(true, true, frame.Tick());
-        else ExpectCounter(false, false, frame.Tick());
-        EXPECT_FALSE(frame.Interrupt);
-    }
-}
-
-TEST_F(ApuTest, FrameCounter_ReadStatus) {
-    apu.WriteCommonControl(0x00);
-    
-    // Reading status clears frame interrupt for the rest of the frame
-    for (size_t i = 0; i < 29828; i++) {
-        apu.Tick();
-        EXPECT_FALSE(apu.Frame.Interrupt);
-    }
-    EXPECT_FALSE(IsBitSet<6>(apu.ReadStatus()));
-
-    apu.Tick();
-    EXPECT_TRUE(apu.Frame.Interrupt);
-    EXPECT_TRUE(IsBitSet<6>(apu.ReadStatus()));
-
-    apu.Tick();
-    EXPECT_FALSE(apu.Frame.Interrupt);
-    EXPECT_FALSE(IsBitSet<6>(apu.ReadStatus()));
-
-    // Next frame
-    apu.Tick();
-    EXPECT_FALSE(apu.Frame.Interrupt); // First frame tick is previous frame's interrupt
-    for (size_t i = 1; i < 29828; i++) {
-        apu.Tick();
-        EXPECT_FALSE(apu.Frame.Interrupt);
-    }
-    apu.Tick();
-    EXPECT_TRUE(apu.Frame.Interrupt);
-    apu.Tick();
-    EXPECT_TRUE(apu.Frame.Interrupt);
-    apu.Tick();
-    EXPECT_TRUE(apu.Frame.Interrupt);
-    apu.Tick();
-    EXPECT_FALSE(apu.Frame.Interrupt);
-}
-
 TEST_F(ApuTest, Pulse_Sweep_SetValues) {
     pulse.WriteSweep(0x00);
     EXPECT_EQ(false, pulse.SweepEnabled);
@@ -341,7 +247,7 @@ TEST_F(ApuTest, Pulse_Sweep_SetValues) {
     EXPECT_EQ(true, pulse.SweepNegate);
 
     pulse.WriteSweep(0x50);
-    EXPECT_EQ(5, pulse.SweepPeriod);
+    EXPECT_EQ(5 + 1, pulse.SweepPeriod);
 
     pulse.WriteSweep(0x05);
     EXPECT_EQ(5, pulse.SweepAmount);
@@ -389,7 +295,7 @@ TEST_F(ApuTest, Pulse_Sweep_MuteOnInvalidTargetPeriod) {
 TEST_F(ApuTest, Pulse_Sweep_UpdatePeriod) {
     // Enabled, Period = 4 half-frames
     pulse.T.Period = 0x0142;
-    pulse.WriteSweep(0xC2);
+    pulse.WriteSweep(0xB2); // 1011 0010 : Enabled / P=3+1 / A=2
     EXPECT_EQ(1, pulse.TickSweep(true));
     EXPECT_EQ(0x0142, pulse.T.Period);
     EXPECT_EQ(1, pulse.TickSweep(true));
@@ -409,7 +315,7 @@ TEST_F(ApuTest, Pulse_Sweep_UpdatePeriod) {
 
     // Disabled, Period = 4 half-frames
     pulse.T.Period = 0x0142;
-    pulse.WriteSweep(0x72);
+    pulse.WriteSweep(0x72); // 0111 0010 : Disabled / P=3+1 / A=2
     EXPECT_EQ(1, pulse.TickSweep(true));
     EXPECT_EQ(0x0142, pulse.T.Period);
     EXPECT_EQ(1, pulse.TickSweep(true));
@@ -462,13 +368,13 @@ TEST_F(ApuTest, Pulse_Sweep_NoUpdateWhenShiftIsZero) {
 TEST_F(ApuTest, Pulse_Sweep_Reload) {
     // Enabled, Period = 5
     pulse.T.Period = 0x0100;
-    pulse.WriteSweep(0xD1);
+    pulse.WriteSweep(0xC1); // 1100 0001 : Enabled / P=4+1 / Positive / A=1
     EXPECT_EQ(5, pulse.SweepPeriod);
     EXPECT_EQ(0, pulse.SweepT);
     pulse.TickSweep(true);
     EXPECT_EQ(5, pulse.SweepPeriod);
     EXPECT_EQ(5, pulse.SweepT);
-    pulse.WriteSweep(0xE1);
+    pulse.WriteSweep(0xD1); // 1101 0001 : Enabled / P=5+1 / Positive / A=1
     EXPECT_EQ(6, pulse.SweepPeriod);
     EXPECT_EQ(5, pulse.SweepT);
     pulse.TickSweep(true);
@@ -493,7 +399,7 @@ TEST_F(ApuTest, Pulse_Envelope_DecreasingEnvelope) {
     pulse.WriteControl(ctrl);
 
     // Write CounterLength sets restart flag
-    EXPECT_FALSE(pulse.Envelope.Restart);
+    pulse.Envelope.Restart = false;
     pulse.WritePeriodHigh(0x22);
     EXPECT_TRUE(pulse.Envelope.Restart);
 
@@ -614,8 +520,8 @@ TEST_F(ApuTest, Triangle_LinearCounterReload) {
 }
 
 TEST_F(ApuTest, Triangle_LinearCounterClearReloadOnControl) {
-    EXPECT_FALSE(linear.Reload);
-    EXPECT_TRUE(linear.Control);
+    linear.Reload = false;
+    linear.Control = true;
     
     linear.Tick(true);
     EXPECT_FALSE(linear.Reload);
@@ -633,6 +539,7 @@ TEST_F(ApuTest, Triangle_LinearCounterClearReloadOnControl) {
 }
 
 TEST_F(ApuTest, Triangle_LinearCounterNoChangeWhenNoQFrame) {
+    linear.Control = true;
     linear.Count = 100;
     linear.ReloadValue = 100;
 
@@ -731,4 +638,638 @@ TEST_F(ApuTest, Status_ReadLengths) {
     EXPECT_FALSE(IsBitSet<3>(apu.ReadStatus()));
     apu.Noise1.Length.Count = 10;
     EXPECT_TRUE(IsBitSet<3>(apu.ReadStatus()));
+
+    apu.DMC1.Output.DMA.Length = 0;
+    EXPECT_FALSE(IsBitSet<4>(apu.ReadStatus()));
+    apu.DMC1.Output.DMA.Length = 10;
+    EXPECT_TRUE(IsBitSet<4>(apu.ReadStatus()));
+
+    apu.DMC1.Output.DMA.Interrupt = false;
+    EXPECT_FALSE(IsBitSet<7>(apu.ReadStatus()));
+    apu.DMC1.Output.DMA.Interrupt = true;
+    EXPECT_TRUE(IsBitSet<7>(apu.ReadStatus()));
+}
+
+TEST_F(ApuTest, DMC_Startup) {
+    EXPECT_EQ(0, dmc.Output.Value);
+
+    // 0x4015 = 0x00
+    // 0x4000-0x400F = 0x00
+}
+
+TEST_F(ApuTest, DMC_Reset) {
+    FAIL();
+}
+
+TEST_F(ApuTest, DMC_DirectLoad) {
+    dmc.WriteDAC(0x4A);
+    EXPECT_EQ(0x4A, dmc.Output.Value);
+}
+
+TEST_F(ApuTest, DMC_SetFrequency) {
+    int Freqs[0x10] = {
+        428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106,  84,  72,  54
+    };
+    for (size_t i = 0; i < 0x10; i++) {
+        dmc.WriteFrequency(i);
+        EXPECT_EQ(Freqs[i], dmc.T.Period);
+    }
+}
+
+TEST_F(ApuTest, DMC_SetDMAAddressAndLength) {
+    for (size_t b = 0x00; b <= 0xFF; ++b) {
+        dmc.WriteAddress(b);
+        EXPECT_EQ(0xC000 + 64 * b, dmc.Output.DMA.SampleAddress);
+    }
+
+    for (size_t b = 0x00; b <= 0xFF; ++b) {
+        dmc.WriteLength(b);
+        EXPECT_EQ(1 + 16 * b, dmc.Output.DMA.SampleLength);
+    }
+}
+
+TEST_F(ApuTest, DMC_SetLoopOrInterrupt) {
+    EXPECT_FALSE(dmc.Output.DMA.LoopSample);
+    EXPECT_FALSE(dmc.Output.DMA.InterruptEnabled);
+
+    dmc.WriteFrequency(0x40);
+    EXPECT_TRUE(dmc.Output.DMA.LoopSample);
+
+    dmc.WriteFrequency(0x80);
+    EXPECT_TRUE(dmc.Output.DMA.InterruptEnabled);
+}
+
+TEST_F(ApuTest, DMC_DMA_StallCPU) {
+    FAIL();
+}
+
+TEST_F(ApuTest, DMC_DMA_FillBuffer) {
+    dma.SampleAddress = 0xC000;
+    dma.SampleLength = 0x02;
+    dma.Start();
+
+    {
+        EXPECT_CALL(mapper, GetCpuAt(0xC000)).WillOnce(Return(0xBE));
+        const auto buffer = dma.GetSample();
+        EXPECT_FALSE(buffer.IsEmpty);
+        EXPECT_EQ(0xBE, buffer.Sample);
+    }
+
+    {
+        EXPECT_CALL(mapper, GetCpuAt(0xC001)).WillOnce(Return(0xEF));
+        const auto buffer = dma.GetSample();
+        EXPECT_FALSE(buffer.IsEmpty);
+        EXPECT_EQ(0xEF, buffer.Sample);
+    }
+
+    {
+        EXPECT_CALL(mapper, GetCpuAt(_)).Times(0);
+        const auto buffer = dma.GetSample();
+        EXPECT_TRUE(buffer.IsEmpty);
+    }
+}
+
+TEST_F(ApuTest, DMC_DMA_FillBufferWithWrapping) {
+    dma.SampleAddress = 0xFFFF;
+    dma.SampleLength = 0x02;
+    dma.Start();
+
+    {
+        EXPECT_CALL(mapper, GetCpuAt(0xFFFF)).WillOnce(Return(0xBE));
+        const auto buffer = dma.GetSample();
+        EXPECT_FALSE(buffer.IsEmpty);
+        EXPECT_EQ(0xBE, buffer.Sample);
+    }
+
+    {
+        EXPECT_CALL(mapper, GetCpuAt(0x8000)).WillOnce(Return(0xEF));
+        const auto buffer = dma.GetSample();
+        EXPECT_FALSE(buffer.IsEmpty);
+        EXPECT_EQ(0xEF, buffer.Sample);
+    }
+
+    {
+        EXPECT_CALL(mapper, GetCpuAt(_)).Times(0);
+        const auto buffer = dma.GetSample();
+        EXPECT_TRUE(buffer.IsEmpty);
+    }
+}
+
+TEST_F(ApuTest, DMC_DMA_LoopSample) {
+    dma.SampleAddress = 0xC000;
+    dma.SampleLength = 0x02;
+    dma.LoopSample = true;
+    dma.Start();
+
+    {
+        EXPECT_CALL(mapper, GetCpuAt(0xC000)).WillOnce(Return(0xBE));
+        const auto buffer = dma.GetSample();
+        EXPECT_FALSE(buffer.IsEmpty);
+        EXPECT_EQ(0xBE, buffer.Sample);
+    }
+
+    {
+        EXPECT_CALL(mapper, GetCpuAt(0xC001)).WillOnce(Return(0xEF));
+        const auto buffer = dma.GetSample();
+        EXPECT_FALSE(buffer.IsEmpty);
+        EXPECT_EQ(0xEF, buffer.Sample);
+    }
+
+    {
+        EXPECT_CALL(mapper, GetCpuAt(0xC000)).WillOnce(Return(0xBE));
+        const auto buffer = dma.GetSample();
+        EXPECT_FALSE(buffer.IsEmpty);
+        EXPECT_EQ(0xBE, buffer.Sample);
+    }
+
+    {
+        EXPECT_CALL(mapper, GetCpuAt(0xC001)).WillOnce(Return(0xEF));
+        const auto buffer = dma.GetSample();
+        EXPECT_FALSE(buffer.IsEmpty);
+        EXPECT_EQ(0xEF, buffer.Sample);
+    }
+}
+
+TEST_F(ApuTest, DMC_DMA_TriggerInterrupt) {
+    dma.SampleAddress = 0xFFFF;
+    dma.SampleLength = 0x02;
+    dma.InterruptEnabled = true;
+    dma.Start();
+
+    {
+        EXPECT_CALL(mapper, GetCpuAt(0xFFFF)).WillOnce(Return(0xBE));
+        const auto buffer = dma.GetSample();
+        EXPECT_FALSE(buffer.IsEmpty);
+        EXPECT_EQ(0xBE, buffer.Sample);
+        EXPECT_FALSE(dma.Interrupt);
+    }
+
+    // Interrupt is asserted when the last sample byte is read
+    // Not when the last sample is finished
+    {
+        EXPECT_CALL(mapper, GetCpuAt(0x8000)).WillOnce(Return(0xEF));
+        const auto buffer = dma.GetSample();
+        EXPECT_FALSE(buffer.IsEmpty);
+        EXPECT_EQ(0xEF, buffer.Sample);
+        EXPECT_TRUE(dma.Interrupt);
+    }
+
+    {
+        EXPECT_CALL(mapper, GetCpuAt(_)).Times(0);
+        const auto buffer = dma.GetSample();
+        EXPECT_TRUE(buffer.IsEmpty);
+        EXPECT_TRUE(dma.Interrupt);
+    }
+
+    // Interrupt is still asserted until the CPU clears the interrupt flag
+    dma.InterruptEnabled = false;
+    {
+        EXPECT_CALL(mapper, GetCpuAt(_)).Times(0);
+        const auto buffer = dma.GetSample();
+        EXPECT_TRUE(buffer.IsEmpty);
+        EXPECT_TRUE(dma.Interrupt);
+    }
+    dma.Interrupt = false;
+    {
+        EXPECT_CALL(mapper, GetCpuAt(_)).Times(0);
+        const auto buffer = dma.GetSample();
+        EXPECT_TRUE(buffer.IsEmpty);
+        EXPECT_FALSE(dma.Interrupt);
+    }
+}
+
+TEST_F(ApuTest, DMC_ClearDMAInterrupt) {
+    FAIL();
+}
+
+TEST_F(ApuTest, DMC_OutputStartup) {
+    EXPECT_EQ(0, output.Value);
+    EXPECT_EQ(0, output.BitsRemaining);
+    EXPECT_TRUE(output.Silent);
+}
+
+TEST_F(ApuTest, DMC_Output_StartCycle) {
+    ON_CALL(mapper, GetCpuAt(_)).WillByDefault(Return(0xAA));
+
+    output.BitsRemaining = 1;
+    output.Tick(true);
+    EXPECT_EQ(8, output.BitsRemaining);
+
+    {
+        output.DMA.Address = 0x8000;
+        output.DMA.Length = 1;
+        output.BitsRemaining = 1;
+        output.Tick(true);
+        EXPECT_EQ(0xAA, output.Sample);
+        EXPECT_FALSE(output.Silent);
+    }
+
+    {
+        output.DMA.Length = 0;
+        output.BitsRemaining = 1;
+        output.Tick(true);
+        EXPECT_EQ(0x00, output.Sample);
+        EXPECT_TRUE(output.Silent);
+    }
+}
+
+TEST_F(ApuTest, DMC_Output_TickWhenSilent) {
+    output.Value = 0x20;
+    output.DMA.Length = 0;
+    output.BitsRemaining = 1;
+
+    EXPECT_EQ(0x20, output.Tick(true));
+    EXPECT_EQ(8, output.BitsRemaining);
+    EXPECT_TRUE(output.Silent);
+
+    EXPECT_EQ(0x20, output.Tick(true));
+    EXPECT_EQ(7, output.BitsRemaining);
+    EXPECT_TRUE(output.Silent);
+
+    EXPECT_EQ(0x20, output.Tick(true));
+    EXPECT_EQ(6, output.BitsRemaining);
+    EXPECT_TRUE(output.Silent);
+
+    EXPECT_EQ(0x20, output.Tick(true));
+    EXPECT_EQ(5, output.BitsRemaining);
+    EXPECT_TRUE(output.Silent);
+
+    EXPECT_EQ(0x20, output.Tick(true));
+    EXPECT_EQ(4, output.BitsRemaining);
+    EXPECT_TRUE(output.Silent);
+
+    EXPECT_EQ(0x20, output.Tick(true));
+    EXPECT_EQ(3, output.BitsRemaining);
+    EXPECT_TRUE(output.Silent);
+
+    EXPECT_EQ(0x20, output.Tick(true));
+    EXPECT_EQ(2, output.BitsRemaining);
+    EXPECT_TRUE(output.Silent);
+
+    EXPECT_EQ(0x20, output.Tick(true));
+    EXPECT_EQ(1, output.BitsRemaining);
+    EXPECT_TRUE(output.Silent);
+
+    EXPECT_EQ(0x20, output.Tick(true));
+    EXPECT_EQ(8, output.BitsRemaining);
+    EXPECT_TRUE(output.Silent);
+}
+
+TEST_F(ApuTest, DMC_Output_TickWhenNotSilent_Increasing) {
+    // 0xFD = 11111101
+    // Sequence is +2, -2, +2, +2, +2, +2, +2, +2
+    ON_CALL(mapper, GetCpuAt(_)).WillByDefault(Return(0xFD));
+    
+    output.Value = 0x7C;
+    output.DMA.Length = 1;
+    output.BitsRemaining = 1;
+
+    EXPECT_EQ(0x7C, output.Tick(true));
+    EXPECT_EQ(8, output.BitsRemaining);
+    EXPECT_FALSE(output.Silent);
+
+    EXPECT_EQ(0x7E, output.Tick(true));
+    EXPECT_EQ(7, output.BitsRemaining);
+    EXPECT_FALSE(output.Silent);
+
+    EXPECT_EQ(0x7C, output.Tick(true));
+    EXPECT_EQ(6, output.BitsRemaining);
+    EXPECT_FALSE(output.Silent);
+
+    EXPECT_EQ(0x7E, output.Tick(true));
+    EXPECT_EQ(5, output.BitsRemaining);
+    EXPECT_FALSE(output.Silent);
+
+    EXPECT_EQ(0x7E, output.Tick(true));
+    EXPECT_EQ(4, output.BitsRemaining);
+    EXPECT_FALSE(output.Silent);
+}
+
+TEST_F(ApuTest, DMC_Output_TickWhenNotSilent_Decreasing) {
+    // 0x02 = 00000010
+    // Sequence is -2, +2, -2, -2, -2, -2, -2, -2
+    ON_CALL(mapper, GetCpuAt(_)).WillByDefault(Return(0x02));
+
+    output.Value = 0x05;
+    output.DMA.Length = 1;
+    output.BitsRemaining = 1;
+
+    EXPECT_EQ(0x05, output.Tick(true));
+    EXPECT_EQ(8, output.BitsRemaining);
+    EXPECT_FALSE(output.Silent);
+
+    EXPECT_EQ(0x03, output.Tick(true));
+    EXPECT_EQ(7, output.BitsRemaining);
+    EXPECT_FALSE(output.Silent);
+
+    EXPECT_EQ(0x05, output.Tick(true));
+    EXPECT_EQ(6, output.BitsRemaining);
+    EXPECT_FALSE(output.Silent);
+
+    EXPECT_EQ(0x03, output.Tick(true));
+    EXPECT_EQ(5, output.BitsRemaining);
+    EXPECT_FALSE(output.Silent);
+
+    EXPECT_EQ(0x01, output.Tick(true));
+    EXPECT_EQ(4, output.BitsRemaining);
+    EXPECT_FALSE(output.Silent);
+}
+
+TEST_F(ApuTest, DMC_Output_NonTick) {
+    ON_CALL(mapper, GetCpuAt(_)).WillByDefault(Return(0xFF));
+
+    output.Value = 0x10;
+    output.DMA.Length = 1;
+    output.BitsRemaining = 1;
+
+    EXPECT_EQ(0x10, output.Tick(true));
+    EXPECT_EQ(8, output.BitsRemaining);
+    EXPECT_FALSE(output.Silent);
+
+    EXPECT_EQ(0x12, output.Tick(true));
+    EXPECT_EQ(7, output.BitsRemaining);
+    EXPECT_FALSE(output.Silent);
+
+    EXPECT_EQ(0x12, output.Tick(false));
+    EXPECT_EQ(7, output.BitsRemaining);
+    EXPECT_FALSE(output.Silent);
+
+    EXPECT_EQ(0x14, output.Tick(true));
+    EXPECT_EQ(6, output.BitsRemaining);
+    EXPECT_FALSE(output.Silent);
+
+    EXPECT_EQ(0x14, output.Tick(false));
+    EXPECT_EQ(6, output.BitsRemaining);
+    EXPECT_FALSE(output.Silent);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Reviewing
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(ApuTest, FrameCounter_Mode4WithoutInterrupt) {
+    frame.WriteControl(0x40);
+    EXPECT_TRUE(frame.HideInterrupt);
+    const auto ExpectCounter = [](bool expHalf, bool expQuarter, FrameCounter::Clock actual) {
+        EXPECT_EQ(expHalf, actual.HalfFrame);
+        EXPECT_EQ(expQuarter, actual.QuarterFrame);
+    };
+    for (size_t i = 0; i < 29830; i++) {
+        if (i == 7457) ExpectCounter(false, true, frame.Tick());
+        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
+        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
+        else if (i == 29829) ExpectCounter(true, true, frame.Tick());
+        else ExpectCounter(false, false, frame.Tick());
+        EXPECT_FALSE(frame.Interrupt);
+    }
+    // Loop
+    for (size_t i = 0; i < 29830; i++) {
+        if (i == 7457) ExpectCounter(false, true, frame.Tick());
+        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
+        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
+        else if (i == 29829) ExpectCounter(true, true, frame.Tick());
+        else ExpectCounter(false, false, frame.Tick());
+        EXPECT_FALSE(frame.Interrupt);
+    }
+}
+
+TEST_F(ApuTest, FrameCounter_Mode4WithInterrupt) {
+    frame.WriteControl(0x00);
+    EXPECT_FALSE(frame.HideInterrupt);
+    const auto ExpectCounter = [](bool expHalf, bool expQuarter, FrameCounter::Clock actual) {
+        EXPECT_EQ(expHalf, actual.HalfFrame);
+        EXPECT_EQ(expQuarter, actual.QuarterFrame);
+    };
+    for (size_t i = 0; i < 29830; i++) {
+        if (i < 7457) ExpectCounter(false, false, frame.Tick());
+        else if (i == 7457) ExpectCounter(false, true, frame.Tick());
+        else if (i < 14913) ExpectCounter(false, false, frame.Tick());
+        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
+        else if (i < 22371) ExpectCounter(false, false, frame.Tick());
+        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
+        else if (i < 29828) ExpectCounter(false, false, frame.Tick());
+        else if (i == 29828) ExpectCounter(false, false, frame.Tick());
+        else if (i == 29829) ExpectCounter(true, true, frame.Tick());
+
+        if (i == 29828) EXPECT_TRUE(frame.Interrupt);
+        else if (i == 29829) EXPECT_TRUE(frame.Interrupt);
+        else EXPECT_FALSE(frame.Interrupt);
+    }
+    // Loop
+    for (size_t i = 0; i < 29830; i++) {
+        if (i == 0) ExpectCounter(false, false, frame.Tick());
+        else if (i < 7457) ExpectCounter(false, false, frame.Tick());
+        else if (i == 7457) ExpectCounter(false, true, frame.Tick());
+        else if (i < 14913) ExpectCounter(false, false, frame.Tick());
+        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
+        else if (i < 22371) ExpectCounter(false, false, frame.Tick());
+        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
+        else if (i < 29828) ExpectCounter(false, false, frame.Tick());
+        else if (i == 29828) ExpectCounter(false, false, frame.Tick());
+        else if (i == 29829) ExpectCounter(true, true, frame.Tick());
+
+        if (i == 0) EXPECT_TRUE(frame.Interrupt);
+        else if (i == 29828) EXPECT_TRUE(frame.Interrupt);
+        else if (i == 29829) EXPECT_TRUE(frame.Interrupt);
+        else EXPECT_FALSE(frame.Interrupt);
+    }
+}
+
+TEST_F(ApuTest, FrameCounter_Mode5) {
+    frame.WriteControl(0x80);
+    const auto ExpectCounter = [](bool expHalf, bool expQuarter, FrameCounter::Clock actual) {
+        EXPECT_EQ(expHalf, actual.HalfFrame);
+        EXPECT_EQ(expQuarter, actual.QuarterFrame);
+    };
+    for (size_t i = 0; i < 37282; i++) {
+        if (i == 7457) ExpectCounter(false, true, frame.Tick());
+        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
+        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
+        else if (i == 37281) ExpectCounter(true, true, frame.Tick());
+        else ExpectCounter(false, false, frame.Tick());
+        EXPECT_FALSE(frame.Interrupt);
+    }
+    // Loop
+    for (size_t i = 0; i < 37282; i++) {
+        if (i == 7457) ExpectCounter(false, true, frame.Tick());
+        else if (i == 14913) ExpectCounter(true, true, frame.Tick());
+        else if (i == 22371) ExpectCounter(false, true, frame.Tick());
+        else if (i == 37281) ExpectCounter(true, true, frame.Tick());
+        else ExpectCounter(false, false, frame.Tick());
+        EXPECT_FALSE(frame.Interrupt);
+    }
+}
+
+TEST_F(ApuTest, FrameCounter_ReadStatus) {
+    apu.WriteCommonControl(0x00);
+
+    // Reading status clears frame interrupt for the rest of the frame
+    for (size_t i = 0; i < 29828; i++) {
+        apu.Tick();
+        EXPECT_FALSE(apu.Frame.Interrupt);
+    }
+    EXPECT_FALSE(IsBitSet<6>(apu.ReadStatus()));
+
+    apu.Tick();
+    EXPECT_TRUE(apu.Frame.Interrupt);
+    EXPECT_TRUE(IsBitSet<6>(apu.ReadStatus()));
+
+    apu.Tick();
+    EXPECT_FALSE(apu.Frame.Interrupt);
+    EXPECT_FALSE(IsBitSet<6>(apu.ReadStatus()));
+
+    // Next frame
+    apu.Tick();
+    EXPECT_FALSE(apu.Frame.Interrupt); // First frame tick is previous frame's interrupt
+    for (size_t i = 1; i < 29828; i++) {
+        apu.Tick();
+        EXPECT_FALSE(apu.Frame.Interrupt);
+    }
+    apu.Tick();
+    EXPECT_TRUE(apu.Frame.Interrupt);
+    apu.Tick();
+    EXPECT_TRUE(apu.Frame.Interrupt);
+    apu.Tick();
+    EXPECT_TRUE(apu.Frame.Interrupt);
+    apu.Tick();
+    EXPECT_FALSE(apu.Frame.Interrupt);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Reviewed
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(ApuTest, APU_StartupState) {
+    // 0x4017 = 0x00
+    EXPECT_EQ(0, apu.Frame.Mode);
+    EXPECT_FALSE(apu.Frame.HideInterrupt);
+
+    // 0x4015 = 0x00
+    EXPECT_FALSE(apu.Pulse1.Enabled);
+    EXPECT_FALSE(apu.Pulse2.Enabled);
+    EXPECT_FALSE(apu.Triangle1.Enabled);
+    EXPECT_FALSE(apu.Noise1.Enabled);
+    EXPECT_EQ(0, apu.DMC1.Output.DMA.Length);
+
+    // 0x4000-0x4003 = 0x00
+    EXPECT_EQ(0, apu.Pulse1.Sequence.Duty);
+    EXPECT_FALSE(apu.Pulse1.Envelope.Loop);
+    EXPECT_FALSE(apu.Pulse1.Length.Halt);
+    EXPECT_TRUE(apu.Pulse1.Envelope.Enabled);
+    EXPECT_EQ(0, apu.Pulse1.Envelope.Volume);
+
+    EXPECT_FALSE(apu.Pulse1.SweepEnabled);
+    EXPECT_EQ(1, apu.Pulse1.SweepPeriod);
+    EXPECT_FALSE(apu.Pulse1.SweepNegate);
+    EXPECT_EQ(0, apu.Pulse1.SweepAmount);
+
+    EXPECT_EQ(1, apu.Pulse1.T.Period);
+    EXPECT_EQ(10, apu.Pulse1.Length.Count);
+
+    // 0x4004-0x4007 = 0x00
+    EXPECT_EQ(0, apu.Pulse2.Sequence.Duty);
+    EXPECT_FALSE(apu.Pulse2.Envelope.Loop);
+    EXPECT_FALSE(apu.Pulse2.Length.Halt);
+    EXPECT_TRUE(apu.Pulse2.Envelope.Enabled);
+    EXPECT_EQ(0, apu.Pulse2.Envelope.Volume);
+
+    EXPECT_FALSE(apu.Pulse2.SweepEnabled);
+    EXPECT_EQ(1, apu.Pulse2.SweepPeriod);
+    EXPECT_FALSE(apu.Pulse2.SweepNegate);
+    EXPECT_EQ(0, apu.Pulse2.SweepAmount);
+
+    EXPECT_EQ(1, apu.Pulse2.T.Period);
+    EXPECT_EQ(10, apu.Pulse2.Length.Count);
+
+    // 0x4008-0x400B = 0x00
+    EXPECT_FALSE(apu.Triangle1.Length.Halt);
+    EXPECT_FALSE(apu.Triangle1.Counter.Control);
+    EXPECT_EQ(0, apu.Triangle1.Counter.ReloadValue);
+
+    EXPECT_EQ(1, apu.Triangle1.T.Period);
+    EXPECT_EQ(10, apu.Triangle1.Length.Count);
+
+    // 0x400C-0x400F = 0x00
+    EXPECT_FALSE(apu.Noise1.Length.Halt);
+    EXPECT_FALSE(apu.Noise1.Envelope.Loop);
+    EXPECT_TRUE(apu.Noise1.Envelope.Enabled);
+    EXPECT_EQ(0, apu.Noise1.Envelope.Volume);
+
+    EXPECT_FALSE(apu.Noise1.Shifter.Mode);
+    EXPECT_EQ(4, apu.Noise1.T.Period);
+
+    EXPECT_EQ(10, apu.Noise1.Length.Count);
+    EXPECT_TRUE(apu.Noise1.Envelope.Restart);
+
+    // Noise initial value
+    apu.Noise1.Shifter.Value = 1;
+
+    // 0x4010-0x4013 = 0x?? so for now, 0x00
+    EXPECT_EQ(428, apu.DMC1.T.Period);
+    EXPECT_FALSE(apu.DMC1.Output.DMA.LoopSample);
+    EXPECT_FALSE(apu.DMC1.Output.DMA.InterruptEnabled);
+
+    EXPECT_EQ(0, apu.DMC1.Output.Value);
+
+    EXPECT_EQ(0xC000, apu.DMC1.Output.DMA.SampleAddress);
+
+    EXPECT_EQ(1, apu.DMC1.Output.DMA.SampleLength);
+}
+
+TEST_F(ApuTest, APU_ResetState) {
+    FAIL();
+}
+
+TEST_F(ApuTest, Divider_ClockEveryPeriod) {
+    Divider d;
+    d.SetPeriod(4);
+    d.Reset();
+
+    EXPECT_EQ(4, d.Period);
+    EXPECT_EQ(4, d.Counter);
+
+    EXPECT_FALSE(d.Tick());
+    EXPECT_FALSE(d.Tick());
+    EXPECT_FALSE(d.Tick());
+    EXPECT_TRUE(d.Tick());
+
+    EXPECT_FALSE(d.Tick());
+    EXPECT_FALSE(d.Tick());
+    EXPECT_FALSE(d.Tick());
+    EXPECT_TRUE(d.Tick());
+}
+
+TEST_F(ApuTest, Divider_ResetDoesNotGenerateClock) {
+    Divider d;
+    d.SetPeriod(4);
+    d.Reset();
+
+    EXPECT_EQ(4, d.Period);
+    EXPECT_EQ(4, d.Counter);
+
+    EXPECT_FALSE(d.Tick());
+    EXPECT_FALSE(d.Tick());
+    d.Reset();
+    EXPECT_FALSE(d.Tick());
+    EXPECT_FALSE(d.Tick());
+    EXPECT_FALSE(d.Tick());
+    EXPECT_TRUE(d.Tick());
+}
+
+TEST_F(ApuTest, Divider_PeriodChangeDoesNotReset) {
+    Divider d;
+    d.SetPeriod(4);
+    d.Reset();
+
+    EXPECT_EQ(4, d.Period);
+    EXPECT_EQ(4, d.Counter);
+
+    d.SetPeriod(2);
+    EXPECT_FALSE(d.Tick());
+    EXPECT_FALSE(d.Tick());
+    EXPECT_FALSE(d.Tick());
+    EXPECT_TRUE(d.Tick());
+
+    EXPECT_FALSE(d.Tick());
+    EXPECT_TRUE(d.Tick());
 }
