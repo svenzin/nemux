@@ -12,6 +12,7 @@
 
 #include "NesFile.h"
 #include "Mapper_0.h"
+#include "Mapper_1.h"
 #include "Mapper_2.h"
 #include "Cpu.h"
 #include "Ppu.h"
@@ -372,6 +373,7 @@ int main(int argc, char ** argv) {
         Controllers ctrl;
         std::unique_ptr<NesMapper> mapper;
         if (rom.Header.MapperNumber == 0) mapper.reset(new Mapper_000(rom));
+        else if (rom.Header.MapperNumber == 1) mapper.reset(new Mapper_001(rom));
         else mapper.reset(new Mapper_002(rom));
 
         PpuMemoryMap<Palette> ppumap(nullptr, mapper.get());
