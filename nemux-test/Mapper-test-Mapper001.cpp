@@ -155,7 +155,7 @@ TEST_F(Mapper001Test, MMC1_WriteIsAbove0x8000) {
     EXPECT_EQ(Mapper_001::MMCRegister::None, mmc1.WriteToMMC1(0x8000, 0x00).Register);
     EXPECT_EQ(Mapper_001::MMCRegister::None, mmc1.WriteToMMC1(0x8000, 0x00).Register);
     
-    EXPECT_EQ(Mapper_001::MMCRegister::None, mmc1.WriteToMMC1(0x0000, 0x00).Register);
+    EXPECT_EQ(Mapper_001::MMCRegister::None, mmc1.WriteToMMC1(0x7FFF, 0x00).Register);
     
     EXPECT_EQ(Mapper_001::MMCRegister::Control, mmc1.WriteToMMC1(0x8000, 0x00).Register);
 }
@@ -238,7 +238,7 @@ TEST_F(Mapper001Test, ControlRegister) {
 
 TEST_F(Mapper001Test, CHR0Register) {
     // Include mirroring for banks too high
-    mmc1.ChrPages.resize(4); // This means 8 banks
+    mmc1.ChrBanks.resize(4); // This means 8 banks
     
     { // Lowest bit ignored in 8K mode
         mmc1.ChrMode = Mapper_001::CHRBankingMode::OneBank;
@@ -256,7 +256,7 @@ TEST_F(Mapper001Test, CHR0Register) {
         EXPECT_EQ(2, mmc1.ChrBank0);
 
         mmc1.WriteCHR0(6);
-        EXPECT_EQ(6, mmc1.ChrBank0);
+        EXPECT_EQ(2, mmc1.ChrBank0);
 
         mmc1.WriteCHR0(10);
         EXPECT_EQ(2, mmc1.ChrBank0);
@@ -271,7 +271,7 @@ TEST_F(Mapper001Test, CHR0Register) {
         EXPECT_EQ(1, mmc1.ChrBank0);
 
         mmc1.WriteCHR0(6);
-        EXPECT_EQ(6, mmc1.ChrBank0);
+        EXPECT_EQ(2, mmc1.ChrBank0);
 
         mmc1.WriteCHR0(10);
         EXPECT_EQ(2, mmc1.ChrBank0);
@@ -280,7 +280,7 @@ TEST_F(Mapper001Test, CHR0Register) {
 
 TEST_F(Mapper001Test, CHR1Register) {
     // Include mirroring for banks too high
-    mmc1.ChrPages.resize(4);
+    mmc1.ChrBanks.resize(4);
 
     { // Ignored in 8K mode
         mmc1.ChrMode = Mapper_001::CHRBankingMode::OneBank;
@@ -302,7 +302,7 @@ TEST_F(Mapper001Test, CHR1Register) {
         EXPECT_EQ(1, mmc1.ChrBank1);
 
         mmc1.WriteCHR1(6);
-        EXPECT_EQ(6, mmc1.ChrBank1);
+        EXPECT_EQ(2, mmc1.ChrBank1);
 
         mmc1.WriteCHR1(10);
         EXPECT_EQ(2, mmc1.ChrBank1);
@@ -311,7 +311,7 @@ TEST_F(Mapper001Test, CHR1Register) {
 
 TEST_F(Mapper001Test, PRGRegister) {
     // Include mirroring for banks too high
-    mmc1.PrgPages.resize(4);
+    mmc1.PrgBanks.resize(4);
     
     { // Lowest bit ignored in 32K mode
         mmc1.PrgMode = Mapper_001::PRGBankingMode::SwitchAllBanks;
@@ -351,40 +351,54 @@ TEST_F(Mapper001Test, PRGRegister) {
     }
     {
         mmc1.WritePRG(0x00);
-        EXPECT_FALSE(mmc1.RamEnabled);
+        EXPECT_TRUE(mmc1.HasPrgRam);
 
         mmc1.WritePRG(0x10);
-        EXPECT_TRUE(mmc1.RamEnabled);
+        EXPECT_FALSE(mmc1.HasPrgRam);
     }
 }
 
 TEST_F(Mapper001Test, CHR_8KBanks) {
     mmc1.ChrMode = Mapper_001::CHRBankingMode::OneBank;
     
-    // Note CHR banks are 4K in size and ChrBank is expressed in 4K banks
-    // But CHR pages are 8K in size
-    mmc1.ChrBank0 = 0; // First 8K bank
+    // Note that each CHR bank is 4K in size (0x1000)
+    mmc1.ChrBank0 = 0;
     mmc1.ChrBank1 = 0;
-    for (Word addr = 0; addr < 0x2000; addr++) {
-        const auto ba = mmc1.TranslatePpu(addr);
+    for (Word addr = 0; addr < 0x1000; addr++) {
+        const auto ba = mmc1.ToChrRom(addr);
         EXPECT_EQ(0, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
-
-    mmc1.ChrBank0 = 2; // Second 8K bank
-    mmc1.ChrBank1 = 0;
-    for (Word addr = 0; addr < 0x2000; addr++) {
-        const auto ba = mmc1.TranslatePpu(addr);
+    for (Word addr = 0; addr < 0x1000; addr++) {
+        const auto ba = mmc1.ToChrRom(0x1000 + addr);
         EXPECT_EQ(1, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
 
+    mmc1.ChrBank0 = 2;
+    mmc1.ChrBank1 = 0;
+    for (Word addr = 0; addr < 0x1000; addr++) {
+        const auto ba = mmc1.ToChrRom(addr);
+        EXPECT_EQ(2, ba.Bank);
+        EXPECT_EQ(addr, ba.Address);
+    }
+    for (Word addr = 0; addr < 0x1000; addr++) {
+        const auto ba = mmc1.ToChrRom(0x1000 + addr);
+        EXPECT_EQ(3, ba.Bank);
+        EXPECT_EQ(addr, ba.Address);
+    }
+
     // Also check that CHR1 bank is ignored
-    mmc1.ChrBank0 = 1;
-    mmc1.ChrBank1 = 1;
-    for (Word addr = 0; addr < 0x2000; addr++) {
-        const auto ba = mmc1.TranslatePpu(addr);
+    mmc1.ChrBank0 = 0;
+    mmc1.ChrBank1 = 2;
+    for (Word addr = 0; addr < 0x1000; addr++) {
+        const auto ba = mmc1.ToChrRom(addr);
         EXPECT_EQ(0, ba.Bank);
+        EXPECT_EQ(addr, ba.Address);
+    }
+    for (Word addr = 0; addr < 0x1000; addr++) {
+        const auto ba = mmc1.ToChrRom(0x1000 + addr);
+        EXPECT_EQ(1, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
 }
@@ -395,26 +409,26 @@ TEST_F(Mapper001Test, CHR_4KBanks) {
     mmc1.ChrBank0 = 0;
     mmc1.ChrBank1 = 1;
     for (Word addr = 0; addr < 0x1000; addr++) {
-        const auto ba = mmc1.TranslatePpu(addr);
+        const auto ba = mmc1.ToChrRom(addr);
         EXPECT_EQ(0, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
     for (Word addr = 0; addr < 0x1000; addr++) {
-        const auto ba = mmc1.TranslatePpu(0x1000 + addr);
-        EXPECT_EQ(0, ba.Bank);
-        EXPECT_EQ(0x1000 + addr, ba.Address);
+        const auto ba = mmc1.ToChrRom(0x1000 + addr);
+        EXPECT_EQ(1, ba.Bank);
+        EXPECT_EQ(addr, ba.Address);
     }
 
     mmc1.ChrBank0 = 3;
     mmc1.ChrBank1 = 2;
     for (Word addr = 0; addr < 0x1000; addr++) {
-        const auto ba = mmc1.TranslatePpu(addr);
-        EXPECT_EQ(1, ba.Bank);
-        EXPECT_EQ(0x1000 + addr, ba.Address);
+        const auto ba = mmc1.ToChrRom(addr);
+        EXPECT_EQ(3, ba.Bank);
+        EXPECT_EQ(addr, ba.Address);
     }
     for (Word addr = 0; addr < 0x1000; addr++) {
-        const auto ba = mmc1.TranslatePpu(0x1000 + addr);
-        EXPECT_EQ(1, ba.Bank);
+        const auto ba = mmc1.ToChrRom(0x1000 + addr);
+        EXPECT_EQ(2, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
 }
@@ -430,24 +444,24 @@ TEST_F(Mapper001Test, PRG_32KBanks) {
 
     mmc1.PrgBank = 0;
     for (Word addr = 0; addr < 0x4000; addr++) {
-        const auto ba = mmc1.TranslateCpu(0x8000 + addr);
+        const auto ba = mmc1.ToPrgRom(0x8000 + addr);
         EXPECT_EQ(0, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
     for (Word addr = 0; addr < 0x4000; addr++) {
-        const auto ba = mmc1.TranslateCpu(0xC000 + addr);
+        const auto ba = mmc1.ToPrgRom(0xC000 + addr);
         EXPECT_EQ(1, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
 
     mmc1.PrgBank = 2;
     for (Word addr = 0; addr < 0x4000; addr++) {
-        const auto ba = mmc1.TranslateCpu(0x8000 + addr);
+        const auto ba = mmc1.ToPrgRom(0x8000 + addr);
         EXPECT_EQ(2, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
     for (Word addr = 0; addr < 0x4000; addr++) {
-        const auto ba = mmc1.TranslateCpu(0xC000 + addr);
+        const auto ba = mmc1.ToPrgRom(0xC000 + addr);
         EXPECT_EQ(3, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
@@ -455,41 +469,41 @@ TEST_F(Mapper001Test, PRG_32KBanks) {
     // Bit 0 of the bank is ignored
     mmc1.PrgBank = 1;
     for (Word addr = 0; addr < 0x4000; addr++) {
-        const auto ba = mmc1.TranslateCpu(0x8000 + addr);
+        const auto ba = mmc1.ToPrgRom(0x8000 + addr);
         EXPECT_EQ(0, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
     for (Word addr = 0; addr < 0x4000; addr++) {
-        const auto ba = mmc1.TranslateCpu(0xC000 + addr);
+        const auto ba = mmc1.ToPrgRom(0xC000 + addr);
         EXPECT_EQ(1, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
 }
 
 TEST_F(Mapper001Test, PRG_16KBanks_FirstBank) {
-    const auto LastBank = mmc1.PrgPages.size() - 1;
+    const auto LastBank = mmc1.PrgBanks.size() - 1;
     mmc1.PrgMode = Mapper_001::PRGBankingMode::SwitchFirstBank;
 
     mmc1.PrgBank = 0;
     for (Word addr = 0; addr < 0x4000; addr++) {
-        const auto ba = mmc1.TranslateCpu(0x8000 + addr);
+        const auto ba = mmc1.ToPrgRom(0x8000 + addr);
         EXPECT_EQ(0, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
     for (Word addr = 0; addr < 0x4000; addr++) {
-        const auto ba = mmc1.TranslateCpu(0xC000 + addr);
+        const auto ba = mmc1.ToPrgRom(0xC000 + addr);
         EXPECT_EQ(LastBank, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
 
     mmc1.PrgBank = 1;
     for (Word addr = 0; addr < 0x4000; addr++) {
-        const auto ba = mmc1.TranslateCpu(0x8000 + addr);
+        const auto ba = mmc1.ToPrgRom(0x8000 + addr);
         EXPECT_EQ(1, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
     for (Word addr = 0; addr < 0x4000; addr++) {
-        const auto ba = mmc1.TranslateCpu(0xC000 + addr);
+        const auto ba = mmc1.ToPrgRom(0xC000 + addr);
         EXPECT_EQ(LastBank, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
@@ -500,24 +514,24 @@ TEST_F(Mapper001Test, PRG_16KBanks_LastBank) {
 
     mmc1.PrgBank = 0;
     for (Word addr = 0; addr < 0x4000; addr++) {
-        const auto ba = mmc1.TranslateCpu(0x8000 + addr);
+        const auto ba = mmc1.ToPrgRom(0x8000 + addr);
         EXPECT_EQ(0, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
     for (Word addr = 0; addr < 0x4000; addr++) {
-        const auto ba = mmc1.TranslateCpu(0xC000 + addr);
+        const auto ba = mmc1.ToPrgRom(0xC000 + addr);
         EXPECT_EQ(0, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
 
     mmc1.PrgBank = 1;
     for (Word addr = 0; addr < 0x4000; addr++) {
-        const auto ba = mmc1.TranslateCpu(0x8000 + addr);
+        const auto ba = mmc1.ToPrgRom(0x8000 + addr);
         EXPECT_EQ(0, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
     for (Word addr = 0; addr < 0x4000; addr++) {
-        const auto ba = mmc1.TranslateCpu(0xC000 + addr);
+        const auto ba = mmc1.ToPrgRom(0xC000 + addr);
         EXPECT_EQ(1, ba.Bank);
         EXPECT_EQ(addr, ba.Address);
     }
@@ -537,8 +551,24 @@ TEST_F(Mapper001Test, LiveCHRModeChange) {
     FAIL();
 }
 
-TEST_F(Mapper001Test, RAM) {
-    FAIL();
+TEST_F(Mapper001Test, PRG_RAM) {
+    // Enabled
+    mmc1.WritePRG(0x00);
+    EXPECT_TRUE(mmc1.HasPrgRam);
+    for (Word addr = 0x6000; addr <= 0x7FFF; ++addr) {
+        const auto b = mmc1.GetCpuAt(addr);
+        mmc1.SetCpuAt(addr, b + 1);
+        EXPECT_EQ(Byte(b + 1), mmc1.GetCpuAt(addr));
+    }
+
+    // Disabled
+    mmc1.WritePRG(0x10);
+    EXPECT_FALSE(mmc1.HasPrgRam);
+    for (Word addr = 0x6000; addr <= 0x7FFF; ++addr) {
+        const auto b = mmc1.GetCpuAt(addr);
+        mmc1.SetCpuAt(addr, b + 1);
+        EXPECT_EQ(b, mmc1.GetCpuAt(addr));
+    }
 }
 
 TEST_F(Mapper001Test, OtherMMC1Versions) {
@@ -546,5 +576,51 @@ TEST_F(Mapper001Test, OtherMMC1Versions) {
 }
 
 TEST_F(Mapper001Test, NoChrMeansChrRam) {
+    std::ifstream mmc1_stream("mmc1.nes", std::ios::binary);
+    NesFile mmc1_file(mmc1_stream);
+    mmc1_file.ChrRomPages.clear();
+    mmc1_file.Header.ChrRomPages = 0;
+    
+    Mapper_001 mmc1(mmc1_file);
+
+    EXPECT_TRUE(mmc1.HasChrRam);
+    const auto b = mmc1.GetPpuAt(0x0000);
+    mmc1.SetPpuAt(0x0000, b + 1);
+    EXPECT_EQ(b + 1, mmc1.GetPpuAt(0x0000));
+}
+
+TEST_F(Mapper001Test, OpenBus) {
     FAIL();
+}
+
+TEST_F(Mapper001Test, CpuAddressType) {
+    // Primary RAM
+    for (size_t addr = 0x0000; addr <= 0x1FFF; addr++) {
+        EXPECT_EQ(Mapper_001::CpuAddressType::Unexpected, mmc1.GetCpuAddressType(addr));
+    }
+    // PPU I/O
+    for (size_t addr = 0x2000; addr <= 0x3FFF; addr++) {
+        EXPECT_EQ(Mapper_001::CpuAddressType::Unexpected, mmc1.GetCpuAddressType(addr));
+    }
+    // Not decoded
+    for (size_t addr = 0x4000; addr <= 0x4014; addr++) {
+        EXPECT_EQ(Mapper_001::CpuAddressType::OpenBus, mmc1.GetCpuAddressType(addr));
+    }
+    // Decoded APU registers
+    EXPECT_EQ(Mapper_001::CpuAddressType::Unexpected, mmc1.GetCpuAddressType(0x4015));
+    // Decoded Controller registers
+    EXPECT_EQ(Mapper_001::CpuAddressType::Unexpected, mmc1.GetCpuAddressType(0x4016));
+    EXPECT_EQ(Mapper_001::CpuAddressType::Unexpected, mmc1.GetCpuAddressType(0x4017));
+    // Not decoded
+    for (size_t addr = 0x4018; addr <= 0x5FFF; addr++) {
+        EXPECT_EQ(Mapper_001::CpuAddressType::OpenBus, mmc1.GetCpuAddressType(addr));
+    }
+    // Cartridge RAM
+    for (size_t addr = 0x6000; addr <= 0x7FFF; addr++) {
+        EXPECT_EQ(Mapper_001::CpuAddressType::PRG_RAM, mmc1.GetCpuAddressType(addr));
+    }
+    // Cartridge ROM
+    for (size_t addr = 0x8000; addr <= 0xFFFF; addr++) {
+        EXPECT_EQ(Mapper_001::CpuAddressType::PRG_ROM, mmc1.GetCpuAddressType(addr));
+    }
 }
