@@ -29,10 +29,10 @@ TEST_F(CpuTest, Opcode_Instruction) {
     using namespace Instructions;
     std::array<Instructions::Name, 0x100> opcodes{
         /*           x0   x1   x2   x3   x4   x5   x6   x7   x8   x9   xA   xB   xC   xD   xE   xF */
-        /* 0x */    BRK, ORA,uSTP,uSLO,uNOP, ORA, ASL,uSLO, PHP, ORA, ASL, UNK,uNOP, ORA, ASL,uSLO,
+        /* 0x */    BRK, ORA,uSTP,uSLO,uNOP, ORA, ASL,uSLO, PHP, ORA, ASL,uANC,uNOP, ORA, ASL,uSLO,
         /* 1x */    BPL, ORA,uSTP,uSLO,uNOP, ORA, ASL,uSLO, CLC, ORA,uNOP,uSLO,uNOP, ORA, ASL,uSLO,
-        /* 2x */    JSR, AND,uSTP, UNK, BIT, AND, ROL, UNK, PLP, AND, ROL, UNK, BIT, AND, ROL, UNK,
-        /* 3x */    BMI, AND,uSTP, UNK,uNOP, AND, ROL, UNK, SEC, AND,uNOP, UNK,uNOP, AND, ROL, UNK,
+        /* 2x */    JSR, AND,uSTP,uRLA, BIT, AND, ROL,uRLA, PLP, AND, ROL,uANC, BIT, AND, ROL,uRLA,
+        /* 3x */    BMI, AND,uSTP,uRLA,uNOP, AND, ROL,uRLA, SEC, AND,uNOP,uRLA,uNOP, AND, ROL,uRLA,
         /* 4x */    RTI, EOR,uSTP, UNK,uNOP, EOR, LSR, UNK, PHA, EOR, LSR, UNK, JMP, EOR, LSR, UNK,
         /* 5x */    BVC, EOR,uSTP, UNK,uNOP, EOR, LSR, UNK, CLI, EOR,uNOP, UNK,uNOP, EOR, LSR, UNK,
         /* 6x */    RTS, ADC,uSTP, UNK,uNOP, ADC, ROR, UNK, PLA, ADC, ROR, UNK, JMP, ADC, ROR, UNK,
@@ -71,10 +71,10 @@ TEST_F(CpuTest, Opcode_Addressing) {
 
     std::array<Addressing::Type, 0x100> opcodes {
 		/*           x0   x1   x2   x3   x4   x5   x6   x7   x8   x9   xA   xB   xC   xD   xE   xF */
-		/* 0x */    IMP, IDX, IMP, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, UNK, ABS, ABS, ABS, ABS,
+		/* 0x */    IMP, IDX, IMP, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS,
 		/* 1x */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
-		/* 2x */    ABS, IDX, IMP, UNK, ZPG, ZPG, ZPG, UNK, IMP, IMM, ACC, UNK, ABS, ABS, ABS, UNK,
-		/* 3x */    REL, IDY, IMP, UNK, ZPX, ZPX, ZPX, UNK, IMP, ABY, IMP, UNK, ABX, ABX, ABX, UNK,
+		/* 2x */    ABS, IDX, IMP, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS,
+		/* 3x */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
 		/* 4x */    IMP, IDX, IMP, UNK, ZPG, ZPG, ZPG, UNK, IMP, IMM, ACC, UNK, ABS, ABS, ABS, UNK,
 		/* 5x */    REL, IDY, IMP, UNK, ZPX, ZPX, ZPX, UNK, IMP, ABY, IMP, UNK, ABX, ABX, ABX, UNK,
 		/* 6x */    IMP, IDX, IMP, UNK, ZPG, ZPG, ZPG, UNK, IMP, IMM, ACC, UNK, IND, ABS, ABS, UNK,

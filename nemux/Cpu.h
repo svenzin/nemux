@@ -31,7 +31,7 @@ enum Name {
     BRK, NOP, RTI,                          // System
 
     // Unofficial instructions
-    uSTP, uSLO, uNOP,
+    uSTP, uSLO, uNOP, uANC, uRLA,
 
     UNK,
 };

@@ -308,6 +308,17 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     m_opcodes[0x1B] = Opcode(uSLO, AbsoluteY, 3, 7);
     m_opcodes[0x1F] = Opcode(uSLO, AbsoluteX, 3, 7);
 
+    m_opcodes[0x0B] = Opcode(uANC, Immediate, 2, 2);
+    m_opcodes[0x2B] = Opcode(uANC, Immediate, 2, 2);
+
+    m_opcodes[0x23] = Opcode(uRLA, IndexedIndirect, 2, 8);
+    m_opcodes[0x27] = Opcode(uRLA, ZeroPage, 2, 5);
+    m_opcodes[0x2F] = Opcode(uRLA, Absolute, 3, 6);
+    m_opcodes[0x33] = Opcode(uRLA, IndirectIndexed, 2, 8);
+    m_opcodes[0x37] = Opcode(uRLA, ZeroPageX, 2, 6);
+    m_opcodes[0x3B] = Opcode(uRLA, AbsoluteY, 3, 7);
+    m_opcodes[0x3F] = Opcode(uRLA, AbsoluteX, 3, 7);
+
     // Power up state
     IsAlive = true;
     SP = 0xFD;
@@ -872,6 +883,25 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         Transfer(M << 1, M);
         WriteByteAt(address, M);
         Transfer(A | M, A);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case uANC: {
+        const auto a = BuildAddress(op.Addressing);
+        const auto M = ReadByteAt(a.Address);
+        Transfer(A & M, A);
+        C = Bit<Left>(A);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case uRLA: {
+        const auto address = BuildAddress(op.Addressing).Address;
+        auto M = ReadByteAt(address);
+        const auto c = Bit<Left>(M);
+        Transfer((M << 1) | Mask<Right>(C), M);
+        C = c;
+        WriteByteAt(address, M);
+        Transfer(A & M, A);
         PC += op.Bytes; Ticks += op.Cycles;
         break;
     }
