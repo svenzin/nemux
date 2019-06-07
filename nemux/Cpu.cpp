@@ -339,6 +339,32 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
 
     m_opcodes[0x6B] = Opcode(uARR, Immediate, 2, 2);
 
+    m_opcodes[0x83] = Opcode(uSAX, IndexedIndirect, 2, 6);
+    m_opcodes[0x87] = Opcode(uSAX, ZeroPage, 2, 3);
+    m_opcodes[0x8F] = Opcode(uSAX, Absolute, 3, 4);
+    m_opcodes[0x97] = Opcode(uSAX, ZeroPageY, 2, 4);
+
+    m_opcodes[0x8B] = Opcode(uXAA, Immediate, 2, 2);
+
+    m_opcodes[0x93] = Opcode(uAHX, IndirectIndexed, 2, 6);
+    m_opcodes[0x9F] = Opcode(uAHX, AbsoluteY, 3, 5);
+
+    m_opcodes[0x9B] = Opcode(uTAS, AbsoluteY, 3, 5);
+
+    m_opcodes[0x9C] = Opcode(uSHY, AbsoluteX, 3, 5);
+
+    m_opcodes[0x9E] = Opcode(uSHX, AbsoluteY, 3, 5);
+
+    m_opcodes[0xA3] = Opcode(uLAX, IndexedIndirect, 2, 6);
+    m_opcodes[0xA7] = Opcode(uLAX, ZeroPage, 2, 3);
+    m_opcodes[0xAB] = Opcode(uLAX, Immediate, 2, 2);
+    m_opcodes[0xAF] = Opcode(uLAX, Absolute, 3, 4);
+    m_opcodes[0xB3] = Opcode(uLAX, IndirectIndexed, 2, 5);
+    m_opcodes[0xB7] = Opcode(uLAX, ZeroPageY, 2, 4);
+    m_opcodes[0xBF] = Opcode(uLAX, AbsoluteY, 3, 4);
+
+    m_opcodes[0xBB] = Opcode(uLAS, AbsoluteY, 3, 4);
+
     // Power up state
     IsAlive = true;
     SP = 0xFD;
@@ -956,7 +982,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         C = (a > BYTE_MASK) ? 1 : 0;
         V = ~Bit<Neg>(A ^ M) & Bit<Neg>(A ^ a);
         Transfer(a & BYTE_MASK, A);
-        
+
         PC += op.Bytes; Ticks += op.Cycles;
         break;
     }
@@ -973,6 +999,53 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         }
         PC += op.Bytes; Ticks += op.Cycles;
         break;
+    }
+    case uSAX: {
+        WriteByteAt(BuildAddress(op.Addressing).Address, A & X);
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case uXAA: { PC += op.Bytes; Ticks += op.Cycles; break; }
+    case uAHX: {
+        const auto address = BuildAddress(op.Addressing).Address;
+        const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
+        WriteByteAt(address, A & X & H);
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case uTAS: {
+        const auto address = BuildAddress(op.Addressing).Address;
+        const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
+        SP = (A & X);
+        WriteByteAt(address, A & X & H);
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case uSHY: {
+        const auto address = BuildAddress(op.Addressing).Address;
+        const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
+        WriteByteAt(address, Y & H);
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case uSHX: {
+        const auto address = BuildAddress(op.Addressing).Address;
+        const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
+        WriteByteAt(address, X & H);
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case uLAX: {
+        const auto a = BuildAddress(op.Addressing);
+        const auto M = ReadByteAt(a.Address);
+        Transfer(M, A);
+        Transfer(M, X);
+        if (a.HasCrossedPage) ++Ticks;
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case uLAS: {
+        const auto a = BuildAddress(op.Addressing);
+        const auto M = ReadByteAt(a.Address);
+        Transfer(M & SP, SP);
+        Transfer(SP, A);
+        Transfer(SP, X);
+        if (a.HasCrossedPage) ++Ticks;
+        PC += op.Bytes; Ticks += op.Cycles; break;
     }
 
     default:

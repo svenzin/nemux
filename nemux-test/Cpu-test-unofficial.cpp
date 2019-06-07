@@ -139,6 +139,127 @@ public:
         tester(0xB0, 0x60, 1, 0x60, 0xB0, 1, 0, 1, 0); // Overflow neg > pos
         tester(0x00, 0xE0, 1, 0xF0, 0xF0, 0, 0, 0, 1); // Negative
     }
+
+    void Test_SAX(Word address, Opcode op) {
+        // SAX can be called with IndexedIndirect addressing where cpu.X is already set
+        cpu.A = 0x5F;
+        const Byte expM = (cpu.A & cpu.X);
+
+        cpu.PC = BASE_PC;
+        cpu.Ticks = BASE_TICKS;
+        cpu.Execute(op);
+
+        EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+        EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+        EXPECT_EQ(expM, cpu.ReadByteAt(address));
+    }
+
+    void Test_AHX(Word address, Opcode op) {
+        cpu.A = 0x3F;
+        cpu.X = 0xF5;
+        const Byte H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
+        const Byte expM = (cpu.A & cpu.X & H);
+
+        cpu.PC = BASE_PC;
+        cpu.Ticks = BASE_TICKS;
+        cpu.Execute(op);
+
+        EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+        EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+        EXPECT_EQ(expM, cpu.ReadByteAt(address));
+    }
+
+    void Test_TAS(Word address, Opcode op) {
+        cpu.A = 0x3F;
+        cpu.X = 0xF5;
+        const Byte H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
+        const Byte expS = (cpu.A & cpu.X);
+        const Byte expM = (cpu.A & cpu.X & H);
+
+        cpu.PC = BASE_PC;
+        cpu.Ticks = BASE_TICKS;
+        cpu.Execute(op);
+
+        EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+        EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+        EXPECT_EQ(expS, cpu.SP);
+        EXPECT_EQ(expM, cpu.ReadByteAt(address));
+    }
+
+    void Test_SHY(Word address, Opcode op) {
+        cpu.Y = 0xF5;
+        const Byte H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
+        const Byte expM = (cpu.Y & H);
+
+        cpu.PC = BASE_PC;
+        cpu.Ticks = BASE_TICKS;
+        cpu.Execute(op);
+
+        EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+        EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+        EXPECT_EQ(expM, cpu.ReadByteAt(address));
+    }
+
+    void Test_SHX(Word address, Opcode op) {
+        cpu.X = 0xF5;
+        const Byte H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
+        const Byte expM = (cpu.X & H);
+
+        cpu.PC = BASE_PC;
+        cpu.Ticks = BASE_TICKS;
+        cpu.Execute(op);
+
+        EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+        EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+        EXPECT_EQ(expM, cpu.ReadByteAt(address));
+    }
+
+    void Test_LAX(Word address, Opcode op, int extra) {
+        auto tester = [&](Byte m, Flag expN, Flag expZ) {
+            cpu.WriteByteAt(address, m);
+
+            cpu.PC = BASE_PC;
+            cpu.Ticks = BASE_TICKS;
+            cpu.Execute(op);
+
+            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+            EXPECT_EQ(BASE_TICKS + op.Cycles + extra, cpu.Ticks);
+            EXPECT_EQ(m, cpu.A);
+            EXPECT_EQ(m, cpu.X);
+            EXPECT_EQ(expN, cpu.N);
+            EXPECT_EQ(expZ, cpu.Z);
+        };
+
+        const auto x = cpu.X;
+        tester(0x10, 0, 0);
+        cpu.X = x;
+        tester(0x00, 0, 1);
+        cpu.X = x;
+        tester(0x80, 1, 0);
+    }
+
+    void Test_LAS(Word address, Opcode op, int extra) {
+        auto tester = [&](Byte m, Byte s, Byte expAXS, Flag expN, Flag expZ) {
+            cpu.WriteByteAt(address, m);
+            cpu.SP = s;
+
+            cpu.PC = BASE_PC;
+            cpu.Ticks = BASE_TICKS;
+            cpu.Execute(op);
+
+            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+            EXPECT_EQ(BASE_TICKS + op.Cycles + extra, cpu.Ticks);
+            EXPECT_EQ(expAXS, cpu.A);
+            EXPECT_EQ(expAXS, cpu.X);
+            EXPECT_EQ(expAXS, cpu.SP);
+            EXPECT_EQ(expN, cpu.N);
+            EXPECT_EQ(expZ, cpu.Z);
+        };
+
+        tester(0x10, 0xF0, 0x10, 0, 0);
+        tester(0x10, 0x01, 0x00, 0, 1);
+        tester(0x80, 0xC0, 0x80, 1, 0);
+    }
 };
 const Word CpuTestUnofficial::BASE_PC;
 const int CpuTestUnofficial::BASE_TICKS;
@@ -609,6 +730,39 @@ TEST_F(CpuTestUnofficial, uRRA_IndexedIndirect_Wraparound) {
     Test_RRA(0x0120, Opcode(uRRA, IndexedIndirect, 2, 8));
 }
 
+TEST_F(CpuTestUnofficial, uRRA_IndirectIndexed) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0x0120);
+    cpu.Y = 0x08;
+    Test_RRA(0x0128, Opcode(uRRA, IndirectIndexed, 2, 8));
+}
+
+TEST_F(CpuTestUnofficial, uRRA_IndirectIndexed_CrossingPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0x0120);
+    cpu.Y = 0xF0;
+    Test_RRA(0x0210, Opcode(uRRA, IndirectIndexed, 2, 8));
+}
+
+TEST_F(CpuTestUnofficial, uRRA_IndirectIndexed_CrossingWordsize) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0xFFFF);
+    cpu.Y = 0x10;
+    Test_RRA(0x000F, Opcode(uRRA, IndirectIndexed, 2, 8));
+}
+
+TEST_F(CpuTestUnofficial, uRRA_IndirectIndexed_BaseFromZeroPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xFF);
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    cpu.Y = 0x10;
+    Test_RRA(0x0130, Opcode(uRRA, IndirectIndexed, 2, 8));
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(CpuTestUnofficial, uARR_Immediate) {
@@ -641,4 +795,268 @@ TEST_F(CpuTestUnofficial, uARR_Immediate) {
     tester(0x42, 0xFF, 0, 0x21, 0, 1, 0, 0); // No Carry, Overflow (result x01x xxxx)
     tester(0x82, 0xFF, 0, 0x41, 0, 1, 0, 1); // Carry, Overflow (result x10x xxxx)
     tester(0xC2, 0xFF, 0, 0x61, 0, 0, 0, 1); // Carry, no Overflow (result x11x xxxx)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(CpuTestUnofficial, SAX_ZeroPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+
+    Test_SAX(0x0020, Opcode(uSAX, ZeroPage, 2, 3));
+}
+
+TEST_F(CpuTestUnofficial, SAX_ZeroPageY) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.Y = 0x08;
+    Test_SAX(0x0028, Opcode(uSAX, ZeroPageY, 2, 4));
+}
+
+TEST_F(CpuTestUnofficial, SAX_ZeroPageY_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.Y = 0x10;
+    Test_SAX(0x0000, Opcode(uSAX, ZeroPageY, 2, 4));
+}
+
+TEST_F(CpuTestUnofficial, SAX_Absolute) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
+    Test_SAX(0x0120, Opcode(uSAX, Absolute, 3, 4));
+}
+
+TEST_F(CpuTestUnofficial, SAX_IndexedIndirect) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+    cpu.WriteWordAt(0x28, 0x0120);
+    Test_SAX(0x0120, Opcode(uSAX, IndexedIndirect, 2, 6));
+}
+
+TEST_F(CpuTestUnofficial, SAX_IndexedIndirect_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x0F;
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    Test_SAX(0x0120, Opcode(uSAX, IndexedIndirect, 2, 6));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(CpuTestUnofficial, uXAA_Immediate) {
+    // Unstable and not well defined
+    // Probably implement as No-op
+    FAIL();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(CpuTestUnofficial, uAHX_AbsoluteY) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0x08;
+    Test_AHX(0x0128, Opcode(uAHX, AbsoluteY, 3, 5));
+}
+
+TEST_F(CpuTestUnofficial, uAHX_AbsoluteY_CrossingPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0xF0;
+    Test_AHX(0x0210, Opcode(uAHX, AbsoluteY, 3, 5));
+}
+
+TEST_F(CpuTestUnofficial, uAHX_IndirectIndexed) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0x0120);
+    cpu.Y = 0x08;
+    Test_AHX(0x0128, Opcode(uAHX, IndirectIndexed, 2, 6));
+}
+
+TEST_F(CpuTestUnofficial, uAHX_IndirectIndexed_CrossingPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0x0120);
+    cpu.Y = 0xF0;
+    Test_AHX(0x0210, Opcode(uAHX, IndirectIndexed, 2, 6));
+}
+
+TEST_F(CpuTestUnofficial, uAHX_IndirectIndexed_CrossingWordsize) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0xFFFF);
+    cpu.Y = 0x10;
+    Test_AHX(0x000F, Opcode(uAHX, IndirectIndexed, 2, 6));
+}
+
+TEST_F(CpuTestUnofficial, uAHX_IndirectIndexed_BaseFromZeroPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xFF);
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    cpu.Y = 0x10;
+    Test_AHX(0x0130, Opcode(uAHX, IndirectIndexed, 2, 6));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(CpuTestUnofficial, uTAS_AbsoluteY) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0x08;
+    Test_TAS(0x0128, Opcode(uTAS, AbsoluteY, 3, 5));
+}
+
+TEST_F(CpuTestUnofficial, uTAS_AbsoluteY_CrossingPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0xF0;
+    Test_TAS(0x0210, Opcode(uTAS, AbsoluteY, 3, 5));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(CpuTestUnofficial, uSHY_AbsoluteX) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0x08;
+    Test_SHY(0x0128, Opcode(uSHY, AbsoluteX, 3, 7));
+}
+
+TEST_F(CpuTestUnofficial, uSHY_AbsoluteX_CrossingPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
+    cpu.X = 0xF0;
+    Test_SHY(0x0210, Opcode(uSHY, AbsoluteX, 3, 7));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(CpuTestUnofficial, uSHX_AbsoluteY) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0x08;
+    Test_SHX(0x0128, Opcode(uSHX, AbsoluteY, 3, 5));
+}
+
+TEST_F(CpuTestUnofficial, uSHX_AbsoluteY_CrossingPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0xF0;
+    Test_SHX(0x0210, Opcode(uSHX, AbsoluteY, 3, 5));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(CpuTestUnofficial, uLAX_Immediate) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    Test_LAX(BASE_PC + 1, Opcode(uLAX, Immediate, 2, 2), 0);
+}
+
+TEST_F(CpuTestUnofficial, uLAX_ZeroPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    Test_LAX(0x0020, Opcode(uLAX, ZeroPage, 2, 3), 0);
+}
+
+TEST_F(CpuTestUnofficial, uLAX_ZeroPageY) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.Y = 0x08;
+    Test_LAX(0x0028, Opcode(uLAX, ZeroPageY, 2, 4), 0);
+}
+
+TEST_F(CpuTestUnofficial, uLAX_ZeroPageY_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.Y = 0x10;
+    Test_LAX(0x0000, Opcode(uLAX, ZeroPageY, 2, 4), 0);
+}
+
+TEST_F(CpuTestUnofficial, uLAX_Absolute) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
+    Test_LAX(0x0120, Opcode(uLAX, Absolute, 3, 4), 0);
+}
+
+TEST_F(CpuTestUnofficial, uLAX_AbsoluteY) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0x08;
+    Test_LAX(0x0128, Opcode(uLAX, AbsoluteY, 3, 4), 0);
+}
+
+TEST_F(CpuTestUnofficial, uLAX_AbsoluteY_CrossingPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0xF0;
+    Test_LAX(0x0210, Opcode(uLAX, AbsoluteY, 3, 4), 1);
+}
+
+TEST_F(CpuTestUnofficial, uLAX_IndexedIndirect) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.X = 0x08;
+    cpu.WriteWordAt(0x28, 0x0120);
+    Test_LAX(0x0120, Opcode(uLAX, IndexedIndirect, 2, 6), 0);
+}
+
+TEST_F(CpuTestUnofficial, uLAX_IndexedIndirect_Wraparound) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.X = 0x0F;
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    Test_LAX(0x0120, Opcode(uLAX, IndexedIndirect, 2, 6), 0);
+}
+
+TEST_F(CpuTestUnofficial, uLAX_IndirectIndexed) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0x0120);
+    cpu.Y = 0x08;
+    Test_LAX(0x0128, Opcode(uLAX, IndirectIndexed, 2, 5), 0);
+}
+
+TEST_F(CpuTestUnofficial, uLAX_IndirectIndexed_CrossingPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0x0120);
+    cpu.Y = 0xF0;
+    Test_LAX(0x0210, Opcode(uLAX, IndirectIndexed, 2, 5), 1);
+}
+
+TEST_F(CpuTestUnofficial, uLAX_IndirectIndexed_CrossingWordsize) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteWordAt(0x20, 0xFFFF);
+    cpu.Y = 0x10;
+    Test_LAX(0x000F, Opcode(uLAX, IndirectIndexed, 2, 5), 1);
+}
+
+TEST_F(CpuTestUnofficial, uLAX_IndirectIndexed_BaseFromZeroPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByteAt(BASE_PC + 1, 0xFF);
+    cpu.WriteByteAt(0xFF, 0x20);
+    cpu.WriteByteAt(0x00, 0x01);
+    cpu.Y = 0x10;
+    Test_LAX(0x0130, Opcode(uLAX, IndirectIndexed, 2, 5), 0);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(CpuTestUnofficial, uLAS_AbsoluteY) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0x08;
+    Test_LAS(0x0128, Opcode(uLAS, AbsoluteY, 3, 4), 0);
+}
+
+TEST_F(CpuTestUnofficial, uLAS_AbsoluteY_CrossingPage) {
+    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
+    cpu.Y = 0xF0;
+    Test_LAS(0x0210, Opcode(uLAS, AbsoluteY, 3, 4), 1);
 }
