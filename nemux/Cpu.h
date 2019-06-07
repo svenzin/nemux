@@ -30,6 +30,9 @@ enum Name {
     CLC, CLD, CLI, CLV, SEC, SED, SEI,      // Status Change
     BRK, NOP, RTI,                          // System
 
+    // Unofficial instructions
+    uSTP, uSLO, uNOP,
+
     UNK,
 };
 }
@@ -87,6 +90,8 @@ struct address_t {
 
 class Cpu {
 public:
+    bool IsAlive;
+
     Word ReadWordAt(const Word address) const;
     void WriteWordAt(const Word address, const Word value);
     Byte ReadByteAt(const Word address) const;

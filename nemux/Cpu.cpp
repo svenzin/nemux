@@ -258,7 +258,58 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
 
     m_opcodes[0x60] = Opcode(RTS, Implicit, 1, 6);
 
+    // Unofficial opcodes
+    m_opcodes[0x04] = Opcode(uNOP, ZeroPage, 2, 3);
+    m_opcodes[0x0C] = Opcode(uNOP, Absolute, 3, 4);
+    m_opcodes[0x14] = Opcode(uNOP, ZeroPageX, 2, 4);
+    m_opcodes[0x1A] = Opcode(uNOP, Implicit, 1, 2);
+    m_opcodes[0x1C] = Opcode(uNOP, AbsoluteX, 3, 4);
+    m_opcodes[0x34] = Opcode(uNOP, ZeroPageX, 2, 4);
+    m_opcodes[0x3A] = Opcode(uNOP, Implicit, 1, 2);
+    m_opcodes[0x3C] = Opcode(uNOP, AbsoluteX, 3, 4);
+    m_opcodes[0x44] = Opcode(uNOP, ZeroPage, 2, 3);
+    m_opcodes[0x54] = Opcode(uNOP, ZeroPageX, 2, 4);
+    m_opcodes[0x5A] = Opcode(uNOP, Implicit, 1, 2);
+    m_opcodes[0x5C] = Opcode(uNOP, AbsoluteX, 3, 4);
+    m_opcodes[0x64] = Opcode(uNOP, ZeroPage, 2, 3);
+    m_opcodes[0x74] = Opcode(uNOP, ZeroPageX, 2, 4);
+    m_opcodes[0x7A] = Opcode(uNOP, Implicit, 1, 2);
+    m_opcodes[0x7C] = Opcode(uNOP, AbsoluteX, 3, 4);
+    m_opcodes[0x80] = Opcode(uNOP, Immediate, 2, 2);
+    m_opcodes[0x82] = Opcode(uNOP, Immediate, 2, 2);
+    m_opcodes[0x89] = Opcode(uNOP, Immediate, 2, 2);
+    m_opcodes[0xC2] = Opcode(uNOP, Immediate, 2, 2);
+    m_opcodes[0xD4] = Opcode(uNOP, ZeroPageX, 2, 4);
+    m_opcodes[0xDA] = Opcode(uNOP, Implicit, 1, 2);
+    m_opcodes[0xDC] = Opcode(uNOP, AbsoluteX, 3, 4);
+    m_opcodes[0xE2] = Opcode(uNOP, Immediate, 2, 2);
+    m_opcodes[0xF4] = Opcode(uNOP, ZeroPageX, 2, 4);
+    m_opcodes[0xFA] = Opcode(uNOP, Implicit, 1, 2);
+    m_opcodes[0xFC] = Opcode(uNOP, AbsoluteX, 3, 4);
+
+    m_opcodes[0x02] = Opcode(uSTP, Implicit, 1, 2);
+    m_opcodes[0x12] = Opcode(uSTP, Implicit, 1, 2);
+    m_opcodes[0x22] = Opcode(uSTP, Implicit, 1, 2);
+    m_opcodes[0x32] = Opcode(uSTP, Implicit, 1, 2);
+    m_opcodes[0x42] = Opcode(uSTP, Implicit, 1, 2);
+    m_opcodes[0x52] = Opcode(uSTP, Implicit, 1, 2);
+    m_opcodes[0x62] = Opcode(uSTP, Implicit, 1, 2);
+    m_opcodes[0x72] = Opcode(uSTP, Implicit, 1, 2);
+    m_opcodes[0x92] = Opcode(uSTP, Implicit, 1, 2);
+    m_opcodes[0xB2] = Opcode(uSTP, Implicit, 1, 2);
+    m_opcodes[0xD2] = Opcode(uSTP, Implicit, 1, 2);
+    m_opcodes[0xF2] = Opcode(uSTP, Implicit, 1, 2);
+
+    m_opcodes[0x03] = Opcode(uSLO, IndexedIndirect, 2, 8);
+    m_opcodes[0x07] = Opcode(uSLO, ZeroPage, 2, 5);
+    m_opcodes[0x0F] = Opcode(uSLO, Absolute, 3, 6);
+    m_opcodes[0x13] = Opcode(uSLO, IndirectIndexed, 2, 8);
+    m_opcodes[0x17] = Opcode(uSLO, ZeroPageX, 2, 6);
+    m_opcodes[0x1B] = Opcode(uSLO, AbsoluteY, 3, 7);
+    m_opcodes[0x1F] = Opcode(uSLO, AbsoluteX, 3, 7);
+
     // Power up state
+    IsAlive = true;
     SP = 0xFD;
     SetStatus(0x34);
     CurrentTick = 0;
@@ -469,347 +520,365 @@ void Cpu::DMA(const Byte page,
     }
 }
 void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
-    switch(op.Instruction) {
-        case BRK: {
-            PC += op.Bytes;
-            if (I == 0) {
-                Interrupt(1, VectorIRQ);
-                Ticks += op.Cycles;
-            }
-            break;
-        }
-        case JMP: {
-            PC = BuildAddress(op.Addressing).Address;
-            Ticks += op.Cycles;
-            break;
-        }
-        case JSR: {
-            PushWord(PC + 2);
-            PC = BuildAddress(op.Addressing).Address;
-            Ticks += op.Cycles;
-            break;
-        }
-        case RTS: {
-            PC = PullWord() + 1;
-            Ticks += op.Cycles;
-            break;
-        }
-        case RTI: {
-            SetStatus(Pull());
-            PC = PullWord();
-            Ticks += op.Cycles;
-            break;
-        }
-        case PLP: {
-            SetStatus(Pull());
-//            B = 0;
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case PHP: {
-            B = 1;
-            Push(GetStatus());
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case PHA: {
-            Push(A);
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case PLA: {
-            Transfer(Pull(), A);
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case LDA: {
-            const auto a = BuildAddress(op.Addressing);
-            Transfer(ReadByteAt(a.Address), A);
-            if (a.HasCrossedPage) ++Ticks;
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case LDX: {
-            const auto a = BuildAddress(op.Addressing);
-            Transfer(ReadByteAt(a.Address), X);
-            if (a.HasCrossedPage) ++Ticks;
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case LDY: {
-            const auto a = BuildAddress(op.Addressing);
-            Transfer(ReadByteAt(a.Address), Y);
-            if (a.HasCrossedPage) ++Ticks;
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case EOR: {
-            const auto a = BuildAddress(op.Addressing);
-            Transfer(A ^ ReadByteAt(a.Address), A);
-            if (a.HasCrossedPage) ++Ticks;
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case ORA: {
-            const auto a = BuildAddress(op.Addressing);
-            Transfer(A | ReadByteAt(a.Address), A);
-            if (a.HasCrossedPage) ++Ticks;
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case CMP: {
-            const auto a = BuildAddress(op.Addressing);
-            Compare(A, ReadByteAt(a.Address));
-            if (a.HasCrossedPage) ++Ticks;
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case CPX: {
-            Compare(X, ReadByteAt(BuildAddress(op.Addressing).Address));
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case CPY: {
-            Compare(Y, ReadByteAt(BuildAddress(op.Addressing).Address));
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case TAX: {
-            Transfer(A, X);
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case TAY: {
-            Transfer(A, Y);
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case TSX: {
-            Transfer(SP, X);
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case TXA: {
-            Transfer(X, A);
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case TXS: {
-            // TXS does not change the flags
-            SP = X;
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case TYA: {
-            Transfer(Y, A);
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case STA: {
-            WriteByteAt(BuildAddress(op.Addressing).Address, A);
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case STX: {
-            WriteByteAt(BuildAddress(op.Addressing).Address, X);
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case STY: {
-            WriteByteAt(BuildAddress(op.Addressing).Address, Y);
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case BCC: {
-            BranchIf(C == 0, op);
-            break;
-        }
-        case BCS: {
-            BranchIf(C == 1, op);
-            break;
-        }
-        case BEQ: {
-            BranchIf(Z == 1, op);
-            break;
-        }
-        case BMI: {
-            BranchIf(N == 1, op);
-            break;
-        }
-        case BNE: {
-            BranchIf(Z == 0, op);
-            break;
-        }
-        case BPL: {
-            BranchIf(N == 0, op);
-            break;
-        }
-        case BVC: {
-            BranchIf(V == 0, op);
-            break;
-        }
-        case BVS: {
-            BranchIf(V == 1, op);
-            break;
-        }
-        case ADC: {
-            const auto aa = BuildAddress(op.Addressing);
-            const auto M = ReadByteAt(aa.Address);
-            Word a = A + M + C;
-            C = (a > BYTE_MASK) ? 1 : 0;
-            V = ~Bit<Neg>(A ^ M) & Bit<Neg>(A ^ a);
-            Transfer(a & BYTE_MASK, A);
-            if (aa.HasCrossedPage) ++Ticks;
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case SBC: {
-            const auto aa = BuildAddress(op.Addressing);
-            const auto M = ReadByteAt(aa.Address);
-            Word a = A - M - (1 - C);
-            C = (a > BYTE_MASK) ? 0 : 1;
-            V = Bit<Neg>(A ^ M) & Bit<Neg>(A ^ a);
-            Transfer(a & BYTE_MASK, A);
-            if (aa.HasCrossedPage) ++Ticks;
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case ASL: {
-            if (op.Addressing == Accumulator) {
-                C = Bit<Left>(A);
-                Transfer(A << 1, A);
-            } else {
-                const auto address = BuildAddress(op.Addressing).Address;
-                auto M = ReadByteAt(address);
-                C = Bit<Left>(M);
-                Transfer(M << 1, M);
-                WriteByteAt(address, M);
-            }
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case LSR: {
-            if (op.Addressing == Accumulator) {
-                C = Bit<Right>(A);
-                Transfer(A >> 1, A);
-            } else {
-                const auto address = BuildAddress(op.Addressing).Address;
-                auto M = ReadByteAt(address);
-                C = Bit<Right>(M);
-                Transfer(M >> 1, M);
-                WriteByteAt(address, M);
-            }
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case ROL: {
-            if (op.Addressing == Accumulator) {
-                const auto c = Bit<Left>(A);
-                Transfer((A << 1) | Mask<Right>(C), A);
-                C = c;
-            } else {
-                const auto address = BuildAddress(op.Addressing).Address;
-                auto M = ReadByteAt(address);
-                const auto c = Bit<Left>(M);
-                Transfer((M << 1) | Mask<Right>(C), M);
-                C = c;
-                WriteByteAt(address, M);
-            }
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case ROR: {
-            if (op.Addressing == Accumulator) {
-                const auto c = Bit<Right>(A);
-                Transfer((A >> 1) | Mask<Left>(C), A);
-                C = c;
-            } else {
-                const auto address = BuildAddress(op.Addressing).Address;
-                auto M = ReadByteAt(address);
-                const auto c = Bit<Right>(M);
-                Transfer((M >> 1) | Mask<Left>(C), M);
-                C = c;
-                WriteByteAt(address, M);
-            }
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case AND: {
-            const auto a = BuildAddress(op.Addressing);
-            const auto M = ReadByteAt(a.Address);
-            Transfer(A & M, A);
-            if (a.HasCrossedPage) ++Ticks;
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case BIT: {
-            const auto mask = ReadByteAt(BuildAddress(op.Addressing).Address);
-            Z = (mask & A) == 0 ? 1 : 0;
-            V = Bit<Ovf>(mask);
-            N = Bit<Neg>(mask);
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case CLC: {
-            C = 0;
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case CLD: {
-            D = 0;
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case CLI: {
-            I = 0;
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case CLV: {
-            V = 0;
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case SEC: {
-            C = 1;
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case SED: {
-            D = 1;
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case SEI: {
-            I = 1;
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case DEC: {
-            const auto address = BuildAddress(op.Addressing).Address;
-            auto M = ReadByteAt(address);
-            Decrement(M);
-            WriteByteAt(address, M);
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case DEX: {
-            Decrement(X);
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case DEY: {
-            Decrement(Y);
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case INC: {
-            const auto address = BuildAddress(op.Addressing).Address;
-            auto M = ReadByteAt(address);
-            Increment(M);
-            WriteByteAt(address, M);
-            PC += op.Bytes; Ticks += op.Cycles;
-            break;
-        }
-        case INX: {
-            Increment(X);
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case INY: {
-            Increment(Y);
-            PC += op.Bytes; Ticks += op.Cycles; break;
-        }
-        case NOP: { PC += op.Bytes; Ticks += op.Cycles; break; }
+    if (!IsAlive) return;
 
-        default:
-        case UNK:
-            break;
+    switch (op.Instruction) {
+    case BRK: {
+        PC += op.Bytes;
+        if (I == 0) {
+            Interrupt(1, VectorIRQ);
+            Ticks += op.Cycles;
+        }
+        break;
+    }
+    case JMP: {
+        PC = BuildAddress(op.Addressing).Address;
+        Ticks += op.Cycles;
+        break;
+    }
+    case JSR: {
+        PushWord(PC + 2);
+        PC = BuildAddress(op.Addressing).Address;
+        Ticks += op.Cycles;
+        break;
+    }
+    case RTS: {
+        PC = PullWord() + 1;
+        Ticks += op.Cycles;
+        break;
+    }
+    case RTI: {
+        SetStatus(Pull());
+        PC = PullWord();
+        Ticks += op.Cycles;
+        break;
+    }
+    case PLP: {
+        SetStatus(Pull());
+        //            B = 0;
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case PHP: {
+        B = 1;
+        Push(GetStatus());
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case PHA: {
+        Push(A);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case PLA: {
+        Transfer(Pull(), A);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case LDA: {
+        const auto a = BuildAddress(op.Addressing);
+        Transfer(ReadByteAt(a.Address), A);
+        if (a.HasCrossedPage) ++Ticks;
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case LDX: {
+        const auto a = BuildAddress(op.Addressing);
+        Transfer(ReadByteAt(a.Address), X);
+        if (a.HasCrossedPage) ++Ticks;
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case LDY: {
+        const auto a = BuildAddress(op.Addressing);
+        Transfer(ReadByteAt(a.Address), Y);
+        if (a.HasCrossedPage) ++Ticks;
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case EOR: {
+        const auto a = BuildAddress(op.Addressing);
+        Transfer(A ^ ReadByteAt(a.Address), A);
+        if (a.HasCrossedPage) ++Ticks;
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case ORA: {
+        const auto a = BuildAddress(op.Addressing);
+        Transfer(A | ReadByteAt(a.Address), A);
+        if (a.HasCrossedPage) ++Ticks;
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case CMP: {
+        const auto a = BuildAddress(op.Addressing);
+        Compare(A, ReadByteAt(a.Address));
+        if (a.HasCrossedPage) ++Ticks;
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case CPX: {
+        Compare(X, ReadByteAt(BuildAddress(op.Addressing).Address));
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case CPY: {
+        Compare(Y, ReadByteAt(BuildAddress(op.Addressing).Address));
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case TAX: {
+        Transfer(A, X);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case TAY: {
+        Transfer(A, Y);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case TSX: {
+        Transfer(SP, X);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case TXA: {
+        Transfer(X, A);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case TXS: {
+        // TXS does not change the flags
+        SP = X;
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case TYA: {
+        Transfer(Y, A);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case STA: {
+        WriteByteAt(BuildAddress(op.Addressing).Address, A);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case STX: {
+        WriteByteAt(BuildAddress(op.Addressing).Address, X);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case STY: {
+        WriteByteAt(BuildAddress(op.Addressing).Address, Y);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case BCC: {
+        BranchIf(C == 0, op);
+        break;
+    }
+    case BCS: {
+        BranchIf(C == 1, op);
+        break;
+    }
+    case BEQ: {
+        BranchIf(Z == 1, op);
+        break;
+    }
+    case BMI: {
+        BranchIf(N == 1, op);
+        break;
+    }
+    case BNE: {
+        BranchIf(Z == 0, op);
+        break;
+    }
+    case BPL: {
+        BranchIf(N == 0, op);
+        break;
+    }
+    case BVC: {
+        BranchIf(V == 0, op);
+        break;
+    }
+    case BVS: {
+        BranchIf(V == 1, op);
+        break;
+    }
+    case ADC: {
+        const auto aa = BuildAddress(op.Addressing);
+        const auto M = ReadByteAt(aa.Address);
+        Word a = A + M + C;
+        C = (a > BYTE_MASK) ? 1 : 0;
+        V = ~Bit<Neg>(A ^ M) & Bit<Neg>(A ^ a);
+        Transfer(a & BYTE_MASK, A);
+        if (aa.HasCrossedPage) ++Ticks;
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case SBC: {
+        const auto aa = BuildAddress(op.Addressing);
+        const auto M = ReadByteAt(aa.Address);
+        Word a = A - M - (1 - C);
+        C = (a > BYTE_MASK) ? 0 : 1;
+        V = Bit<Neg>(A ^ M) & Bit<Neg>(A ^ a);
+        Transfer(a & BYTE_MASK, A);
+        if (aa.HasCrossedPage) ++Ticks;
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case ASL: {
+        if (op.Addressing == Accumulator) {
+            C = Bit<Left>(A);
+            Transfer(A << 1, A);
+        }
+        else {
+            const auto address = BuildAddress(op.Addressing).Address;
+            auto M = ReadByteAt(address);
+            C = Bit<Left>(M);
+            Transfer(M << 1, M);
+            WriteByteAt(address, M);
+        }
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case LSR: {
+        if (op.Addressing == Accumulator) {
+            C = Bit<Right>(A);
+            Transfer(A >> 1, A);
+        }
+        else {
+            const auto address = BuildAddress(op.Addressing).Address;
+            auto M = ReadByteAt(address);
+            C = Bit<Right>(M);
+            Transfer(M >> 1, M);
+            WriteByteAt(address, M);
+        }
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case ROL: {
+        if (op.Addressing == Accumulator) {
+            const auto c = Bit<Left>(A);
+            Transfer((A << 1) | Mask<Right>(C), A);
+            C = c;
+        }
+        else {
+            const auto address = BuildAddress(op.Addressing).Address;
+            auto M = ReadByteAt(address);
+            const auto c = Bit<Left>(M);
+            Transfer((M << 1) | Mask<Right>(C), M);
+            C = c;
+            WriteByteAt(address, M);
+        }
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case ROR: {
+        if (op.Addressing == Accumulator) {
+            const auto c = Bit<Right>(A);
+            Transfer((A >> 1) | Mask<Left>(C), A);
+            C = c;
+        }
+        else {
+            const auto address = BuildAddress(op.Addressing).Address;
+            auto M = ReadByteAt(address);
+            const auto c = Bit<Right>(M);
+            Transfer((M >> 1) | Mask<Left>(C), M);
+            C = c;
+            WriteByteAt(address, M);
+        }
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case AND: {
+        const auto a = BuildAddress(op.Addressing);
+        const auto M = ReadByteAt(a.Address);
+        Transfer(A & M, A);
+        if (a.HasCrossedPage) ++Ticks;
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case BIT: {
+        const auto mask = ReadByteAt(BuildAddress(op.Addressing).Address);
+        Z = (mask & A) == 0 ? 1 : 0;
+        V = Bit<Ovf>(mask);
+        N = Bit<Neg>(mask);
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case CLC: {
+        C = 0;
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case CLD: {
+        D = 0;
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case CLI: {
+        I = 0;
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case CLV: {
+        V = 0;
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case SEC: {
+        C = 1;
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case SED: {
+        D = 1;
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case SEI: {
+        I = 1;
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case DEC: {
+        const auto address = BuildAddress(op.Addressing).Address;
+        auto M = ReadByteAt(address);
+        Decrement(M);
+        WriteByteAt(address, M);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case DEX: {
+        Decrement(X);
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case DEY: {
+        Decrement(Y);
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case INC: {
+        const auto address = BuildAddress(op.Addressing).Address;
+        auto M = ReadByteAt(address);
+        Increment(M);
+        WriteByteAt(address, M);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case INX: {
+        Increment(X);
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case INY: {
+        Increment(Y);
+        PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case uNOP:
+    case NOP: { PC += op.Bytes; Ticks += op.Cycles; break; }
+    case uSTP: { IsAlive = false; break; }
+    case uSLO: {
+        const auto address = BuildAddress(op.Addressing).Address;
+        auto M = ReadByteAt(address);
+        C = Bit<Left>(M);
+        Transfer(M << 1, M);
+        WriteByteAt(address, M);
+        Transfer(A | M, A);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+
+    default:
+    case UNK:
+        break;
     }
 }
 
