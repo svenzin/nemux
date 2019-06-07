@@ -319,6 +319,26 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     m_opcodes[0x3B] = Opcode(uRLA, AbsoluteY, 3, 7);
     m_opcodes[0x3F] = Opcode(uRLA, AbsoluteX, 3, 7);
 
+    m_opcodes[0x43] = Opcode(uSRE, IndexedIndirect, 2, 8);
+    m_opcodes[0x47] = Opcode(uSRE, ZeroPage, 2, 5);
+    m_opcodes[0x4F] = Opcode(uSRE, Absolute, 3, 6);
+    m_opcodes[0x53] = Opcode(uSRE, IndirectIndexed, 2, 8);
+    m_opcodes[0x57] = Opcode(uSRE, ZeroPageX, 2, 6);
+    m_opcodes[0x5B] = Opcode(uSRE, AbsoluteY, 3, 7);
+    m_opcodes[0x5F] = Opcode(uSRE, AbsoluteX, 3, 7);
+
+    m_opcodes[0x4B] = Opcode(uALR, Immediate, 2, 2);
+
+    m_opcodes[0x63] = Opcode(uRRA, IndexedIndirect, 2, 8);
+    m_opcodes[0x67] = Opcode(uRRA, ZeroPage, 2, 5);
+    m_opcodes[0x6F] = Opcode(uRRA, Absolute, 3, 6);
+    m_opcodes[0x73] = Opcode(uRRA, IndirectIndexed, 2, 8);
+    m_opcodes[0x77] = Opcode(uRRA, ZeroPageX, 2, 6);
+    m_opcodes[0x7B] = Opcode(uRRA, AbsoluteY, 3, 7);
+    m_opcodes[0x7F] = Opcode(uRRA, AbsoluteX, 3, 7);
+
+    m_opcodes[0x6B] = Opcode(uARR, Immediate, 2, 2);
+
     // Power up state
     IsAlive = true;
     SP = 0xFD;
@@ -902,6 +922,55 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         C = c;
         WriteByteAt(address, M);
         Transfer(A & M, A);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case uSRE: {
+        const auto address = BuildAddress(op.Addressing).Address;
+        auto M = ReadByteAt(address);
+        C = Bit<Right>(M);
+        Transfer(M >> 1, M);
+        WriteByteAt(address, M);
+        Transfer(A ^ M, A);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case uALR: {
+        const auto a = BuildAddress(op.Addressing);
+        const auto M = ReadByteAt(a.Address);
+        Transfer(A & M, A);
+        C = Bit<Right>(A);
+        Transfer(A >> 1, A);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case uRRA: {
+        const auto address = BuildAddress(op.Addressing).Address;
+        auto M = ReadByteAt(address);
+        const auto c = Bit<Right>(M);
+        Transfer((M >> 1) | Mask<Left>(C), M);
+        C = c;
+        WriteByteAt(address, M);
+
+        Word a = A + M + C;
+        C = (a > BYTE_MASK) ? 1 : 0;
+        V = ~Bit<Neg>(A ^ M) & Bit<Neg>(A ^ a);
+        Transfer(a & BYTE_MASK, A);
+        
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case uARR: {
+        const auto address = BuildAddress(op.Addressing).Address;
+        const auto M = ReadByteAt(address);
+        Transfer(A & M, A);
+        Transfer((A >> 1) | Mask<Left>(C), A);
+        switch ((A >> 5) & 0x03) {
+        case 0: { C = 0; V = 0; break; }
+        case 1: { C = 0; V = 1; break; }
+        case 2: { C = 1; V = 1; break; }
+        case 3: { C = 1; V = 0; break; }
+        }
         PC += op.Bytes; Ticks += op.Cycles;
         break;
     }
