@@ -1042,15 +1042,31 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         PC += op.Bytes; Ticks += op.Cycles; break;
     }
     case uSHY: {
-        const auto address = BuildAddress(op.Addressing).Address;
-        const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
-        WriteByteAt(address, Y & H);
+        const auto a = BuildAddress(op.Addressing);
+        const auto H = ((a.Address & WORD_HI_MASK) >> BYTE_WIDTH);
+        const auto M = (Y & (H + 1));
+        if (a.HasCrossedPage) {
+            // In case the resulting addres crosses a page
+            // The bahviour is corrupted
+            // See http://forums.nesdev.com/viewtopic.php?f=3&t=3831&start=30
+            const auto address = (M << BYTE_WIDTH) | (a.Address & WORD_LO_MASK);
+            WriteByteAt(address, M);
+        }
+        else WriteByteAt(a.Address, M);
         PC += op.Bytes; Ticks += op.Cycles; break;
     }
     case uSHX: {
-        const auto address = BuildAddress(op.Addressing).Address;
-        const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
-        WriteByteAt(address, X & H);
+        const auto a = BuildAddress(op.Addressing);
+        const auto H = ((a.Address & WORD_HI_MASK) >> BYTE_WIDTH);
+        const auto M = X & (H + 1);
+        if (a.HasCrossedPage) {
+            // In case the resulting addres crosses a page
+            // The bahviour is corrupted
+            // See http://forums.nesdev.com/viewtopic.php?f=3&t=3831&start=30
+            const auto address = (M << BYTE_WIDTH) | (a.Address & WORD_LO_MASK);
+            WriteByteAt(address, M);
+        }
+        else WriteByteAt(a.Address, M);
         PC += op.Bytes; Ticks += op.Cycles; break;
     }
     case uLAX: {

@@ -189,29 +189,55 @@ public:
     void Test_SHY(Word address, Opcode op) {
         cpu.Y = 0xF5;
         const Byte H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
-        const Byte expM = (cpu.Y & H);
+        const Byte expM = (cpu.Y & (H + 1));
 
         cpu.PC = BASE_PC;
         cpu.Ticks = BASE_TICKS;
         cpu.Execute(op);
 
-        EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
-        EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
-        EXPECT_EQ(expM, cpu.ReadByteAt(address));
+        const bool CrossedPage = ((address & 0xFF00) != ((address + cpu.X) & 0xFF00));
+        if (CrossedPage) {
+            // In case the resulting addres crosses a page
+            // The bahviour is corrupted
+            // See http://forums.nesdev.com/viewtopic.php?f=3&t=3831&start=30
+            Word addr = (cpu.Y & ((address >> 8) + 1));
+            addr = (addr << 8) + (address & WORD_LO_MASK);
+            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+            EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+            EXPECT_EQ(expM, cpu.ReadByteAt(addr));
+        }
+        else {
+            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+            EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+            EXPECT_EQ(expM, cpu.ReadByteAt(address));
+        }
     }
 
     void Test_SHX(Word address, Opcode op) {
         cpu.X = 0xF5;
         const Byte H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
-        const Byte expM = (cpu.X & H);
+        const Byte expM = (cpu.X & (H + 1));
 
         cpu.PC = BASE_PC;
         cpu.Ticks = BASE_TICKS;
         cpu.Execute(op);
 
-        EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
-        EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
-        EXPECT_EQ(expM, cpu.ReadByteAt(address));
+        const bool CrossedPage = ((address & 0xFF00) != ((address + cpu.Y) & 0xFF00));
+        if (CrossedPage) {
+            // In case the resulting addres crosses a page
+            // The bahviour is corrupted
+            // See http://forums.nesdev.com/viewtopic.php?f=3&t=3831&start=30
+            Word addr = (cpu.X & ((address >> 8) + 1));
+            addr = (addr << 8) + (address & WORD_LO_MASK);
+            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+            EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+            EXPECT_EQ(expM, cpu.ReadByteAt(addr));
+        }
+        else {
+            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
+            EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
+            EXPECT_EQ(expM, cpu.ReadByteAt(address));
+        }
     }
 
     void Test_LAX(Word address, Opcode op, int extra) {
