@@ -143,6 +143,8 @@ public:
     void Compare(const Byte lhs, const Byte rhs);
     void Transfer(const Byte & from, Byte & to);
     void BranchIf(const bool condition, const Opcode & op);
+    void AddWithCarry(const Byte value);
+    void SubstractWithCarry(const Byte value);
 
     void Push(const Byte & value);
     Byte Pull();

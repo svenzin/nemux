@@ -515,6 +515,18 @@ void Cpu::BranchIf(const bool condition, const Opcode & op) {
         PC += op.Bytes; Ticks += op.Cycles;
     }
 }
+void Cpu::AddWithCarry(const Byte value) {
+    Word a = A + value + C;
+    C = (a > BYTE_MASK) ? 1 : 0;
+    V = ~Bit<Neg>(A ^ value) & Bit<Neg>(A ^ a);
+    Transfer(a & BYTE_MASK, A);
+}
+void Cpu::SubstractWithCarry(const Byte value) {
+    Word a = A - value - (1 - C);
+    C = (a > BYTE_MASK) ? 0 : 1;
+    V = Bit<Neg>(A ^ value) & Bit<Neg>(A ^ a);
+    Transfer(a & BYTE_MASK, A);
+}
 void Cpu::Push(const Byte & value) {
     WriteByteAt(StackPage + SP, value);
     --SP;
@@ -785,10 +797,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     case ADC: {
         const auto aa = BuildAddress(op.Addressing);
         const auto M = ReadByteAt(aa.Address);
-        Word a = A + M + C;
-        C = (a > BYTE_MASK) ? 1 : 0;
-        V = ~Bit<Neg>(A ^ M) & Bit<Neg>(A ^ a);
-        Transfer(a & BYTE_MASK, A);
+        AddWithCarry(M);
         if (aa.HasCrossedPage) ++Ticks;
         PC += op.Bytes; Ticks += op.Cycles;
         break;
@@ -797,10 +806,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     case SBC: {
         const auto aa = BuildAddress(op.Addressing);
         const auto M = ReadByteAt(aa.Address);
-        Word a = A - M - (1 - C);
-        C = (a > BYTE_MASK) ? 0 : 1;
-        V = Bit<Neg>(A ^ M) & Bit<Neg>(A ^ a);
-        Transfer(a & BYTE_MASK, A);
+        SubstractWithCarry(M);
         if (aa.HasCrossedPage) ++Ticks;
         PC += op.Bytes; Ticks += op.Cycles;
         break;
@@ -998,12 +1004,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         Transfer((M >> 1) | Mask<Left>(C), M);
         C = c;
         WriteByteAt(address, M);
-
-        Word a = A + M + C;
-        C = (a > BYTE_MASK) ? 1 : 0;
-        V = ~Bit<Neg>(A ^ M) & Bit<Neg>(A ^ a);
-        Transfer(a & BYTE_MASK, A);
-
+        AddWithCarry(M);
         PC += op.Bytes; Ticks += op.Cycles;
         break;
     }
@@ -1092,10 +1093,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         auto M = ReadByteAt(address);
         Increment(M);
         WriteByteAt(address, M);
-        Word a = A - M - (1 - C);
-        C = (a > BYTE_MASK) ? 0 : 1;
-        V = Bit<Neg>(A ^ M) & Bit<Neg>(A ^ a);
-        Transfer(a & BYTE_MASK, A);
+        SubstractWithCarry(M);
         PC += op.Bytes; Ticks += op.Cycles;
         break;
     }
