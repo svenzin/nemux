@@ -33,6 +33,7 @@ enum Name {
     // Unofficial instructions
     uSTP, uSLO, uNOP, uANC, uRLA, uSRE, uALR, uRRA, uARR,
     uSAX, uXAA, uAHX, uTAS, uSHY, uSHX, uLAX, uLAS,
+    uDCP, uAXS, uISC, uSBC,
 
     UNK,
 };

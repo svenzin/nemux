@@ -41,10 +41,10 @@ TEST_F(CpuTest, Opcode_Instruction) {
         /* 9x */    BCC, STA,uSTP,uAHX, STY, STA, STX,uSAX, TYA, STA, TXS,uTAS,uSHY, STA,uSHX,uAHX,
         /* Ax */    LDY, LDA, LDX,uLAX, LDY, LDA, LDX,uLAX, TAY, LDA, TAX,uLAX, LDY, LDA, LDX,uLAX,
         /* Bx */    BCS, LDA,uSTP,uLAX, LDY, LDA, LDX,uLAX, CLV, LDA, TSX,uLAS, LDY, LDA, LDX,uLAX,
-        /* Cx */    CPY, CMP,uNOP, UNK, CPY, CMP, DEC, UNK, INY, CMP, DEX, UNK, CPY, CMP, DEC, UNK,
-        /* Dx */    BNE, CMP,uSTP, UNK,uNOP, CMP, DEC, UNK, CLD, CMP,uNOP, UNK,uNOP, CMP, DEC, UNK,
-        /* Ex */    CPX, SBC,uNOP, UNK, CPX, SBC, INC, UNK, INX, SBC, NOP, UNK, CPX, SBC, INC, UNK,
-        /* Fx */    BEQ, SBC,uSTP, UNK,uNOP, SBC, INC, UNK, SED, SBC,uNOP, UNK,uNOP, SBC, INC, UNK,
+        /* Cx */    CPY, CMP,uNOP,uDCP, CPY, CMP, DEC,uDCP, INY, CMP, DEX,uAXS, CPY, CMP, DEC,uDCP,
+        /* Dx */    BNE, CMP,uSTP,uDCP,uNOP, CMP, DEC,uDCP, CLD, CMP,uNOP,uDCP,uNOP, CMP, DEC,uDCP,
+        /* Ex */    CPX, SBC,uNOP,uISC, CPX, SBC, INC,uISC, INX, SBC, NOP,uSBC, CPX, SBC, INC,uISC,
+        /* Fx */    BEQ, SBC,uSTP,uISC,uNOP, SBC, INC,uISC, SED, SBC,uNOP,uISC,uNOP, SBC, INC,uISC,
     };
 
     for (int i = 0; i < opcodes.size(); ++i) {
@@ -83,10 +83,10 @@ TEST_F(CpuTest, Opcode_Addressing) {
 		/* 9x */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPY, ZPY, IMP, ABY, IMP, ABY, ABX, ABX, ABY, ABY,
 		/* Ax */    IMM, IDX, IMM, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, IMP, IMM, ABS, ABS, ABS, ABS,
 		/* Bx */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPY, ZPY, IMP, ABY, IMP, ABY, ABX, ABX, ABY, ABY,
-		/* Cx */    IMM, IDX, IMM, UNK, ZPG, ZPG, ZPG, UNK, IMP, IMM, IMP, UNK, ABS, ABS, ABS, UNK,
-		/* Dx */    REL, IDY, IMP, UNK, ZPX, ZPX, ZPX, UNK, IMP, ABY, IMP, UNK, ABX, ABX, ABX, UNK,
-		/* Ex */    IMM, IDX, IMM, UNK, ZPG, ZPG, ZPG, UNK, IMP, IMM, IMP, UNK, ABS, ABS, ABS, UNK,
-		/* Fx */    REL, IDY, IMP, UNK, ZPX, ZPX, ZPX, UNK, IMP, ABY, IMP, UNK, ABX, ABX, ABX, UNK,
+		/* Cx */    IMM, IDX, IMM, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, IMP, IMM, ABS, ABS, ABS, ABS,
+		/* Dx */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
+		/* Ex */    IMM, IDX, IMM, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, IMP, IMM, ABS, ABS, ABS, ABS,
+		/* Fx */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
     };
 
 	for (int i = 0; i < opcodes.size(); ++i) {

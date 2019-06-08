@@ -365,6 +365,26 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
 
     m_opcodes[0xBB] = Opcode(uLAS, AbsoluteY, 3, 4);
 
+    m_opcodes[0xC3] = Opcode(uDCP, IndexedIndirect, 2, 8);
+    m_opcodes[0xC7] = Opcode(uDCP, ZeroPage, 2, 5);
+    m_opcodes[0xCF] = Opcode(uDCP, Absolute, 3, 6);
+    m_opcodes[0xD3] = Opcode(uDCP, IndirectIndexed, 2, 8);
+    m_opcodes[0xD7] = Opcode(uDCP, ZeroPageX, 2, 6);
+    m_opcodes[0xDB] = Opcode(uDCP, AbsoluteY, 3, 7);
+    m_opcodes[0xDF] = Opcode(uDCP, AbsoluteX, 3, 7);
+
+    m_opcodes[0xCB] = Opcode(uAXS, Immediate, 2, 2);
+
+    m_opcodes[0xE3] = Opcode(uISC, IndexedIndirect, 2, 8);
+    m_opcodes[0xE7] = Opcode(uISC, ZeroPage, 2, 5);
+    m_opcodes[0xEF] = Opcode(uISC, Absolute, 3, 6);
+    m_opcodes[0xF3] = Opcode(uISC, IndirectIndexed, 2, 8);
+    m_opcodes[0xF7] = Opcode(uISC, ZeroPageX, 2, 6);
+    m_opcodes[0xFB] = Opcode(uISC, AbsoluteY, 3, 7);
+    m_opcodes[0xFF] = Opcode(uISC, AbsoluteX, 3, 7);
+
+    m_opcodes[0xEB] = Opcode(uSBC, Immediate, 2, 2);
+
     // Power up state
     IsAlive = true;
     SP = 0xFD;
@@ -773,6 +793,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         PC += op.Bytes; Ticks += op.Cycles;
         break;
     }
+    case uSBC:
     case SBC: {
         const auto aa = BuildAddress(op.Addressing);
         const auto M = ReadByteAt(aa.Address);
@@ -1014,6 +1035,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     case uTAS: {
         const auto address = BuildAddress(op.Addressing).Address;
         const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
+        // Don't transfer because flags are not updated
         SP = (A & X);
         WriteByteAt(address, A & X & H);
         PC += op.Bytes; Ticks += op.Cycles; break;
@@ -1046,6 +1068,36 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         Transfer(SP, X);
         if (a.HasCrossedPage) ++Ticks;
         PC += op.Bytes; Ticks += op.Cycles; break;
+    }
+    case uDCP: {
+        const auto a = BuildAddress(op.Addressing);
+        auto M = ReadByteAt(a.Address);
+        Decrement(M);
+        WriteByteAt(a.Address, M);
+        Compare(A, M);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case uAXS: {
+        const auto a = BuildAddress(op.Addressing);
+        auto M = ReadByteAt(a.Address);
+        X = (A & X);
+        Compare(X, M); // Flags are set like CMP
+        X = X - M;
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
+    }
+    case uISC: {
+        const auto address = BuildAddress(op.Addressing).Address;
+        auto M = ReadByteAt(address);
+        Increment(M);
+        WriteByteAt(address, M);
+        Word a = A - M - (1 - C);
+        C = (a > BYTE_MASK) ? 0 : 1;
+        V = Bit<Neg>(A ^ M) & Bit<Neg>(A ^ a);
+        Transfer(a & BYTE_MASK, A);
+        PC += op.Bytes; Ticks += op.Cycles;
+        break;
     }
 
     default:
