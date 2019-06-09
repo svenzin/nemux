@@ -453,11 +453,15 @@ address_t Cpu::BuildAddress(const Addressing::Type & type) const {
         }
         case AbsoluteX: {
             const Word address = ReadWordAt(PC_1) + X;
-            return { address, (X > (address & BYTE_MASK)) };
+            const bool crossed = (X > (address & BYTE_MASK));
+            if (crossed) ReadByteAt(address - 0x0100); // Dummy read
+            return { address, crossed };
         }
         case AbsoluteY: {
             const Word address = ReadWordAt(PC_1) + Y;
-            return { address, (Y > (address & BYTE_MASK)) };
+            const bool crossed = (Y > (address & BYTE_MASK));
+            if (crossed) ReadByteAt(address - 0x0100); // Dummy read
+            return{ address, crossed };
         }
         case IndexedIndirect: {
             const Word base = ReadWordAt(PC_1) + X;
@@ -471,7 +475,9 @@ address_t Cpu::BuildAddress(const Addressing::Type & type) const {
             const Word lo = ReadByteAt(base);
             const Word hi = ReadByteAt((base + 1) & WORD_LO_MASK);
             const Word addr = (hi << BYTE_WIDTH) + lo + Y;
-            return { addr, (Y > (addr & BYTE_MASK)) };
+            const bool crossed = (Y > (addr & BYTE_MASK));
+            if (crossed) ReadByteAt(addr - 0x0100); // Dummy read
+            return { addr, crossed };
         }
         case Indirect: {
             const Word base = ReadWordAt(PC_1);
