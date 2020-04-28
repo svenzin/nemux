@@ -11,4 +11,4 @@ file(COPY ../3rd-party/SDL2-2.0.9/lib/x86/SDL2.dll DESTINATION ${CMAKE_CURRENT_B
 include_directories (../nemux)
 
 add_executable (nemux-vis ${SOURCES})
-target_link_libraries (nemux-vis nemux SDL2)
+target_link_libraries (nemux-vis nemux SDL2 SDL2main)

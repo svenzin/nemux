@@ -14,6 +14,7 @@
 #include "Mapper_0.h"
 #include "Mapper_1.h"
 #include "Mapper_2.h"
+#include "Mapper_3.h"
 #include "Cpu.h"
 #include "Ppu.h"
 #include "Controllers.h"
@@ -41,6 +42,7 @@ namespace debug {
             "BCC", "BCS", "BEQ", "BMI", "BNE", "BPL", "BVC", "BVS", // Branch
             "CLC", "CLD", "CLI", "CLV", "SEC", "SED", "SEI",        // Status Change
             "BRK", "NOP", "RTI",                                    // System
+           "uSTP","uSLO","uNOP","uANC","uRLA","uSRE","uALR","uRRA","uARR", // Unofficial
             "UNK",
         };
 
@@ -376,6 +378,7 @@ int main(int argc, char ** argv) {
         case 0: mapper.reset(new Mapper_000(rom)); break;
         case 1: mapper.reset(new Mapper_001(rom)); break;
         case 2: mapper.reset(new Mapper_002(rom)); break;
+        case 3: mapper.reset(new Mapper_003(rom)); break;
         }
         
         PpuMemoryMap<Palette> ppumap(nullptr, mapper.get());
