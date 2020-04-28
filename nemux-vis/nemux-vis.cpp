@@ -335,6 +335,23 @@ void FillAudioDeviceBuffer(void* UserData, Uint8* DeviceBuffer, int Length)
     //samples.clear();
 }
 
+struct Fps {
+    int fps = -1;
+    int counter = 0;
+    Uint32 ticks = 0;
+
+    bool update(const Uint32 sdlTicks) {
+        ++counter;
+        if ((sdlTicks - ticks) > 1000) {
+            fps = counter;
+            counter = 0;
+            ticks = sdlTicks;
+            return true;
+        }
+        return false;
+    }
+};
+
 int main(int argc, char ** argv) {
     std::vector<std::string> positionals;
     std::set<Options> options;
@@ -364,6 +381,10 @@ int main(int argc, char ** argv) {
         error("Please specify a NES ROM file");
         return 1;
     }
+
+    Fps fps;
+
+    int frameSkip = 0;
 
     try {
         std::string filepath = positionals[0];
@@ -658,6 +679,9 @@ int main(int argc, char ** argv) {
                             if (e.key.keysym.sym == SDLK_F3) apu.Triangle1Output = 1 - apu.Triangle1Output;
                             if (e.key.keysym.sym == SDLK_F4) apu.Noise1Output = 1 - apu.Noise1Output;
                             if (e.key.keysym.sym == SDLK_F5) apu.DMC1Output = 1 - apu.DMC1Output;
+                            if (e.key.keysym.sym == SDLK_F10) --frameSkip;
+                            if (e.key.keysym.sym == SDLK_F11) ++frameSkip;
+                            if (e.key.keysym.sym == SDLK_F12) showFps = !showFps;
                             break;
                         }
                         case SDL_KEYUP: {
@@ -675,14 +699,35 @@ int main(int argc, char ** argv) {
                         }
                     }
 
-                    for (auto i = 0; i < VIDEO_SIZE; ++i) {
-                        pixels[i] = palette[ppu.Frame[i]];
+                    const auto ticks = SDL_GetTicks();
+                    if (fps.update(ticks)) {
+                        if (showFps) std::cout << fps.fps << std::endl;
                     }
 
-                    SDL_UpdateTexture(tex, NULL, pixels.data(), VIDEO_WIDTH * sizeof(Uint32));
-                    SDL_RenderCopy(ren, tex, NULL, NULL);
-                    SDL_RenderPresent(ren);
-                    SDL_UpdateWindowSurface(win);
+                    if (frameSkip <= 0) {
+                        for (auto i = 0; i < VIDEO_SIZE; ++i) {
+                            pixels[i] = palette[ppu.Frame[i]];
+                        }
+
+                        auto skip = frameSkip;
+                        while (skip <= 0) {
+                            SDL_UpdateTexture(tex, NULL, pixels.data(), VIDEO_WIDTH * sizeof(Uint32));
+                            SDL_RenderCopy(ren, tex, NULL, NULL);
+                            SDL_RenderPresent(ren);
+                            SDL_UpdateWindowSurface(win);
+                            ++skip;
+                        }
+                    }
+                    else {
+                        for (auto i = 0; i < VIDEO_SIZE; ++i) {
+                            pixels[i] = palette[ppu.Frame[i]];
+                        }
+
+                        SDL_UpdateTexture(tex, NULL, pixels.data(), VIDEO_WIDTH * sizeof(Uint32));
+                        SDL_RenderCopy(ren, tex, NULL, NULL);
+                        SDL_RenderPresent(ren);
+                        SDL_UpdateWindowSurface(win);
+                    }
                 }
             }
 
