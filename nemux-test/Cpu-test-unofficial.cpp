@@ -23,7 +23,7 @@ public:
         cpu.Ticks = BASE_TICKS;
     }
 
-    MemoryBlock<0x1000> memory;
+    MemoryBlock<0x10000> memory;
     Cpu cpu;
 
     void Test_SLO(Word address, Opcode op) {

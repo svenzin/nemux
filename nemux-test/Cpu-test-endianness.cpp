@@ -11,7 +11,7 @@ struct CpuTestEndianness : public ::testing::Test {
         cpu.Ticks = BASE_TICKS;
     }
 
-    MemoryBlock<0x400> memory;
+    MemoryBlock<0x10000> memory;
     Cpu cpu;
 };
 
