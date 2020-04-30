@@ -136,37 +136,38 @@ int main(int argc, char ** argv) {
                 << "    Mapper        " << rom.Header.MapperNumber << std::endl
                 << "    PRG-ROM       " << static_cast<int>(rom.Header.PrgRomPages) << " page(s)" << std::endl
                 << "    CHR-ROM       " << static_cast<int>(rom.Header.ChrRomPages) << " page(s)" << std::endl;
-                log(oss.str());
+            log(oss.str());
         }
         else if (IsSet(Options::Test)) {
-            std::pair<bool, std::ifstream> logfile { false, std::ifstream() };
+            std::pair<bool, std::ifstream> logfile{ false, std::ifstream() };
             if (IsSet(Options::Test_Log)) {
                 logfile.first = true;
                 logfile.second.open(values[Options::Test_Log]);
             }
 
-            std::pair<bool, int> start_addr { false, 0 };
+            std::pair<bool, int> start_addr{ false, 0 };
             if (IsSet(Options::Test_StartAt)) {
                 start_addr.first = true;
                 start_addr.second = std::stoi(values[Options::Test_StartAt], nullptr, 0);
             }
-            
+
             Controllers ctrl;
             Mapper_000 mapper(rom);
-            
+
             PpuMemoryMap<Palette> ppumap(nullptr, &mapper);
             Ppu ppu(&ppumap);
 
             Apu<Cpu> apu;
-            
+
             CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> cpumap(nullptr, &apu, &ppu, &mapper, &ctrl);
             Cpu cpu("6502", &cpumap);
             cpumap.CPU = &cpu;
-            
+
             if (start_addr.first) {
                 cpu.PC = start_addr.second;
                 cpu.B = 0;
-            } else {
+            }
+            else {
                 cpu.Reset();
             }
 
@@ -210,7 +211,8 @@ int main(int argc, char ** argv) {
                             break;
                         }
                     }
-                } else {
+                }
+                else {
                     //std::cout << std::endl;
                 }
 
@@ -222,9 +224,8 @@ int main(int argc, char ** argv) {
                     while (cpu.CurrentTick < cpu.Ticks) {
                         cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick();
                     }
-                }
+                    //}
 
-                if (step == 0) {
                     std::cout << dec << counter << " " << cpu.ToMiniString() << " ";
                     if (logfile.first) {
                         std::getline(logfile.second, line);
@@ -247,6 +248,7 @@ int main(int argc, char ** argv) {
                             if (step < 0) step = 0;
                         }
                     }
+                    std::cout << std::endl;
                 }
             }
         }

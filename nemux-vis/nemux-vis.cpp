@@ -681,7 +681,6 @@ int main(int argc, char ** argv) {
                             if (e.key.keysym.sym == SDLK_F5) apu.DMC1Output = 1 - apu.DMC1Output;
                             if (e.key.keysym.sym == SDLK_F10) --frameSkip;
                             if (e.key.keysym.sym == SDLK_F11) ++frameSkip;
-                            if (e.key.keysym.sym == SDLK_F12) showFps = !showFps;
                             break;
                         }
                         case SDL_KEYUP: {
@@ -701,7 +700,7 @@ int main(int argc, char ** argv) {
 
                     const auto ticks = SDL_GetTicks();
                     if (fps.update(ticks)) {
-                        if (showFps) std::cout << fps.fps << std::endl;
+                        std::cout << fps.fps << std::endl;
                     }
 
                     if (frameSkip <= 0) {

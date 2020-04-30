@@ -184,7 +184,6 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     m_opcodes[0xCC] = Opcode(CPY, Absolute,  3, 4);
 
     // Stack
-//    m_opcodes[0x00] = Opcode(BRK, Implicit, 1, 7);
     m_opcodes[0x48] = Opcode(PHA, Implicit, 1, 3);
 
     m_opcodes[0x68] = Opcode(PLA, Implicit, 1, 4);
@@ -207,9 +206,9 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     m_opcodes[0xBC] = Opcode(LDY, AbsoluteX, 3, 4);
 
     m_opcodes[0xA9] = Opcode(LDA, Immediate, 2, 2);
-    m_opcodes[0xA5] = Opcode(LDA, ZeroPage, 2, 3);
+    m_opcodes[0xA5] = Opcode(LDA, ZeroPage,  2, 3);
     m_opcodes[0xB5] = Opcode(LDA, ZeroPageX, 2, 4);
-    m_opcodes[0xAD] = Opcode(LDA, Absolute, 3, 4);
+    m_opcodes[0xAD] = Opcode(LDA, Absolute,  3, 4);
     m_opcodes[0xBD] = Opcode(LDA, AbsoluteX, 3, 4);
     m_opcodes[0xB9] = Opcode(LDA, AbsoluteY, 3, 4);
     m_opcodes[0xA1] = Opcode(LDA, IndexedIndirect, 2, 6);
@@ -259,32 +258,32 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     m_opcodes[0x60] = Opcode(RTS, Implicit, 1, 6);
 
     // Unofficial opcodes
-    m_opcodes[0x04] = Opcode(uNOP, ZeroPage, 2, 3);
-    m_opcodes[0x0C] = Opcode(uNOP, Absolute, 3, 4);
+    m_opcodes[0x04] = Opcode(uNOP, ZeroPage,  2, 3);
+    m_opcodes[0x0C] = Opcode(uNOP, Absolute,  3, 4);
     m_opcodes[0x14] = Opcode(uNOP, ZeroPageX, 2, 4);
-    m_opcodes[0x1A] = Opcode(uNOP, Implicit, 1, 2);
+    m_opcodes[0x1A] = Opcode(uNOP, Implicit,  1, 2);
     m_opcodes[0x1C] = Opcode(uNOP, AbsoluteX, 3, 4);
     m_opcodes[0x34] = Opcode(uNOP, ZeroPageX, 2, 4);
-    m_opcodes[0x3A] = Opcode(uNOP, Implicit, 1, 2);
+    m_opcodes[0x3A] = Opcode(uNOP, Implicit,  1, 2);
     m_opcodes[0x3C] = Opcode(uNOP, AbsoluteX, 3, 4);
-    m_opcodes[0x44] = Opcode(uNOP, ZeroPage, 2, 3);
+    m_opcodes[0x44] = Opcode(uNOP, ZeroPage,  2, 3);
     m_opcodes[0x54] = Opcode(uNOP, ZeroPageX, 2, 4);
-    m_opcodes[0x5A] = Opcode(uNOP, Implicit, 1, 2);
+    m_opcodes[0x5A] = Opcode(uNOP, Implicit,  1, 2);
     m_opcodes[0x5C] = Opcode(uNOP, AbsoluteX, 3, 4);
-    m_opcodes[0x64] = Opcode(uNOP, ZeroPage, 2, 3);
+    m_opcodes[0x64] = Opcode(uNOP, ZeroPage,  2, 3);
     m_opcodes[0x74] = Opcode(uNOP, ZeroPageX, 2, 4);
-    m_opcodes[0x7A] = Opcode(uNOP, Implicit, 1, 2);
+    m_opcodes[0x7A] = Opcode(uNOP, Implicit,  1, 2);
     m_opcodes[0x7C] = Opcode(uNOP, AbsoluteX, 3, 4);
     m_opcodes[0x80] = Opcode(uNOP, Immediate, 2, 2);
     m_opcodes[0x82] = Opcode(uNOP, Immediate, 2, 2);
     m_opcodes[0x89] = Opcode(uNOP, Immediate, 2, 2);
     m_opcodes[0xC2] = Opcode(uNOP, Immediate, 2, 2);
     m_opcodes[0xD4] = Opcode(uNOP, ZeroPageX, 2, 4);
-    m_opcodes[0xDA] = Opcode(uNOP, Implicit, 1, 2);
+    m_opcodes[0xDA] = Opcode(uNOP, Implicit,  1, 2);
     m_opcodes[0xDC] = Opcode(uNOP, AbsoluteX, 3, 4);
     m_opcodes[0xE2] = Opcode(uNOP, Immediate, 2, 2);
     m_opcodes[0xF4] = Opcode(uNOP, ZeroPageX, 2, 4);
-    m_opcodes[0xFA] = Opcode(uNOP, Implicit, 1, 2);
+    m_opcodes[0xFA] = Opcode(uNOP, Implicit,  1, 2);
     m_opcodes[0xFC] = Opcode(uNOP, AbsoluteX, 3, 4);
 
     m_opcodes[0x02] = Opcode(uSTP, Implicit, 1, 2);
@@ -301,8 +300,8 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     m_opcodes[0xF2] = Opcode(uSTP, Implicit, 1, 2);
 
     m_opcodes[0x03] = Opcode(uSLO, IndexedIndirect, 2, 8);
-    m_opcodes[0x07] = Opcode(uSLO, ZeroPage, 2, 5);
-    m_opcodes[0x0F] = Opcode(uSLO, Absolute, 3, 6);
+    m_opcodes[0x07] = Opcode(uSLO, ZeroPage,  2, 5);
+    m_opcodes[0x0F] = Opcode(uSLO, Absolute,  3, 6);
     m_opcodes[0x13] = Opcode(uSLO, IndirectIndexed, 2, 8);
     m_opcodes[0x17] = Opcode(uSLO, ZeroPageX, 2, 6);
     m_opcodes[0x1B] = Opcode(uSLO, AbsoluteY, 3, 7);
@@ -312,16 +311,16 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     m_opcodes[0x2B] = Opcode(uANC, Immediate, 2, 2);
 
     m_opcodes[0x23] = Opcode(uRLA, IndexedIndirect, 2, 8);
-    m_opcodes[0x27] = Opcode(uRLA, ZeroPage, 2, 5);
-    m_opcodes[0x2F] = Opcode(uRLA, Absolute, 3, 6);
+    m_opcodes[0x27] = Opcode(uRLA, ZeroPage,  2, 5);
+    m_opcodes[0x2F] = Opcode(uRLA, Absolute,  3, 6);
     m_opcodes[0x33] = Opcode(uRLA, IndirectIndexed, 2, 8);
     m_opcodes[0x37] = Opcode(uRLA, ZeroPageX, 2, 6);
     m_opcodes[0x3B] = Opcode(uRLA, AbsoluteY, 3, 7);
     m_opcodes[0x3F] = Opcode(uRLA, AbsoluteX, 3, 7);
 
     m_opcodes[0x43] = Opcode(uSRE, IndexedIndirect, 2, 8);
-    m_opcodes[0x47] = Opcode(uSRE, ZeroPage, 2, 5);
-    m_opcodes[0x4F] = Opcode(uSRE, Absolute, 3, 6);
+    m_opcodes[0x47] = Opcode(uSRE, ZeroPage,  2, 5);
+    m_opcodes[0x4F] = Opcode(uSRE, Absolute,  3, 6);
     m_opcodes[0x53] = Opcode(uSRE, IndirectIndexed, 2, 8);
     m_opcodes[0x57] = Opcode(uSRE, ZeroPageX, 2, 6);
     m_opcodes[0x5B] = Opcode(uSRE, AbsoluteY, 3, 7);
@@ -330,8 +329,8 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     m_opcodes[0x4B] = Opcode(uALR, Immediate, 2, 2);
 
     m_opcodes[0x63] = Opcode(uRRA, IndexedIndirect, 2, 8);
-    m_opcodes[0x67] = Opcode(uRRA, ZeroPage, 2, 5);
-    m_opcodes[0x6F] = Opcode(uRRA, Absolute, 3, 6);
+    m_opcodes[0x67] = Opcode(uRRA, ZeroPage,  2, 5);
+    m_opcodes[0x6F] = Opcode(uRRA, Absolute,  3, 6);
     m_opcodes[0x73] = Opcode(uRRA, IndirectIndexed, 2, 8);
     m_opcodes[0x77] = Opcode(uRRA, ZeroPageX, 2, 6);
     m_opcodes[0x7B] = Opcode(uRRA, AbsoluteY, 3, 7);
@@ -356,9 +355,9 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     m_opcodes[0x9E] = Opcode(uSHX, AbsoluteY, 3, 5);
 
     m_opcodes[0xA3] = Opcode(uLAX, IndexedIndirect, 2, 6);
-    m_opcodes[0xA7] = Opcode(uLAX, ZeroPage, 2, 3);
+    m_opcodes[0xA7] = Opcode(uLAX, ZeroPage,  2, 3);
     m_opcodes[0xAB] = Opcode(uLAX, Immediate, 2, 2);
-    m_opcodes[0xAF] = Opcode(uLAX, Absolute, 3, 4);
+    m_opcodes[0xAF] = Opcode(uLAX, Absolute,  3, 4);
     m_opcodes[0xB3] = Opcode(uLAX, IndirectIndexed, 2, 5);
     m_opcodes[0xB7] = Opcode(uLAX, ZeroPageY, 2, 4);
     m_opcodes[0xBF] = Opcode(uLAX, AbsoluteY, 3, 4);
@@ -366,8 +365,8 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     m_opcodes[0xBB] = Opcode(uLAS, AbsoluteY, 3, 4);
 
     m_opcodes[0xC3] = Opcode(uDCP, IndexedIndirect, 2, 8);
-    m_opcodes[0xC7] = Opcode(uDCP, ZeroPage, 2, 5);
-    m_opcodes[0xCF] = Opcode(uDCP, Absolute, 3, 6);
+    m_opcodes[0xC7] = Opcode(uDCP, ZeroPage,  2, 5);
+    m_opcodes[0xCF] = Opcode(uDCP, Absolute,  3, 6);
     m_opcodes[0xD3] = Opcode(uDCP, IndirectIndexed, 2, 8);
     m_opcodes[0xD7] = Opcode(uDCP, ZeroPageX, 2, 6);
     m_opcodes[0xDB] = Opcode(uDCP, AbsoluteY, 3, 7);
@@ -376,8 +375,8 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     m_opcodes[0xCB] = Opcode(uAXS, Immediate, 2, 2);
 
     m_opcodes[0xE3] = Opcode(uISC, IndexedIndirect, 2, 8);
-    m_opcodes[0xE7] = Opcode(uISC, ZeroPage, 2, 5);
-    m_opcodes[0xEF] = Opcode(uISC, Absolute, 3, 6);
+    m_opcodes[0xE7] = Opcode(uISC, ZeroPage,  2, 5);
+    m_opcodes[0xEF] = Opcode(uISC, Absolute,  3, 6);
     m_opcodes[0xF3] = Opcode(uISC, IndirectIndexed, 2, 8);
     m_opcodes[0xF7] = Opcode(uISC, ZeroPageX, 2, 6);
     m_opcodes[0xFB] = Opcode(uISC, AbsoluteY, 3, 7);
