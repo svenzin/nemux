@@ -28,6 +28,79 @@ using std::endl;
 
 #undef main
 
+class Machine {
+public:
+    Controllers ctrl;
+    std::unique_ptr<NesMapper> mapper;
+    PpuMemoryMap<Palette> ppumap;
+    Ppu ppu;
+    Apu<Cpu> apu;
+    CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> cpumap;
+    Cpu cpu;
+
+    explicit Machine(std::unique_ptr<NesMapper> & cartridge)
+        : mapper(cartridge.release()),
+        ppumap(nullptr, mapper.get()),
+        ppu(&ppumap),
+        cpumap(nullptr, &apu, &ppu, mapper.get(), &ctrl),
+        cpu("6502", &cpumap) {
+        cpumap.CPU = &cpu;
+        apu.DMC1.Output.DMA.CPU = &cpu;
+        cpu.Reset();
+    }
+
+    void Reset() { cpu.Reset(); }
+
+    std::pair<bool, float> Step() {
+        const auto frame = ppu.FrameCount;
+        cpu.Tick();
+        ppu.Tick();
+        ppu.Tick();
+        ppu.Tick();
+        const auto sample = apu.Tick();
+        return{ ppu.FrameCount != frame, sample };
+    }
+
+    void StepOneCpuInstruction() {
+        do {
+            cpu.Tick();
+            ppu.Tick();
+            ppu.Tick();
+            ppu.Tick();
+            apu.Tick();
+        } while (cpu.CurrentTick < cpu.Ticks);
+    }
+};
+
+namespace replay {
+    enum Commands : char {
+        FrameStart = 0x0F,
+        Player_1 = 0x01,
+        CheckFrame = 0x81,
+        FrameEnd = 0x00,
+        Reset = 0x40,
+    };
+    Byte GetP1State(const Machine & nes) {
+        return Mask<0>(nes.ctrl.P1_A)
+             | Mask<1>(nes.ctrl.P1_B)
+             | Mask<2>(nes.ctrl.P1_Select)
+             | Mask<3>(nes.ctrl.P1_Start)
+             | Mask<4>(nes.ctrl.P1_Up)
+             | Mask<5>(nes.ctrl.P1_Down)
+             | Mask<6>(nes.ctrl.P1_Left)
+             | Mask<7>(nes.ctrl.P1_Right);
+    }
+    void SetP1State(Machine & nes, Byte p1) {
+        nes.ctrl.P1_A      = IsBitSet<0>(p1);
+        nes.ctrl.P1_B      = IsBitSet<1>(p1);
+        nes.ctrl.P1_Select = IsBitSet<2>(p1);
+        nes.ctrl.P1_Start  = IsBitSet<3>(p1);
+        nes.ctrl.P1_Up     = IsBitSet<4>(p1);
+        nes.ctrl.P1_Down   = IsBitSet<5>(p1);
+        nes.ctrl.P1_Left   = IsBitSet<6>(p1);
+        nes.ctrl.P1_Right  = IsBitSet<7>(p1);
+    }
+}
 namespace debug {
     std::string GetCPUInstruction(const Cpu & cpu) {
         static std::string names[] = {
@@ -245,7 +318,10 @@ void log(const std::string & msg) {
 
 enum class Options
 {
-    Debug
+    Debug,
+    Record,
+    Replay,
+    Test,
 };
 
 static int frames = 0;
@@ -355,6 +431,7 @@ struct Fps {
 int main(int argc, char ** argv) {
     std::vector<std::string> positionals;
     std::set<Options> options;
+    std::string recordFilename;
     for (int i = 1; i < argc; ++i) {
         std::string param(argv[i]);
         if (param[0] == '-') {
@@ -364,6 +441,18 @@ int main(int argc, char ** argv) {
             }
             else if (param == "-debug") {
                 options.insert(Options::Debug);
+            }
+            else if (param == "-record") {
+                options.insert(Options::Record);
+                recordFilename = argv[++i];
+            }
+            else if (param == "-replay") {
+                options.insert(Options::Replay);
+                recordFilename = argv[++i];
+            }
+            else if (param == "-test") {
+                options.insert(Options::Test);
+                recordFilename = argv[++i];
             }
             else {
                 error("Unrecognized parameter: " + param);
@@ -377,23 +466,35 @@ int main(int argc, char ** argv) {
 
     auto IsSet = [&options](const Options & opt) { return options.count(opt) == 1; };
 
-    if (positionals.size() != 1) {
-        error("Please specify a NES ROM file");
-        return 1;
-    }
-
     Fps fps;
-
+    bool showFps = false;
     int frameSkip = 0;
 
     try {
-        std::string filepath = positionals[0];
+        std::string filepath;
+        
+        std::ifstream replay;
+        if (IsSet(Options::Replay) || IsSet(Options::Test)) {
+            replay.open(recordFilename);
+            std::getline(replay, filepath, '\0');
+        } else {
+            if (positionals.size() != 1) {
+                error("Please specify a NES ROM file");
+                return 1;
+            }
+            filepath = positionals[0];
+        }
         log("Opening NES ROM at " + filepath + " ...");
         std::ifstream file(filepath, std::ios::binary);
         NesFile rom(file);
         log("Done.");
 
-        Controllers ctrl;
+        std::ofstream record;
+        if (IsSet(Options::Record)) {
+            record.open(recordFilename);
+            record << filepath.c_str() << '\0';
+        }
+
         std::unique_ptr<NesMapper> mapper;
         switch (rom.Header.MapperNumber) {
         case 0: mapper.reset(new Mapper_000(rom)); break;
@@ -402,18 +503,7 @@ int main(int argc, char ** argv) {
         case 3: mapper.reset(new Mapper_003(rom)); break;
         }
         
-        PpuMemoryMap<Palette> ppumap(nullptr, mapper.get());
-        Ppu ppu(&ppumap);
-
-        Apu<Cpu> apu;
-
-        CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> cpumap(nullptr, &apu, &ppu, mapper.get(), &ctrl);
-        Cpu cpu("6502", &cpumap);
-        cpumap.CPU = &cpu;
-
-        apu.DMC1.Output.DMA.CPU = &cpu;
-
-        cpu.Reset();
+        Machine nes(mapper);
 
         if (IsSet(Options::Debug)) {
             bool quit = false;
@@ -421,6 +511,13 @@ int main(int argc, char ** argv) {
             std::size_t counter = 1;
             std::string line;
             while (!quit) {
+                if (step == 0) {
+                    std::cout << dec << counter
+                        << " " << setfill(' ') << setw(12) << std::left << debug::GetCPUInstruction(nes.cpu) << std::endl
+                        << " " << nes.cpu.ToMiniString() << std::endl
+                        << " " << debug::GetPlayer1(nes.ctrl) << std::endl
+                        << " " << debug::GetAPU(nes.apu) << std::endl;
+                }
                 if (step == 0) {
                     std::cout << "> ";
                     std::getline(std::cin, line);
@@ -432,7 +529,7 @@ int main(int argc, char ** argv) {
                         std::cout << "Palette" << std::endl;
                         for (auto i = 0; i < 8; i++) {
                             for (auto c = 0; c < 4; c++) {
-                                auto ci = ppu.PpuPalette.ReadAt(4 * i + c);
+                                auto ci = nes.ppu.PpuPalette.ReadAt(4 * i + c);
                                 p[4 * i + c] = palette[ci];
                                 std::cout << hex << setfill('0') << setw(2) << Word{ ci } << ' ';
                             }
@@ -443,15 +540,15 @@ int main(int argc, char ** argv) {
                     }
                     else if (line == "nt") {
                         std::vector<Uint32> p(64 * 60);
-                        const Byte * nt = &ppumap.Vram[0];
+                        const Byte * nt = &nes.ppumap.Vram[0];
                         std::cout << "Nametable 0 @0x2000" << std::endl;
                         for (auto y = 0; y < 30; ++y) {
                             for (auto x = 0; x < 32; x++) {
                                 const auto d = 32 * y + x;
-                                p[64 * y + x] = Grey(ppumap.GetByteAt(0x2000 + d));
-                                p[64 * y + x + 32] = Grey(ppumap.GetByteAt(0x2400 + d));
-                                p[64 * y + x + 64 * 30] = Grey(ppumap.GetByteAt(0x2800 + d));
-                                p[64 * y + x + 64 * 30 + 32] = Grey(ppumap.GetByteAt(0x2C00 + d));
+                                p[64 * y + x] = Grey(nes.ppumap.GetByteAt(0x2000 + d));
+                                p[64 * y + x + 32] = Grey(nes.ppumap.GetByteAt(0x2400 + d));
+                                p[64 * y + x + 64 * 30] = Grey(nes.ppumap.GetByteAt(0x2800 + d));
+                                p[64 * y + x + 64 * 30 + 32] = Grey(nes.ppumap.GetByteAt(0x2C00 + d));
                                 std::cout << hex << setfill('0') << setw(2) << Word{ *(nt + d) } << ' ';
                                 //++nt;
                             }
@@ -462,15 +559,15 @@ int main(int argc, char ** argv) {
                     }
                     else if (line == "at") {
                         std::vector<Uint32> p(16 * 16);
-                        const Byte * at = &ppumap.Vram[0x3C0];
+                        const Byte * at = &nes.ppumap.Vram[0x3C0];
                         std::cout << "Attribute Table 0 @0x23C0" << std::endl;
                         for (auto y = 0; y < 8; ++y) {
                             for (auto x = 0; x < 8; x++) {
                                 const auto d = 16 * y + x;
-                                p[16 * y + x] = Grey(ppumap.GetByteAt(0x23C0 + d));
-                                p[16 * y + x + 8] = Grey(ppumap.GetByteAt(0x27C0 + d));
-                                p[16 * y + x + 16 * 8] = Grey(ppumap.GetByteAt(0x2BC0 + d));
-                                p[16 * y + x + 16 * 8 + 8] = Grey(ppumap.GetByteAt(0x2FC0 + d));
+                                p[16 * y + x] = Grey(nes.ppumap.GetByteAt(0x23C0 + d));
+                                p[16 * y + x + 8] = Grey(nes.ppumap.GetByteAt(0x27C0 + d));
+                                p[16 * y + x + 16 * 8] = Grey(nes.ppumap.GetByteAt(0x2BC0 + d));
+                                p[16 * y + x + 16 * 8 + 8] = Grey(nes.ppumap.GetByteAt(0x2FC0 + d));
                                 std::cout << hex << setfill('0') << setw(2) << Word{ *at } << ' ';
                                 ++at;
                             }
@@ -487,9 +584,9 @@ int main(int argc, char ** argv) {
                                 auto tx = x / 8; auto xx = x % 8;
                                 auto ty = y / 8; auto yy = y % 8;
                                 auto td = 16 * ty + tx;
-                                auto b = ppumap.GetByteAt(16 * td + yy);
+                                auto b = nes.ppumap.GetByteAt(16 * td + yy);
                                 Uint8 v = (b >> (7 - xx)) & 0x01;
-                                b = ppumap.GetByteAt(16 * td + yy + 8);
+                                b = nes.ppumap.GetByteAt(16 * td + yy + 8);
                                 v += ((b >> (7 - xx)) & 0x01) << 1;
                                 p[128 * y + x] = RGB(v / 3.0f, v / 3.0f, v / 3.0f);
                             }
@@ -504,16 +601,16 @@ int main(int argc, char ** argv) {
                             for (auto x = 0; x < 256; x++) {
                                 auto tx = x / 8; auto xx = x % 8;
                                 auto ty = y / 8; auto yy = y % 8;
-                                auto td = ppumap.Vram[32 * ty + tx];
-                                auto taddr = ppu.BackgroundTable + 16 * td + yy;
-                                auto b = ppumap.GetByteAt(taddr);
+                                auto td = nes.ppumap.Vram[32 * ty + tx];
+                                auto taddr = nes.ppu.BackgroundTable + 16 * td + yy;
+                                auto b = nes.ppumap.GetByteAt(taddr);
                                 Uint8 v = (b >> (7 - xx)) & 0x01;
-                                b = ppumap.GetByteAt(taddr + 8);
+                                b = nes.ppumap.GetByteAt(taddr + 8);
                                 v += ((b >> (7 - xx)) & 0x01) << 1;
                                 auto atx = x / 32; auto aty = y / 32;
-                                auto a = ppumap.Vram[0x3C0 + 8 * aty + atx];
+                                auto a = nes.ppumap.Vram[0x3C0 + 8 * aty + atx];
                                 v += ((a >> (2 * (x / 16 % 2) + 4 * (y / 16 % 2))) & 0x3) << 2;
-                                auto ci = ppu.PpuPalette.ReadAt(v);
+                                auto ci = nes.ppu.PpuPalette.ReadAt(v);
                                 auto color = palette[ci];
                                 p[256 * y + x] = color;
                             }
@@ -526,16 +623,16 @@ int main(int argc, char ** argv) {
                         std::vector<Uint32> p(256 * 240, 0);
                         std::cout << "Foreground" << std::endl;
                         for (auto s = 0; s < 64; s++) {
-                            auto at = ppu.SprRam[4 * s + 2];
-                            auto td = ppu.SprRam[4 * s + 1];
-                            auto sx = ppu.SprRam[4 * s + 3];
-                            auto sy = ppu.SprRam[4 * s + 0];
-                            for (auto yy = 0; yy < ppu.SpriteHeight; yy++) {
+                            auto at = nes.ppu.SprRam[4 * s + 2];
+                            auto td = nes.ppu.SprRam[4 * s + 1];
+                            auto sx = nes.ppu.SprRam[4 * s + 3];
+                            auto sy = nes.ppu.SprRam[4 * s + 0];
+                            for (auto yy = 0; yy < nes.ppu.SpriteHeight; yy++) {
                                 for (auto xx = 0; xx < 8; xx++) {
-                                    auto taddr = ppu.SpriteTable + 16 * td + yy;
-                                    auto b = ppumap.GetByteAt(taddr);
+                                    auto taddr = nes.ppu.SpriteTable + 16 * td + yy;
+                                    auto b = nes.ppumap.GetByteAt(taddr);
                                     Uint8 v = (b >> (7 - xx)) & 0x01;
-                                    b = ppumap.GetByteAt(taddr + 8);
+                                    b = nes.ppumap.GetByteAt(taddr + 8);
                                     v += ((b >> (7 - xx)) & 0x01) << 1;
                                     v += (at & 0x3) << 2;
                                     v += 0x10;
@@ -543,7 +640,7 @@ int main(int argc, char ** argv) {
                                     auto x = sx + xx;
                                     auto y = sy + yy + 1;
                                     if ((0 <= x) && (x < 256) && (0 <= y) && (y < 240)) {
-                                        auto ci = ppu.PpuPalette.ReadAt(v);
+                                        auto ci = nes.ppu.PpuPalette.ReadAt(v);
                                         auto color = palette[ci];
                                         p[256 * y + x] = color;
                                     }
@@ -561,19 +658,19 @@ int main(int argc, char ** argv) {
                         std::vector<Uint32> p(VIDEO_WIDTH * VIDEO_HEIGHT, 0);
                         std::cout << "PPU frame" << std::endl;
                         for (auto i = 0; i < VIDEO_SIZE; ++i) {
-                            p[i] = palette[ppu.Frame[i]];
+                            p[i] = palette[nes.ppu.Frame[i]];
                         }
                         SDL::SetScale(3);
                         SDL::Show(VIDEO_WIDTH, VIDEO_HEIGHT, p.data());
                     }
-                    else if (line == "p1 up")     ctrl.P1_Up = !ctrl.P1_Up;
-                    else if (line == "p1 down")   ctrl.P1_Down = !ctrl.P1_Down;
-                    else if (line == "p1 left")   ctrl.P1_Left = !ctrl.P1_Left;
-                    else if (line == "p1 right")  ctrl.P1_Right = !ctrl.P1_Right;
-                    else if (line == "p1 select") ctrl.P1_Select = !ctrl.P1_Select;
-                    else if (line == "p1 start")  ctrl.P1_Start = !ctrl.P1_Start;
-                    else if (line == "p1 b")      ctrl.P1_B = !ctrl.P1_B;
-                    else if (line == "p1 a")      ctrl.P1_A = !ctrl.P1_A;
+                    else if (line == "p1 up")     nes.ctrl.P1_Up = !nes.ctrl.P1_Up;
+                    else if (line == "p1 down")   nes.ctrl.P1_Down = !nes.ctrl.P1_Down;
+                    else if (line == "p1 left")   nes.ctrl.P1_Left = !nes.ctrl.P1_Left;
+                    else if (line == "p1 right")  nes.ctrl.P1_Right = !nes.ctrl.P1_Right;
+                    else if (line == "p1 select") nes.ctrl.P1_Select = !nes.ctrl.P1_Select;
+                    else if (line == "p1 start")  nes.ctrl.P1_Start = !nes.ctrl.P1_Start;
+                    else if (line == "p1 b")      nes.ctrl.P1_B = !nes.ctrl.P1_B;
+                    else if (line == "p1 a")      nes.ctrl.P1_A = !nes.ctrl.P1_A;
                     else {
                         try {
                             step = std::stoll(line);
@@ -590,23 +687,55 @@ int main(int argc, char ** argv) {
                 if (step > 0) {
                     --step;
                     ++counter;
-
-                    cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick(); apu.Tick();
-                    while (cpu.CurrentTick < cpu.Ticks) {
-                        cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick(); apu.Tick();
-                    }
+                    nes.StepOneCpuInstruction();
                 }
 
-                if (step == 0) {
-                    std::cout << dec << counter
-                        << " " << setfill(' ') << setw(12) << std::left << debug::GetCPUInstruction(cpu) << std::endl
-                        << " " << cpu.ToMiniString() << std::endl
-                        << " " << debug::GetPlayer1(ctrl) << std::endl
-                        << " " << debug::GetAPU(apu) << std::endl;
+            }
+        }
+        else if (IsSet(Options::Test)) {
+            bool quit = false;
+            while (!quit) {
+                const auto pair = nes.Step();
+                if (pair.first) {
+                    char cmd;
+                    replay >> cmd;
+                    quit = replay.eof();
+
+                    bool finished = quit;
+                    while (!finished) {
+                        replay >> cmd;
+                        switch (cmd) {
+                        case replay::FrameEnd: {
+                            finished = true;
+                            break;
+                        }
+                        case replay::Player_1: {
+                            Byte p1;
+                            replay >> p1;
+                            replay::SetP1State(nes, p1);
+                            break;
+                        }
+                        case replay::CheckFrame: {
+                            std::cout << "Check frame" << std::endl;
+                            Byte d;
+                            for (int i = 0; i < VIDEO_SIZE; ++i) {
+                                replay >> d;
+                                if (nes.ppu.Frame[i] != d) throw std::runtime_error("Frame check failed");
+                            }
+                            break;
+                        }
+                        case replay::Reset: {
+                            nes.Reset();
+                            break;
+                        }
+                        }
+                    }
                 }
             }
         }
         else {
+            bool replayCheckFrame = false;
+            bool replayReset = false;
             SDL::SetScale(3);
 
             std::array<Uint32, VIDEO_SIZE> pixels;
@@ -645,15 +774,10 @@ int main(int argc, char ** argv) {
             bool quit = false;
             std::vector<float> samples;
             while (!quit) {
-                const auto frame = ppu.FrameCount;
-                cpu.Tick();
-                ppu.Tick();
-                ppu.Tick();
-                ppu.Tick();
-                const auto sample = apu.Tick();
-                samples.push_back(sample);
+                const auto pair = nes.Step();
+                samples.push_back(pair.second);
 
-                if (ppu.FrameCount != frame) {
+                if (pair.first) {
                     PushFrameSamples(samples);
                     samples.clear();
                     SDL_Event e;
@@ -666,46 +790,95 @@ int main(int argc, char ** argv) {
                             break;
                         case SDL_KEYDOWN: {
                             quit = quit || (e.key.keysym.sym == SDLK_ESCAPE);
-                            if (e.key.keysym.sym == SDLK_UP) ctrl.P1_Up = true;
-                            if (e.key.keysym.sym == SDLK_DOWN) ctrl.P1_Down = true;
-                            if (e.key.keysym.sym == SDLK_LEFT) ctrl.P1_Left = true;
-                            if (e.key.keysym.sym == SDLK_RIGHT) ctrl.P1_Right = true;
-                            if (e.key.keysym.sym == SDLK_o) ctrl.P1_Select = true;
-                            if (e.key.keysym.sym == SDLK_p) ctrl.P1_Start = true;
-                            if (e.key.keysym.sym == SDLK_s) ctrl.P1_A = true;
-                            if (e.key.keysym.sym == SDLK_q) ctrl.P1_B = true;
-                            if (e.key.keysym.sym == SDLK_F1) apu.Pulse1Output = 1 - apu.Pulse1Output;
-                            if (e.key.keysym.sym == SDLK_F2) apu.Pulse2Output = 1 - apu.Pulse2Output;
-                            if (e.key.keysym.sym == SDLK_F3) apu.Triangle1Output = 1 - apu.Triangle1Output;
-                            if (e.key.keysym.sym == SDLK_F4) apu.Noise1Output = 1 - apu.Noise1Output;
-                            if (e.key.keysym.sym == SDLK_F5) apu.DMC1Output = 1 - apu.DMC1Output;
+                            if (e.key.keysym.sym == SDLK_UP) nes.ctrl.P1_Up = true;
+                            if (e.key.keysym.sym == SDLK_DOWN) nes.ctrl.P1_Down = true;
+                            if (e.key.keysym.sym == SDLK_LEFT) nes.ctrl.P1_Left = true;
+                            if (e.key.keysym.sym == SDLK_RIGHT) nes.ctrl.P1_Right = true;
+                            if (e.key.keysym.sym == SDLK_o) nes.ctrl.P1_Select = true;
+                            if (e.key.keysym.sym == SDLK_p) nes.ctrl.P1_Start = true;
+                            if (e.key.keysym.sym == SDLK_s) nes.ctrl.P1_A = true;
+                            if (e.key.keysym.sym == SDLK_q) nes.ctrl.P1_B = true;
+                            if (e.key.keysym.sym == SDLK_F1) nes.apu.Pulse1Output = 1 - nes.apu.Pulse1Output;
+                            if (e.key.keysym.sym == SDLK_F2) nes.apu.Pulse2Output = 1 - nes.apu.Pulse2Output;
+                            if (e.key.keysym.sym == SDLK_F3) nes.apu.Triangle1Output = 1 - nes.apu.Triangle1Output;
+                            if (e.key.keysym.sym == SDLK_F4) nes.apu.Noise1Output = 1 - nes.apu.Noise1Output;
+                            if (e.key.keysym.sym == SDLK_F5) nes.apu.DMC1Output = 1 - nes.apu.DMC1Output;
                             if (e.key.keysym.sym == SDLK_F10) --frameSkip;
                             if (e.key.keysym.sym == SDLK_F11) ++frameSkip;
+                            if (e.key.keysym.sym == SDLK_F12) showFps = !showFps;
+                            if (e.key.keysym.sym == SDLK_SPACE) replayCheckFrame = true;
+                            if (e.key.keysym.sym == SDLK_BACKSPACE) replayReset = true;
                             break;
                         }
                         case SDL_KEYUP: {
                             quit = quit || (e.key.keysym.sym == SDLK_ESCAPE);
-                            if (e.key.keysym.sym == SDLK_UP) ctrl.P1_Up = false;
-                            if (e.key.keysym.sym == SDLK_DOWN) ctrl.P1_Down = false;
-                            if (e.key.keysym.sym == SDLK_LEFT) ctrl.P1_Left = false;
-                            if (e.key.keysym.sym == SDLK_RIGHT) ctrl.P1_Right = false;
-                            if (e.key.keysym.sym == SDLK_o) ctrl.P1_Select = false;
-                            if (e.key.keysym.sym == SDLK_p) ctrl.P1_Start = false;
-                            if (e.key.keysym.sym == SDLK_s) ctrl.P1_A = false;
-                            if (e.key.keysym.sym == SDLK_q) ctrl.P1_B = false;
+                            if (e.key.keysym.sym == SDLK_UP) nes.ctrl.P1_Up = false;
+                            if (e.key.keysym.sym == SDLK_DOWN) nes.ctrl.P1_Down = false;
+                            if (e.key.keysym.sym == SDLK_LEFT) nes.ctrl.P1_Left = false;
+                            if (e.key.keysym.sym == SDLK_RIGHT) nes.ctrl.P1_Right = false;
+                            if (e.key.keysym.sym == SDLK_o) nes.ctrl.P1_Select = false;
+                            if (e.key.keysym.sym == SDLK_p) nes.ctrl.P1_Start = false;
+                            if (e.key.keysym.sym == SDLK_s) nes.ctrl.P1_A = false;
+                            if (e.key.keysym.sym == SDLK_q) nes.ctrl.P1_B = false;
                             break;
                         }
                         }
                     }
+                    if (IsSet(Options::Record)) {
+                        record << char{ replay::FrameStart }
+                            << char{ replay::Player_1 }
+                            << replay::GetP1State(nes);
+                        if (replayCheckFrame) {
+                            record << char{ replay::CheckFrame };
+                            for (int i = 0; i < VIDEO_SIZE; ++i) record << nes.ppu.Frame[i];
+                            replayCheckFrame = false;
+                        }
+                        if (replayReset) record << char{ replay::Reset };
+                        record << char{ replay::FrameEnd };
+                    }
+                    if (IsSet(Options::Replay)) {
+                        char cmd;
+                        Byte p1;
+                        replay >> cmd;
+                        SDL_assert(cmd == replay::FrameStart);
+                        bool finished = false;
+                        do {
+                            replay >> cmd;
+                            switch (cmd) {
+                            case replay::FrameEnd: {
+                                finished = true;
+                                break;
+                            }
+                            case replay::Player_1: {
+                                replay >> p1;
+                                replay::SetP1State(nes, p1);
+                                break;
+                            }
+                            case replay::CheckFrame: {
+                                Byte d;
+                                for (int i = 0; i < VIDEO_SIZE; ++i) replay >> d;
+                                break;
+                            }
+                            case replay::Reset: {
+                                nes.Reset();
+                                break;
+                            }
+                            }
+                        } while (!finished);
+                    }
+                    if (replayReset) {
+                        nes.Reset();
+                        replayReset = false;
+                    }
 
                     const auto ticks = SDL_GetTicks();
                     if (fps.update(ticks)) {
-                        std::cout << fps.fps << std::endl;
+                        if (showFps) std::cout << fps.fps << std::endl;
                     }
 
                     if (frameSkip <= 0) {
                         for (auto i = 0; i < VIDEO_SIZE; ++i) {
-                            pixels[i] = palette[ppu.Frame[i]];
+                            pixels[i] = palette[nes.ppu.Frame[i]];
                         }
 
                         auto skip = frameSkip;
@@ -719,7 +892,7 @@ int main(int argc, char ** argv) {
                     }
                     else {
                         for (auto i = 0; i < VIDEO_SIZE; ++i) {
-                            pixels[i] = palette[ppu.Frame[i]];
+                            pixels[i] = palette[nes.ppu.Frame[i]];
                         }
 
                         SDL_UpdateTexture(tex, NULL, pixels.data(), VIDEO_WIDTH * sizeof(Uint32));
