@@ -576,6 +576,9 @@ void Cpu::Interrupt(const Flag & isBRK,
     PC = ReadWordAt(vector);
     Ticks += InterruptCycles;
 }
+void Cpu::PowerUp() {
+    PC = ReadWordAt(VectorRST);
+}
 void Cpu::Reset() {
     PendingInterrupt = InterruptType::None;
     Interrupt(0, VectorRST, true);

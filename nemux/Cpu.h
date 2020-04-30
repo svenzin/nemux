@@ -157,6 +157,7 @@ public:
 
     void Interrupt(const Flag & isBRK, const Word & vector, const bool readOnly = false);
 
+    void PowerUp();
     void Reset();
     void NMI();
     void IRQ();

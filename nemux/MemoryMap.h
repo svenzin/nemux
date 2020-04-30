@@ -56,6 +56,7 @@ public:
             if (addr == 0x2002) return PPU->ReadStatus();
             if (addr == 0x2004) return PPU->ReadOAMData();
             if (addr == 0x2007) return PPU->ReadData();
+            return PPU->Bus.Read();
         } else if (address < 0x4020) {
             if (address == 0x4016) return Controllers->ReadP1();
             if (address == 0x4017) return Controllers->ReadP2();
@@ -73,6 +74,7 @@ public:
             const auto addr = address & 0x2007;
             if (addr == 0x2000) PPU->WriteControl1(value);
             if (addr == 0x2001) PPU->WriteControl2(value);
+            if (addr == 0x2002) PPU->Bus.Write(value);
             if (addr == 0x2003) PPU->WriteOAMAddress(value);
             if (addr == 0x2004) PPU->WriteOAMData(value);
             if (addr == 0x2005) PPU->WriteScroll(value);

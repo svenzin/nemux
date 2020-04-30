@@ -121,12 +121,15 @@ TEST_F(PpuTest, WriteCtrl2_Intensity) {
     }
 }
 
-TEST_F(PpuTest, ReadStatus_IgnoreVramWrites) {
-    ppu.IgnoreVramWrites = false;
-    EXPECT_EQ(0x00, ppu.ReadStatus() & 0x10);
-    ppu.IgnoreVramWrites = true;
-    EXPECT_EQ(0x10, ppu.ReadStatus() & 0x10);
-}
+// IgnoreVramWrites is currently not used
+// This test conflicts with the ppu_open_bus test rom
+// Deactivated until more information
+//TEST_F(PpuTest, ReadStatus_IgnoreVramWrites) {
+//    ppu.IgnoreVramWrites = false;
+//    EXPECT_EQ(0x00, ppu.ReadStatus() & 0x10);
+//    ppu.IgnoreVramWrites = true;
+//    EXPECT_EQ(0x10, ppu.ReadStatus() & 0x10);
+//}
 
 TEST_F(PpuTest, ReadStatus_SpriteOverflow) {
     ppu.SpriteOverflow = false;
@@ -209,13 +212,13 @@ TEST_F(PpuTest, ReadWriteOAM_SingleData) {
 }
 
 TEST_F(PpuTest, ReadWriteOAM_IncreaseAddressOnWrite) {
-    ppu.WriteOAMAddress(0xA5);
+    ppu.WriteOAMAddress(0xA4);
     ppu.WriteOAMData(0xBE);
     ppu.WriteOAMData(0xEF);
 
-    ppu.WriteOAMAddress(0xA5);
+    ppu.WriteOAMAddress(0xA4);
     EXPECT_EQ(0xBE, ppu.ReadOAMData());
-    ppu.WriteOAMAddress(0xA6);
+    ppu.WriteOAMAddress(0xA5);
     EXPECT_EQ(0xEF, ppu.ReadOAMData());
 }
 

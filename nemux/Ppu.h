@@ -25,7 +25,43 @@ static constexpr size_t VIDEO_SIZE = VIDEO_WIDTH * VIDEO_HEIGHT;
 
 class Ppu {
 public:
+    class PpuBus {
+        size_t Ticks0_4;
+        size_t Ticks5_7;
+        Byte content;
+    public:
+        size_t Ticks;
+        void WriteLo(const Byte value) {
+            content = (content & 0xE0) | (value & 0x1F);
+            Ticks0_4 = Ticks;
+        }
+        void WriteHi(Byte value) {
+            content = (content & 0x1F) | (value & 0xE0);
+            Ticks5_7 = Ticks;
+        }
+        void Write(Byte value) {
+            content = value;
+            Ticks0_4 = Ticks5_7 = Ticks;
+        }
+        Byte Read() const {
+            Byte bus = 0;
+            if ((Ticks - Ticks0_4) < size_t{ 2700000 }) bus += (content & 0x1F);
+            if ((Ticks - Ticks5_7) < size_t{ 2700000 }) bus += (content & 0xE0);
+            return bus;
+        }
+        Byte ReadLo() const {
+            if ((Ticks - Ticks0_4) < size_t{ 2700000 }) return (content & 0x1F);
+            return 0;
+        }
+        Byte ReadPaletteHi() const {
+            if ((Ticks - Ticks5_7) < size_t{ 2700000 }) return (content & 0xC0);
+            return 0;
+        }
+    } Bus;
+
     void WriteControl1(Byte value) {
+        Bus.Write(value);
+
         const auto bank = (value & 0x03);
         NameTable = 0x2000 + (bank * 0x0400);
 
@@ -38,6 +74,8 @@ public:
     }
 
     void WriteControl2(Byte value) {
+        Bus.Write(value);
+
         IsColour       = IsBitClear<0>(value);
         ClipBackground = IsBitClear<1>(value);
         ClipSprite     = IsBitClear<2>(value);
@@ -48,28 +86,39 @@ public:
 
     Byte ReadStatus() {
         Latch.Reset();
-        const auto status = Mask<4>(IgnoreVramWrites)
+        const auto status = Bus.ReadLo()
             | Mask<5>(SpriteOverflow)
             | Mask<6>(SpriteZeroHit)
             | Mask<7>(VBlank);
         VBlank = false;
+
+        //WriteHiBus(status);
         return status;
     }
 
     void WriteOAMAddress(Byte value) {
+        Bus.Write(value);
+
         OAMAddress = value;
     }
 
-    Byte ReadOAMData() const {
-        return SprRam[OAMAddress];
+    Byte ReadOAMData() {
+        auto x = SprRam[OAMAddress];
+        if ((OAMAddress % 4) == 2) x &= 0xE3;
+        Bus.Write(x);
+        return x;
     }
 
     void WriteOAMData(Byte value) {
+        Bus.Write(value);
+
         SprRam[OAMAddress] = value;
         ++OAMAddress;
     }
 
     void WriteScroll(Byte value) {
+        Bus.Write(value);
+
         if (Latch) {
             ScrollX = value;
         } else {
@@ -79,6 +128,8 @@ public:
     }
 
     void WriteAddress(Byte value) {
+        Bus.Write(value);
+
         if (Latch) {
             Address = ((Address & WORD_LO_MASK)
                       | (value << BYTE_WIDTH)
@@ -92,17 +143,20 @@ public:
     Byte ReadData() {
         Byte data;
         if (Address >= 0x3F00) {
-            data = PpuPalette.ReadAt(Address - 0x3F00);
+            data = Bus.ReadPaletteHi() | PpuPalette.ReadAt(Address - 0x3F00);
             ReadDataBuffer = Map->GetByteAt(Address & 0x2FFF);
         } else {
             data = ReadDataBuffer;
             ReadDataBuffer = Map->GetByteAt(Address);
         }
         Address = (Address + AddressIncrement) & 0x3FFF;
+        Bus.Write(data);
         return data;
     }
 
     void WriteData(Byte value) {
+        Bus.Write(value);
+
         if (Address >= 0x3F00) {
             PpuPalette.WriteAt(Address - 0x3F00, value);
         } else {
@@ -146,6 +200,8 @@ public:
 
     std::vector<std::tuple<int, std::array<Byte, 4>>> sprites;
     void Tick() {
+        ++Bus.Ticks;
+
         const auto y = FrameTicks / VIDEO_WIDTH;
         const auto x = FrameTicks % VIDEO_WIDTH;
         //if ((FrameCount%2)==0)
@@ -308,7 +364,7 @@ public:
     std::array<Byte, 0x0100> SprRam;
     Byte OAMAddress;
 
-    bool IgnoreVramWrites;
+    //bool IgnoreVramWrites;
     bool SpriteOverflow;
     bool SpriteZeroHit;
     bool VBlank;
