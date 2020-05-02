@@ -232,11 +232,14 @@ public:
     void WriteCHR0(const Byte value) {
         if (ChrMode == CHRBankingMode::OneBank) ChrBank0 = (value & 0x1E);
         if (ChrMode == CHRBankingMode::TwoBanks) ChrBank0 = (value & 0x1F);
-        ChrBank0 = (ChrBank0 % ChrBanks.size());
+        if (ChrBanks.size() > 0)
+            ChrBank0 = (ChrBank0 % ChrBanks.size());
     }
 
     void WriteCHR1(const Byte value) {
-        if (ChrMode == CHRBankingMode::TwoBanks) ChrBank1 = ((value & 0x1F) % ChrBanks.size());
+        if (ChrMode == CHRBankingMode::TwoBanks)
+            if (ChrBanks.size() > 0)
+                ChrBank1 = ((value & 0x1F) % ChrBanks.size());
     }
 
     void WritePRG(const Byte value) {
@@ -290,7 +293,10 @@ public:
         }
         else {
             const auto addr = ToChrRom(address);
-            return ChrBanks[addr.Bank][addr.Address];
+            if (ChrBanks.size() > 0)
+                return ChrBanks[addr.Bank][addr.Address];
+            else
+                return 0;
         }
     }
 

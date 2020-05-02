@@ -146,6 +146,8 @@ public:
     void AddWithCarry(const Byte value);
     void SubstractWithCarry(const Byte value);
 
+    void Jump(const Word address);
+
     void Push(const Byte & value);
     Byte Pull();
 
