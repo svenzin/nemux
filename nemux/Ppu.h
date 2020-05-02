@@ -91,6 +91,8 @@ public:
             | Mask<6>(SpriteZeroHit)
             | Mask<7>(VBlank);
         VBlank = false;
+        
+        StatusReadOn = FrameTicks;
 
         //WriteHiBus(status);
         return status;
@@ -201,6 +203,9 @@ public:
     std::vector<std::tuple<int, std::array<Byte, 4>>> sprites;
     void Tick() {
         ++Bus.Ticks;
+        
+        if (FrameCount % 2 == 1 && FrameTicks == 0 && (ShowBackground || ShowSprite))
+            ++FrameTicks;
 
         const auto y = FrameTicks / VIDEO_WIDTH;
         const auto x = FrameTicks % VIDEO_WIDTH;
@@ -291,21 +296,30 @@ public:
         //// NMI is deactivated after the last tick of scanline 260 (i.e. on (0, 261) (?))
         //if ((y == 261) && (x == 0))
         //    NMIActive = false;
-        static constexpr auto NMI_START = 241 * 341 + 1;
-        static constexpr auto NMI_STOP = 261 * 341;
-        if (FrameTicks == NMI_START) VBlank = true;
-        if (FrameTicks == NMI_STOP) VBlank = false;
-        NMIActive = (NMIOnVBlank && VBlank);
+        static constexpr size_t VBL_START = 241 * 341 + 1;
+        static constexpr size_t VBL_STOP = 261 * 341 + 1;
+        
+        // VBlank buffers to account for delay in CPU detection
+        static bool vblDelayed1 = false;
+        static bool vblDelayed2 = false;
+        vblDelayed2 = vblDelayed1;
+        vblDelayed1 = VBlank;
+
+        const bool SuppressVBlank = (StatusReadOn == VBL_START);
+        if (FrameTicks == VBL_START) VBlank = !SuppressVBlank;
+        if (FrameTicks == VBL_STOP) VBlank = false;
+
+        NMIActive = (NMIOnVBlank && vblDelayed2);
 
         static const auto SPRITE_ZERO_HIT_RESET = 261 * 341;
         if (FrameTicks == SPRITE_ZERO_HIT_RESET) SpriteZeroHit = false;
         
         ++FrameTicks;
-        if (FrameCount % 2 == 1 && FrameTicks == VIDEO_SIZE - 1 && (ShowBackground || ShowSprite)) 
-            ++FrameTicks;
         if (FrameTicks == VIDEO_SIZE) {
             FrameTicks = 0;
             ++FrameCount;
+
+            StatusReadOn = 0;
         }
     }
 
@@ -352,6 +366,8 @@ public:
         FrameTicks = 0;
         FrameCount = 0;
         Frame.fill(0x00);
+
+        StatusReadOn = 0;
     }
 
     struct {
@@ -402,6 +418,8 @@ public:
     size_t FrameTicks;
     size_t FrameCount;
     std::array<Byte, VIDEO_SIZE> Frame;
+
+    size_t StatusReadOn;
 };
 
 #endif /* PPU_H_ */

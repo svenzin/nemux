@@ -396,10 +396,18 @@ void Cpu::Tick() {
     ++CurrentTick;
     static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> *>(Map);
     static bool nmi = false;
+    static bool nmiDelayed1 = false;
+    static bool nmiDelayed2 = false;
+    static bool nmiDelayed3 = false;
+    static bool nmiDelayed4 = false;
     if (m != nullptr) {
-        if (!nmi && m->PPU->NMIActive) {
+        if (!nmiDelayed4 && nmiDelayed3) {
             TriggerNMI();
         }
+        nmiDelayed4 = nmiDelayed3;
+        nmiDelayed3 = nmiDelayed2;
+        nmiDelayed2 = nmiDelayed1;
+        nmiDelayed1 = nmi;
         nmi = m->PPU->NMIActive;
 
         if (I == 0 && (

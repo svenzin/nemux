@@ -46,7 +46,7 @@ public:
         cpu("6502", &cpumap) {
         cpumap.CPU = &cpu;
         apu.DMC1.Output.DMA.CPU = &cpu;
-        cpu.Reset();
+        cpu.PowerUp();
     }
 
     void Reset() { cpu.Reset(); }
