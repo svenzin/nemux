@@ -204,9 +204,6 @@ public:
     void Tick() {
         ++Bus.Ticks;
         
-        if (FrameCount % 2 == 1 && FrameTicks == 0 && (ShowBackground || ShowSprite))
-            ++FrameTicks;
-
         const auto y = FrameTicks / VIDEO_WIDTH;
         const auto x = FrameTicks % VIDEO_WIDTH;
         //if ((FrameCount%2)==0)
@@ -315,6 +312,12 @@ public:
         if (FrameTicks == SPRITE_ZERO_HIT_RESET) SpriteZeroHit = false;
         
         ++FrameTicks;
+        if ((FrameCount % 2 == 1)
+            && (FrameTicks == (VIDEO_SIZE - 2))
+            && (ShowBackground || ShowSprite)
+            )
+            ++FrameTicks;
+
         if (FrameTicks == VIDEO_SIZE) {
             FrameTicks = 0;
             ++FrameCount;
