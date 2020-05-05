@@ -64,7 +64,7 @@ state_t ParseLog(std::string line) {
     state.A = std::stoul(line.substr(50, 2), 0, 16);
     state.X = std::stoul(line.substr(55, 2), 0, 16);
     state.Y = std::stoul(line.substr(60, 2), 0, 16);
-    state.P = std::stoul(line.substr(65, 2), 0, 16);
+    state.P = std::stoul(line.substr(65, 2), 0, 16) | 0x20;
     return state;
 }
 

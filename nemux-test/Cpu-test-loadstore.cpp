@@ -414,7 +414,7 @@ TEST_F(CpuTestLoadStore, STA_AbsoluteX) {
     cpu.X = 0x08;
 
     Test_Set(Getter(0x0128), Setter(cpu.A),
-             Opcode(STA, AbsoluteX, 3, 4));
+             Opcode(STA, AbsoluteX, 3, 5));
 }
 
 TEST_F(CpuTestLoadStore, STA_AbsoluteY) {
@@ -424,7 +424,7 @@ TEST_F(CpuTestLoadStore, STA_AbsoluteY) {
     cpu.Y = 0x08;
 
     Test_Set(Getter(0x0128), Setter(cpu.A),
-             Opcode(STA, AbsoluteY, 3, 4));
+             Opcode(STA, AbsoluteY, 3, 5));
 }
 
 TEST_F(CpuTestLoadStore, STA_IndexedIndirect) {

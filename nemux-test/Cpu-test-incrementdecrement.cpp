@@ -120,7 +120,7 @@ TEST_F(CpuTestIncrementDecrement, DEC_Absolute) {
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
 
     Test_DEC(Getter(0x0120), Setter(0x0120),
-             Opcode(DEC, Absolute, 2, 6));
+             Opcode(DEC, Absolute, 3, 6));
 }
 
 TEST_F(CpuTestIncrementDecrement, DEC_AbsoluteX) {
@@ -129,7 +129,7 @@ TEST_F(CpuTestIncrementDecrement, DEC_AbsoluteX) {
     cpu.X = 0x08;
 
     Test_DEC(Getter(0x0128), Setter(0x0128),
-             Opcode(DEC, AbsoluteX, 2, 7));
+             Opcode(DEC, AbsoluteX, 3, 7));
 }
 
 TEST_F(CpuTestIncrementDecrement, DEX) {
@@ -174,7 +174,7 @@ TEST_F(CpuTestIncrementDecrement, INC_Absolute) {
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
 
     Test_INC(Getter(0x0120), Setter(0x0120),
-             Opcode(INC, Absolute, 2, 6));
+             Opcode(INC, Absolute, 3, 6));
 }
 
 TEST_F(CpuTestIncrementDecrement, INC_AbsoluteX) {
@@ -183,7 +183,7 @@ TEST_F(CpuTestIncrementDecrement, INC_AbsoluteX) {
     cpu.X = 0x08;
 
     Test_INC(Getter(0x0128), Setter(0x0128),
-             Opcode(INC, AbsoluteX, 2, 7));
+             Opcode(INC, AbsoluteX, 3, 7));
 }
 
 TEST_F(CpuTestIncrementDecrement, INX) {

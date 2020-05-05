@@ -145,7 +145,6 @@ TEST_F(CpuTest, Ticking) {
     cpu.Tick();
     EXPECT_EQ(1, cpu.CurrentTick);
     EXPECT_EQ(2, cpu.Ticks);
-    EXPECT_EQ(1, cpu.A);
 
     cpu.Tick();
     EXPECT_EQ(2, cpu.CurrentTick);
@@ -156,7 +155,6 @@ TEST_F(CpuTest, Ticking) {
     cpu.Tick();
     EXPECT_EQ(3, cpu.CurrentTick);
     EXPECT_EQ(5, cpu.Ticks);
-    EXPECT_EQ(3, cpu.A);
 
     cpu.Tick();
     EXPECT_EQ(4, cpu.CurrentTick);
@@ -165,11 +163,19 @@ TEST_F(CpuTest, Ticking) {
     cpu.Tick();
     EXPECT_EQ(5, cpu.CurrentTick);
     EXPECT_EQ(5, cpu.Ticks);
+    EXPECT_EQ(3, cpu.A);
     EXPECT_EQ(2, mem.GetByteAt(0x0000));
 
     // INC $00
     cpu.Tick();
     EXPECT_EQ(6, cpu.CurrentTick);
+    EXPECT_EQ(10, cpu.Ticks);
+
+    cpu.Tick();
+    cpu.Tick();
+    cpu.Tick();
+    cpu.Tick();
+    EXPECT_EQ(10, cpu.CurrentTick);
     EXPECT_EQ(10, cpu.Ticks);
     EXPECT_EQ(3, mem.GetByteAt(0x0000));
 }
@@ -200,17 +206,16 @@ TEST_F(CpuTest, TickingWithInterrupt) {
     cpu.Tick();
     EXPECT_EQ(1, cpu.CurrentTick);
     EXPECT_EQ(2, cpu.Ticks);
-    EXPECT_EQ(0, cpu.I);
     
     cpu.Tick();
     EXPECT_EQ(2, cpu.CurrentTick);
     EXPECT_EQ(2, cpu.Ticks);
-    
+    EXPECT_EQ(0, cpu.I);
+
     // LDA #1
     cpu.Tick();
     EXPECT_EQ(3, cpu.CurrentTick);
     EXPECT_EQ(4, cpu.Ticks);
-    EXPECT_EQ(1, cpu.A);
 
     cpu.TriggerIRQ();
 
@@ -220,8 +225,8 @@ TEST_F(CpuTest, TickingWithInterrupt) {
     EXPECT_EQ(1, cpu.A);
 
     // Interrupt
-    cpu.Tick();
-    EXPECT_EQ(5, cpu.CurrentTick);
+    for (int i = 0; i < cpu.InterruptCycles; ++i) cpu.Tick();
+    EXPECT_EQ(4 + cpu.InterruptCycles, cpu.CurrentTick);
     EXPECT_EQ(4 + cpu.InterruptCycles, cpu.Ticks);
     EXPECT_EQ(1, cpu.A);
     EXPECT_EQ(0x0080, cpu.PC);

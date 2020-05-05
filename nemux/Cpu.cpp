@@ -18,6 +18,9 @@ using namespace std;
 using namespace Instructions;
 using namespace Addressing;
 
+static const bool USE_RP2A03 = true;
+static int nmic = 0;
+
 Word Cpu::ReadWordAt(const Word address) const {
     const auto lo = ReadByteAt(address);
     const auto hi = ReadByteAt(address + 1);
@@ -264,29 +267,29 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
     m_opcodes[0x0C] = Opcode(uNOP, Absolute,  3, 4);
     m_opcodes[0x14] = Opcode(uNOP, ZeroPageX, 2, 4);
     m_opcodes[0x1A] = Opcode(uNOP, Implicit,  1, 2);
-    m_opcodes[0x1C] = Opcode(uNOP, AbsoluteX, 3, 4);
+    m_opcodes[0x1C] = Opcode(uNOP, AbsoluteX, 3, 4);    //
     m_opcodes[0x34] = Opcode(uNOP, ZeroPageX, 2, 4);
     m_opcodes[0x3A] = Opcode(uNOP, Implicit,  1, 2);
-    m_opcodes[0x3C] = Opcode(uNOP, AbsoluteX, 3, 4);
+    m_opcodes[0x3C] = Opcode(uNOP, AbsoluteX, 3, 4);    //
     m_opcodes[0x44] = Opcode(uNOP, ZeroPage,  2, 3);
     m_opcodes[0x54] = Opcode(uNOP, ZeroPageX, 2, 4);
     m_opcodes[0x5A] = Opcode(uNOP, Implicit,  1, 2);
-    m_opcodes[0x5C] = Opcode(uNOP, AbsoluteX, 3, 4);
+    m_opcodes[0x5C] = Opcode(uNOP, AbsoluteX, 3, 4);    //
     m_opcodes[0x64] = Opcode(uNOP, ZeroPage,  2, 3);
     m_opcodes[0x74] = Opcode(uNOP, ZeroPageX, 2, 4);
     m_opcodes[0x7A] = Opcode(uNOP, Implicit,  1, 2);
-    m_opcodes[0x7C] = Opcode(uNOP, AbsoluteX, 3, 4);
+    m_opcodes[0x7C] = Opcode(uNOP, AbsoluteX, 3, 4);    //
     m_opcodes[0x80] = Opcode(uNOP, Immediate, 2, 2);
     m_opcodes[0x82] = Opcode(uNOP, Immediate, 2, 2);
     m_opcodes[0x89] = Opcode(uNOP, Immediate, 2, 2);
     m_opcodes[0xC2] = Opcode(uNOP, Immediate, 2, 2);
     m_opcodes[0xD4] = Opcode(uNOP, ZeroPageX, 2, 4);
     m_opcodes[0xDA] = Opcode(uNOP, Implicit,  1, 2);
-    m_opcodes[0xDC] = Opcode(uNOP, AbsoluteX, 3, 4);
+    m_opcodes[0xDC] = Opcode(uNOP, AbsoluteX, 3, 4);    //
     m_opcodes[0xE2] = Opcode(uNOP, Immediate, 2, 2);
     m_opcodes[0xF4] = Opcode(uNOP, ZeroPageX, 2, 4);
     m_opcodes[0xFA] = Opcode(uNOP, Implicit,  1, 2);
-    m_opcodes[0xFC] = Opcode(uNOP, AbsoluteX, 3, 4);
+    m_opcodes[0xFC] = Opcode(uNOP, AbsoluteX, 3, 4);    //
 
     m_opcodes[0x02] = Opcode(uSTP, Implicit, 1, 2);
     m_opcodes[0x12] = Opcode(uSTP, Implicit, 1, 2);
@@ -395,42 +398,79 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
 }
 
 void Cpu::Tick() {
-    ++CurrentTick;
-    static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> *>(Map);
-    static bool nmi = false;
-    static bool nmiDelayed1 = false;
-    static bool nmiDelayed2 = false;
-    static bool nmiDelayed3 = false;
-    static bool nmiDelayed4 = false;
-    if (m != nullptr) {
-        if (!nmiDelayed4 && nmiDelayed3) {
-            TriggerNMI();
-        }
-        nmiDelayed4 = nmiDelayed3;
-        nmiDelayed3 = nmiDelayed2;
-        nmiDelayed2 = nmiDelayed1;
-        nmiDelayed1 = nmi;
-        nmi = m->PPU->NMIActive;
+    if (!USE_RP2A03) {
+        ++CurrentTick;
+        static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> *>(Map);
+        static bool nmi = false;
+        static bool nmiDelayed1 = false;
+        static bool nmiDelayed2 = false;
+        static bool nmiDelayed3 = false;
+        static bool nmiDelayed4 = false;
+        if (m != nullptr) {
+            if (!nmiDelayed4 && nmiDelayed3) {
+                std::cout << "NMI " << ++nmic << std::endl;
+                TriggerNMI();
+            }
+            nmiDelayed4 = nmiDelayed3;
+            nmiDelayed3 = nmiDelayed2;
+            nmiDelayed2 = nmiDelayed1;
+            nmiDelayed1 = nmi;
+            nmi = m->PPU->NMIActive;
 
-        if (I == 0 && (
-            m->APU->Frame.Interrupt ||
-            m->APU->DMC1.Output.DMA.Interrupt)) {
-            TriggerIRQ();
-        }
+            if (I == 0 && (
+                m->APU->Frame.Interrupt ||
+                m->APU->DMC1.Output.DMA.Interrupt)) {
+                std::cout << "IRQ" << std::endl;
+                TriggerIRQ();
+            }
 
+        }
+        if (CurrentTick > Ticks) {
+            if (PendingInterrupt == InterruptType::Rst) {
+                Reset();
+            }
+            else if (PendingInterrupt == InterruptType::Nmi) {
+                NMI();
+            }
+            else if (PendingInterrupt == InterruptType::Irq) {
+                IRQ();
+            }
+            else {
+                const auto instruction = ReadByteAt(PC);
+                const auto opcode = Decode(instruction);
+                Execute(opcode);
+            }
+        }
     }
-    if (CurrentTick > Ticks) {
-        if (PendingInterrupt == InterruptType::Rst) {
-            Reset();
-        } else if (PendingInterrupt == InterruptType::Nmi) {
-            NMI();
-        } else if (PendingInterrupt == InterruptType::Irq) {
-            IRQ();
-        } else {
-            const auto instruction = ReadByteAt(PC);
-            const auto opcode = Decode(instruction);
-            Execute(opcode);
+    else {
+        rp2a03.Halted = !IsAlive;
+        rp2a03.PC = PC;
+        rp2a03.S = SP;
+        rp2a03.A = A;
+        rp2a03.X = X;
+        rp2a03.Y = Y;
+        rp2a03.SetStatus(GetStatus());
+        rp2a03.Map = Map;
+        rp2a03.Ticks = Ticks;
+
+        rp2a03.Phi1();
+        static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> *>(Map);
+        if (m != nullptr) {
+            rp2a03.NMI = m->PPU->NMIActive;
+            rp2a03.IRQ = (I == 0)
+                && (m->APU->Frame.Interrupt || m->APU->DMC1.Output.DMA.Interrupt);
         }
+        rp2a03.Phi2();
+        
+        Ticks = rp2a03.Ticks;
+        if (rp2a03.INSTR) CurrentTick = Ticks;
+        PC = rp2a03.PC;
+        SP = rp2a03.S;
+        A = rp2a03.A;
+        X = rp2a03.X;
+        Y = rp2a03.Y;
+        SetStatus(rp2a03.GetStatus(rp2a03.Pflag));
+        IsAlive = !rp2a03.Halted;
     }
 }
 
@@ -622,16 +662,75 @@ void Cpu::TriggerIRQ() {
 void Cpu::DMA(const Byte page,
     std::array<Byte, 0x0100> & target,
     const Byte offset) {
-    const Word base = page << BYTE_WIDTH;
-    for (Word i = 0; i < 0x0100; ++i) {
-        target[(i + offset) & WORD_LO_MASK] = ReadByteAt(base + i);
+    if (USE_RP2A03) {
+        rp2a03.Halted = !IsAlive;
+        rp2a03.PC = PC;
+        rp2a03.S = SP;
+        rp2a03.A = A;
+        rp2a03.X = X;
+        rp2a03.Y = Y;
+        rp2a03.SetStatus(GetStatus());
+        rp2a03.Map = Map;
+        rp2a03.Ticks = Ticks;
+
+        rp2a03.DMA(page, target.data(), offset);
+
+        Ticks = rp2a03.Ticks;
+        PC = rp2a03.PC;
+        SP = rp2a03.S;
+        A = rp2a03.A;
+        X = rp2a03.X;
+        Y = rp2a03.Y;
+        SetStatus(rp2a03.GetStatus(rp2a03.Pflag));
+        IsAlive = !rp2a03.Halted;
     }
-    Ticks += 513;
-    if (CurrentTick % 2 == 1) {
-        ++Ticks;
+    else {
+        const Word base = page << BYTE_WIDTH;
+        for (Word i = 0; i < 0x0100; ++i) {
+            target[(i + offset) & WORD_LO_MASK] = ReadByteAt(base + i);
+        }
+        Ticks += 513;
+        if (CurrentTick % 2 == 1) {
+            ++Ticks;
+        }
     }
 }
-void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
+void Cpu::Execute(const Opcode &op) {
+    if (USE_RP2A03) {
+        rp2a03.Halted = !IsAlive;
+        rp2a03.PC = PC;
+        rp2a03.S = SP;
+        rp2a03.A = A;
+        rp2a03.X = X;
+        rp2a03.Y = Y;
+        rp2a03.SetStatus(GetStatus());
+        rp2a03.Map = Map;
+        rp2a03.Ticks = Ticks;
+
+        int hexa;
+        for (hexa = 0; hexa < 0x100; ++hexa) {
+            const auto ophexa = Decode(hexa);
+            if ((ophexa.Addressing == op.Addressing)
+                && (ophexa.Bytes == op.Bytes)
+                && (ophexa.Cycles == op.Cycles)
+                && (ophexa.Instruction == op.Instruction)) break;
+        }
+        WriteByteAt(PC, hexa);
+        do {
+            rp2a03.Phi1();
+            rp2a03.Phi2();
+        } while (!rp2a03.INSTR);
+        
+        Ticks = rp2a03.Ticks;
+        PC = rp2a03.PC;
+        SP = rp2a03.S;
+        A = rp2a03.A;
+        X = rp2a03.X;
+        Y = rp2a03.Y;
+        SetStatus(rp2a03.GetStatus(rp2a03.Pflag));
+        IsAlive = !rp2a03.Halted;
+        return;
+    }
     if (!IsAlive) return;
 
     const auto a = BuildAddress(op.Addressing);
@@ -681,7 +780,8 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
         break;
     }
     case ORA: {
-        Transfer(A | ReadByteAt(a.Address), A);
+        const auto m = ReadByteAt(a.Address);
+        Transfer(A | m, A);
         if (a.HasCrossedPage) ++Ticks;
         break;
     }
@@ -967,6 +1067,7 @@ void Cpu::Execute(const Opcode &op) {//, const std::vector<Byte> &data) {
     case uXAA:
     case UNK:
     default:
+        if (a.HasCrossedPage) ++Ticks;
         break;
     }
 }

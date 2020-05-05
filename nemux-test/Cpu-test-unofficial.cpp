@@ -379,11 +379,12 @@ TEST_F(CpuTestUnofficial, uNOP) {
 TEST_F(CpuTestUnofficial, uSTP) {
     cpu.Execute(Opcode(uSTP, Implicit, 1, 2));
 
+    EXPECT_EQ(BASE_PC + 1, cpu.PC); // +1 for opcode fetch
     EXPECT_FALSE(cpu.IsAlive);
 
     // Check that the CPU is dead
     cpu.Execute(Opcode(uNOP, Implicit, 1, 2));
-    EXPECT_EQ(BASE_PC, cpu.PC);
+    EXPECT_EQ(BASE_PC + 1, cpu.PC);
     EXPECT_EQ(BASE_TICKS, cpu.Ticks);
 }
 
@@ -1023,14 +1024,14 @@ TEST_F(CpuTestUnofficial, uSHY_AbsoluteX) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
-    Test_SHY(0x0128, Opcode(uSHY, AbsoluteX, 3, 7));
+    Test_SHY(0x0128, Opcode(uSHY, AbsoluteX, 3, 5));
 }
 
 TEST_F(CpuTestUnofficial, uSHY_AbsoluteX_CrossingPage) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0xF0;
-    Test_SHY(0x0210, Opcode(uSHY, AbsoluteX, 3, 7));
+    Test_SHY(0x0210, Opcode(uSHY, AbsoluteX, 3, 5));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

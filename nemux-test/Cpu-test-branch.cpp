@@ -22,6 +22,7 @@ class CpuTestBranch : public ::testing::Test {
 public:
     static const Word BASE_PC = 10;
     static const int BASE_TICKS = 10;
+    static const int OFFSET_FROM_PREFETCH_NEXT = 1;
 
     CpuTestBranch() : cpu("6502", &memory) {
         cpu.PC = BASE_PC;
@@ -43,7 +44,7 @@ public:
             cpu.Execute(op);
 
             EXPECT_EQ(expPC, cpu.PC);
-            EXPECT_EQ(BASE_TICKS + op.Cycles + extra, cpu.Ticks);
+            EXPECT_EQ(BASE_TICKS + op.Cycles + extra + OFFSET_FROM_PREFETCH_NEXT, cpu.Ticks);
         };
 
         tester(0x0080, 0x20, failure, 0x0080 + 2, 0); // Fail

@@ -25,6 +25,10 @@ public:
     static const Word BASE_PC = 10;
     static const int BASE_TICKS = 10;
 
+    static const Word VECTOR_RST = 0xFFFC;
+    static const Word VECTOR_IRQ = 0xFFFE;
+    static const Word VECTOR_NMI = 0xFFFA;
+
     CpuTestSystem() : memory(), cpu("6502", &memory) {
         cpu.PC = BASE_PC;
         cpu.Ticks = BASE_TICKS;
@@ -39,8 +43,8 @@ const int CpuTestSystem::BASE_TICKS;
 TEST_F(CpuTestSystem, BRK) {
     auto op = Opcode(BRK, Implicit, 2, 0);
 
-    cpu.VectorIRQ = 0x0380;
-    cpu.WriteWordAt(0x0380, 0x0120);
+    cpu.VectorIRQ = VECTOR_IRQ;
+    cpu.WriteWordAt(VECTOR_IRQ, 0x0120);
     cpu.StackPage = 0x0100;
     cpu.SP = 0xF0;
     cpu.SetStatus(0x00);
@@ -60,8 +64,8 @@ TEST_F(CpuTestSystem, BRK) {
 TEST_F(CpuTestSystem, BRK_FlagI) {
     auto op = Opcode(BRK, Implicit, 2, 7);
 
-    cpu.VectorIRQ = 0x0380;
-    cpu.WriteWordAt(0x0380, 0x0120);
+    cpu.VectorIRQ = VECTOR_IRQ;
+    cpu.WriteWordAt(VECTOR_IRQ, 0x0120);
     cpu.StackPage = 0x0100;
     cpu.SP = 0xF0;
     cpu.SetStatus(0x00);
@@ -85,7 +89,7 @@ TEST_F(CpuTestSystem, NOP) {
 TEST_F(CpuTestSystem, RTI) {
     auto op = Opcode(RTI, Implicit, 1, 6);
 
-    auto tester = [&] (Byte status, Flag expN, Flag expV, Flag expB, Flag expD, Flag expI, Flag expZ, Flag expC) {
+    auto tester = [&] (Byte status, Flag expN, Flag expV, Flag expD, Flag expI, Flag expZ, Flag expC) {
         cpu.Map->SetByteAt(BASE_PC, 0xFF);
         cpu.StackPage = 0x100;
         cpu.SP = 0xF0;
@@ -101,20 +105,19 @@ TEST_F(CpuTestSystem, RTI) {
         EXPECT_EQ(0xF0, cpu.SP);
         EXPECT_EQ(expN, cpu.N);
         EXPECT_EQ(expV, cpu.V);
-        EXPECT_EQ(expB, cpu.B);
         EXPECT_EQ(expD, cpu.D);
         EXPECT_EQ(expI, cpu.I);
         EXPECT_EQ(expZ, cpu.Z);
         EXPECT_EQ(expC, cpu.C);
     };
 
-    tester(0xFF, 1, 1, 1, 1, 1, 1, 1);
-    tester(0x00, 0, 0, 0, 0, 0, 0, 0);
+    tester(0xFF, 1, 1, 1, 1, 1, 1);
+    tester(0x00, 0, 0, 0, 0, 0, 0);
 }
 
 TEST_F(CpuTestSystem, Reset) {
-    cpu.VectorRST = 0x0380;
-    cpu.WriteWordAt(0x0380, 0x0120);
+    cpu.VectorRST = VECTOR_RST;
+    cpu.WriteWordAt(VECTOR_RST, 0x0120);
     cpu.StackPage = 0x0100;
     cpu.SP = 0xF0;
     cpu.SetStatus(0xFF);
@@ -131,8 +134,8 @@ TEST_F(CpuTestSystem, Reset) {
 }
 
 TEST_F(CpuTestSystem, NMI) {
-    cpu.VectorNMI = 0x0380;
-    cpu.WriteWordAt(0x0380, 0x0120);
+    cpu.VectorNMI = VECTOR_NMI;
+    cpu.WriteWordAt(VECTOR_NMI, 0x0120);
     cpu.StackPage = 0x0100;
     cpu.SP = 0xF0;
     cpu.SetStatus(0xFF);
@@ -152,8 +155,8 @@ TEST_F(CpuTestSystem, NMI) {
 }
 
 TEST_F(CpuTestSystem, IRQ) {
-    cpu.VectorIRQ = 0x0380;
-    cpu.WriteWordAt(0x0380, 0x0120);
+    cpu.VectorIRQ = VECTOR_IRQ;
+    cpu.WriteWordAt(VECTOR_IRQ, 0x0120);
     cpu.StackPage = 0x0100;
     cpu.SP = 0xF0;
     cpu.SetStatus(0xFF);

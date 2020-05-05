@@ -116,7 +116,9 @@ namespace debug {
             "CLC", "CLD", "CLI", "CLV", "SEC", "SED", "SEI",        // Status Change
             "BRK", "NOP", "RTI",                                    // System
            "uSTP","uSLO","uNOP","uANC","uRLA","uSRE","uALR","uRRA","uARR", // Unofficial
-            "UNK",
+           "uSAX", "uXAA", "uAHX", "uTAS", "uSHY", "uSHX", "uLAX", "uLAS",
+           "uDCP", "uAXS", "uISC", "uSBC",
+           "UNK",
         };
 
         std::stringstream oss;

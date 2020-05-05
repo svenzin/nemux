@@ -10,9 +10,12 @@
 
 #include "Types.h"
 #include "MemoryMap.h"
+#include "Ricoh_RP2A03.h"
 
 #include <string>
 #include <vector>
+
+struct Ricoh_RP2A03;
 
 static const auto OPCODES_COUNT = 0x0100;
 
@@ -91,6 +94,7 @@ struct address_t {
 };
 
 class Cpu {
+    Ricoh_RP2A03 rp2a03;
 public:
     bool IsAlive;
 
