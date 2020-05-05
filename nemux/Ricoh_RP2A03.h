@@ -8,31 +8,57 @@
 #include <vector>
 
 class Ricoh_RP2A03 {
-public:
     enum Bits : size_t {
-        Car = 0, Zer, Int, Dec, Brk, Unu, Ovf, Neg,
+        Car, Zer, Int, Dec, Brk, Unu, Ovf, Neg,
         Left = 7, Right = 0,
     };
 
+    void Push(const Byte & value) { Map->SetByteAt(0x0100 + S, value); --S; }
+    Byte Pull() { ++S; return Map->GetByteAt(0x0100 + S); }
+
+    inline void read_PC_to_opcode() { opcode = Map->GetByteAt(PC); }
+    inline void increment_PC() { ++PC; }
+    inline void read_PC_to_operand() { operand = Map->GetByteAt(PC); }
+    inline void push_PCL() { Push(PC); }
+    inline void push_PCH() { Push(PC >> 8); }
+    inline void push_P() { Push(GetStatus(Pflag)); }
+    inline void pull_PCL() { PC = (PC & WORD_HI_MASK) | Pull(); }
+    inline void pull_PCH() { PC = (Pull() << BYTE_WIDTH) | (PC & WORD_LO_MASK); }
+    inline void pull_P() { SetStatus(Pull()); }
+    inline void read_PC_to_address() { address = Map->GetByteAt(PC); }
+    inline void read_PC_to_addressLo() { address = (address & WORD_HI_MASK) | Map->GetByteAt(PC); }
+    inline void read_PC_to_addressHi() { address = (Map->GetByteAt(PC) << BYTE_WIDTH) | (address & WORD_LO_MASK); }
+    inline void read_address_to_operand() { operand = Map->GetByteAt(address); }
+    inline void read_operand_to_addressLo() { address = (address & WORD_HI_MASK) | Map->GetByteAt(operand); }
+    inline void read_operand_1_to_addressHi() { address = (Map->GetByteAt((operand + 1) & WORD_LO_MASK) << BYTE_WIDTH) | (address & WORD_LO_MASK); }
+    inline void index_address_by_X() { address = (address & WORD_HI_MASK) | ((address + X) & WORD_LO_MASK); }
+    inline void index_address_by_Y() { address = (address & WORD_HI_MASK) | ((address + Y) & WORD_LO_MASK); }
+    inline void fix_address_indexed_by_X() { AddressWasFixed = ((address & WORD_LO_MASK) < X); if (AddressWasFixed) address += 0x0100; }
+    inline void fix_address_indexed_by_Y() { AddressWasFixed = ((address & WORD_LO_MASK) < Y); if (AddressWasFixed) address += 0x0100; }
+    inline void write_operand_to_address() { Map->SetByteAt(address, operand); }
+    inline void read_to_PCL(const Word & vectorLo) { PC = (PC & WORD_HI_MASK) | Map->GetByteAt(vectorLo); }
+    inline void read_to_PCH(const Word & vectorHi) { PC = (Map->GetByteAt(vectorHi) << BYTE_WIDTH) | (PC & WORD_LO_MASK); }
+
+public:
     enum uOp {
         read_PC_to_opcode_AND_increment_PC,
         read_PC_to_operand_AND_increment_PC,
         read_PC_to_operand_AND_increment_PC_AND,
-        push_PCH,
-        push_PCL,
-        push_P,
+        push_PCH_,
+        push_PCL_,
+        push_P_,
         read_PCL_FFFE,
         read_PCH_FFFF,
         set_I_AND,
         read_PCL_FFFA,
         read_PCH_FFFB,
-        read_PC_to_operand,
+        read_PC_to_operand_,
         read_PC_to_operand_AND,
         wait,
-        pull_P,
-        pull_PCL,
-        pull_PCH,
-        increment_PC,
+        pull_P_,
+        pull_PCL_,
+        pull_PCH_,
+        increment_PC_,
         read_PC_to_AddressLo_AND_increment_PC,
         read_PC_to_AddressHi_AND_increment_PC,
         read_PC_to_AddressHi_AND,
@@ -109,35 +135,12 @@ public:
     bool NMIFlipFlop;
     bool IRQLevel;
 
-    explicit Ricoh_RP2A03()
-        : PC{ 0 }, S{ 0 }, A{ 0 }, X{ 0 }, Y{ 0 },
-        N{ 0 }, V{ 0 }, D{ 0 }, I{ 0 }, Z{ 0 }, C{ 0 },
-        Ticks{ 0 },
-        IRQ{ false }, IRQLevel{ false },
-        NMI{ false }, NMIEdge{ false }, NMIFlipFlop{ false },
-        ihead{ 0 }, itail{ 0 }
-    {}
 
     Word address;
     Byte operand;
 
     Byte GetStackTop() const { return Map->GetByteAt(0x0100 + S); }
     void SetStackTop(const Byte value) const { Map->SetByteAt(0x0100 + S, value); }
-
-    void SetStatus(const Byte & status) {
-        N = Bit<Neg>(status);
-        V = Bit<Ovf>(status);
-        D = Bit<Dec>(status);
-        I = Bit<Int>(status);
-        Z = Bit<Zer>(status);
-        C = Bit<Car>(status);
-    }
-    Byte GetStatus(const Flag B) const {
-        return Mask<Neg>(N) | Mask<Ovf>(V) |
-            Mask<Unu>(1) | Mask<Brk>(B) |
-            Mask<Dec>(D) | Mask<Int>(I) |
-            Mask<Zer>(Z) | Mask<Car>(C);
-    }
 
     void Branch(const bool condition) {
         if (condition) {
@@ -202,46 +205,46 @@ public:
         case 0x00: { // BRK
             Pflag = 1;
             todo_push(read_PC_to_operand_AND_increment_PC);
-            todo_push(push_PCH);
-            todo_push(push_PCL);
-            todo_push(push_P);
+            todo_push(push_PCH_);
+            todo_push(push_PCL_);
+            todo_push(push_P_);
             todo_push(set_I_AND);
             todo_push(read_PCL_FFFE);
             todo_push(read_PCH_FFFF);
             return true;
         }
         case 0x40: { // RTI
-            todo_push(read_PC_to_operand);
+            todo_push(read_PC_to_operand_);
             todo_push(wait);
-            todo_push(pull_P);
-            todo_push(pull_PCL);
-            todo_push(pull_PCH);
+            todo_push(pull_P_);
+            todo_push(pull_PCL_);
+            todo_push(pull_PCH_);
             return true;
         }
         case 0x60: { // RTS
-            todo_push(read_PC_to_operand);
+            todo_push(read_PC_to_operand_);
             todo_push(wait);
-            todo_push(pull_PCL);
-            todo_push(pull_PCH);
-            todo_push(increment_PC);
+            todo_push(pull_PCL_);
+            todo_push(pull_PCH_);
+            todo_push(increment_PC_);
             return true;
         }
         case 0x48:   // PHA
         case 0x08: { // PHP
-            todo_push(read_PC_to_operand);
+            todo_push(read_PC_to_operand_);
             break;
         }
         case 0x68:   // PLA
         case 0x28: { // PLP
-            todo_push(read_PC_to_operand);
+            todo_push(read_PC_to_operand_);
             todo_push(wait);
             break;
         }
         case 0x20: { // JSR
             todo_push(read_PC_to_AddressLo_AND_increment_PC);
             todo_push(wait);
-            todo_push(push_PCH);
-            todo_push(push_PCL);
+            todo_push(push_PCH_);
+            todo_push(push_PCL_);
             todo_push(read_PC_to_AddressHi_AND);
             todo_push(opJMP);
             return true;
@@ -864,189 +867,66 @@ public:
 
         const auto op = todo_pop();
         switch (op) {
-        case push_PCH: {
-            SetStackTop(PC >> 8);
-            --S;
+        case pull_P_: pull_P(); break;
+        case pull_PCL_: pull_PCL(); break;
+        case pull_PCH_: pull_PCH(); break;
+        case push_P_: push_P(); break;
+        case push_PCL_: push_PCL(); break;
+        case push_PCH_: push_PCH(); break;
+        case read_PCL_FFFA: read_to_PCL(0xFFFA); break;
+        case read_PCH_FFFB: read_to_PCH(0xFFFB); break;
+        case read_PCL_FFFE: read_to_PCL(0xFFFE); break;
+        case read_PCH_FFFF: read_to_PCH(0xFFFF); break;
+        case increment_PC_: increment_PC(); break;
+        case read_PC_to_Address_AND_increment_PC: { read_PC_to_address(); increment_PC(); break; }
+        case read_PC_to_AddressLo_AND_increment_PC: { read_PC_to_addressLo(); increment_PC(); break; }
+        case read_PC_to_AddressHi_AND: { read_PC_to_addressHi(); ConsumeOne(); break; }
+        case read_PC_to_AddressHi_AND_increment_PC: { read_PC_to_addressHi(); increment_PC(); break; }
+        case read_PC_to_AddressHi_AND_increment_PC_AND: { read_PC_to_addressHi(); increment_PC(); ConsumeOne(); break; }
+        case read_PC_to_operand_: read_PC_to_operand(); break;
+        case read_PC_to_operand_AND: { read_PC_to_operand(); ConsumeOne(); break; }
+        case read_PC_to_operand_AND_increment_PC: { read_PC_to_operand(); increment_PC(); break; }
+        case read_PC_to_operand_AND_increment_PC_AND: { read_PC_to_operand(); increment_PC(); ConsumeOne(); break; }
+        case read_Address_to_operand: read_address_to_operand(); break;
+        case read_Address_to_operand_AND: { read_address_to_operand(); ConsumeOne(); break; }
+        case read_operand_to_AddressLo: read_operand_to_addressLo(); break;
+        case read_operand_1_to_AddressHi: read_operand_1_to_addressHi(); break;
+        case read_operand_1_to_AddressHi_AND: { read_operand_1_to_addressHi(); ConsumeOne(); break; }
+        case write_operand_to_Address: write_operand_to_address(); break;
+        case write_operand_to_Address_AND: { write_operand_to_address(); ConsumeOne(); break; }
+        case index_Address_by_X: index_address_by_X(); break;
+        case index_Address_by_Y: index_address_by_Y(); break;
+        case fix_AddressHi_indexed_by_X: fix_address_indexed_by_X(); break;
+        case fix_AddressHi_indexed_by_Y: fix_address_indexed_by_Y(); break;
+        case fix_AddressHi_indexed_by_X_ReRead_AND: {
+            fix_address_indexed_by_X();
+            if (AddressWasFixed) {
+                todo_push_first(wait);
+                todo_push_first(read_Address_to_operand_AND);
+            }
+            ConsumeOne();
             break;
         }
-        case push_PCL: {
-            SetStackTop(PC);
-            --S;
+        case fix_AddressHi_indexed_by_Y_ReRead_AND: {
+            fix_address_indexed_by_Y();
+            if (AddressWasFixed) {
+                todo_push_first(wait);
+                todo_push_first(read_Address_to_operand_AND);
+            }
+            ConsumeOne();
             break;
         }
-        case push_P: {
-            SetStackTop(GetStatus(Pflag));
-            --S;
-            break;
-        }
-        case read_PCL_FFFE: {
-            PC = (PC & WORD_HI_MASK) | Map->GetByteAt(0xFFFE);
-            break;
-        }
-        case read_PCH_FFFF: {
-            PC = (PC & WORD_LO_MASK) | (Map->GetByteAt(0xFFFF) << BYTE_WIDTH);
-            break;
-        }
+
         case set_I_AND: {
             I = 1;
             ConsumeOne();
             break;
         }
-        case read_PCL_FFFA: {
-            PC = (PC & WORD_HI_MASK) | Map->GetByteAt(0xFFFA);
-            break;
-        }
-        case read_PCH_FFFB: {
-            PC = (PC & WORD_LO_MASK) | (Map->GetByteAt(0xFFFB) << BYTE_WIDTH);
-            break;
-        }
         case wait: {
-            break;
-        }
-        case pull_P: {
-            ++S;
-            SetStatus(GetStackTop());
-            break;
-        }
-        case pull_PCL: {
-            ++S;
-            PC = (PC & WORD_HI_MASK) | GetStackTop();
-            break;
-        }
-        case pull_PCH: {
-            ++S;
-            PC = (PC & WORD_LO_MASK) | (GetStackTop() << BYTE_WIDTH);
-            break;
-        }
-        case increment_PC: {
-            ++PC;
-            break;
-        }
-        case read_PC_to_AddressLo_AND_increment_PC: {
-            address = (address & WORD_HI_MASK) | Map->GetByteAt(PC);
-            ++PC;
-            break;
-        }
-        case read_PC_to_AddressHi_AND: {
-            address = (address & WORD_LO_MASK) | (Map->GetByteAt(PC) << BYTE_WIDTH);
-            ConsumeOne();
-            break;
-        }
-        case read_PC_to_AddressHi_AND_increment_PC: {
-            address = (address & WORD_LO_MASK) | (Map->GetByteAt(PC) << BYTE_WIDTH);
-            ++PC;
-            break;
-        }
-        case read_PC_to_AddressHi_AND_increment_PC_AND: {
-            address = (address & WORD_LO_MASK) | (Map->GetByteAt(PC) << BYTE_WIDTH);
-            ++PC;
-            ConsumeOne();
-            break;
-        }
-        case read_Address_to_operand: {
-            operand = Map->GetByteAt(address);
-            break;
-        }
-        case read_Address_to_operand_AND: {
-            operand = Map->GetByteAt(address);
-            ConsumeOne();
-            break;
-        }
-        case write_operand_to_Address_AND: {
-            Map->SetByteAt(address, operand);
-            ConsumeOne();
-            break;
-        }
-        case write_operand_to_Address: {
-            Map->SetByteAt(address, operand);
-            break;
-        }
-        case read_PC_to_operand_AND_increment_PC: {
-            operand = Map->GetByteAt(PC);
-            ++PC;
-            break;
-        }
-        case read_PC_to_operand_AND_increment_PC_AND: {
-            operand = Map->GetByteAt(PC);
-            ++PC;
-            ConsumeOne();
-            break;
-        }
-        case read_PC_to_operand: {
-            operand = Map->GetByteAt(PC);
-            break;
-        }
-        case read_PC_to_operand_AND: {
-            operand = Map->GetByteAt(PC);
-            ConsumeOne();
-            break;
-        }
-        case read_PC_to_Address_AND_increment_PC: {
-            address = Map->GetByteAt(PC);
-            ++PC;
-            break;
-        }
-        case index_Address_by_X: {
-            address = (address & WORD_HI_MASK) | ((address + X) & WORD_LO_MASK);
-            break;
-        }
-        case index_Address_by_Y: {
-            address = (address & WORD_HI_MASK) | ((address + Y) & WORD_LO_MASK);
-            break;
-        }
-        case fix_AddressHi_indexed_by_X_ReRead_AND: {
-            AddressWasFixed = false;
-            if ((address & WORD_LO_MASK) < X) {
-                AddressWasFixed = true;
-                address += 0x0100;
-                todo_push_first(wait);
-                todo_push_first(read_Address_to_operand_AND);
-            }
-            ConsumeOne();
-            break;
-        }
-        case fix_AddressHi_indexed_by_X: {
-            AddressWasFixed = false;
-            if ((address & WORD_LO_MASK) < X) {
-                AddressWasFixed = true;
-                address += 0x0100;
-            }
-            break;
-        }
-        case fix_AddressHi_indexed_by_Y_ReRead_AND: {
-            AddressWasFixed = false;
-            if ((address & WORD_LO_MASK) < Y) {
-                AddressWasFixed = true;
-                address += 0x0100;
-                todo_push_first(wait);
-                todo_push_first(read_Address_to_operand_AND);
-            }
-            ConsumeOne();
-            break;
-        }
-        case fix_AddressHi_indexed_by_Y: {
-            AddressWasFixed = false;
-            if ((address & WORD_LO_MASK) < Y) {
-                AddressWasFixed = true;
-                address += 0x0100;
-            }
             break;
         }
         case move_Address_to_operand_AND: {
             operand = address;
-            ConsumeOne();
-            break;
-        }
-        case read_operand_to_AddressLo: {
-            address = (address & WORD_HI_MASK) | Map->GetByteAt(operand);
-            break;
-        }
-        case read_operand_1_to_AddressHi: {
-            address = (address & WORD_LO_MASK) | (Map->GetByteAt((operand + 1) & BYTE_MASK) << BYTE_WIDTH);
-            break;
-        }
-        case read_operand_1_to_AddressHi_AND: {
-            address = (address & WORD_LO_MASK) | (Map->GetByteAt((operand + 1) & BYTE_MASK) << BYTE_WIDTH);
             ConsumeOne();
             break;
         }
@@ -1064,10 +944,10 @@ public:
 
                     Pflag = 0;
                     CheckInterrupts = false;
-                    todo_push(read_PC_to_operand);
-                    todo_push(push_PCH);
-                    todo_push(push_PCL);
-                    todo_push(push_P);
+                    todo_push(read_PC_to_operand_);
+                    todo_push(push_PCH_);
+                    todo_push(push_PCL_);
+                    todo_push(push_P_);
                     todo_push(set_I_AND);
                     todo_push(read_PCL_FFFA);
                     todo_push(read_PCH_FFFB);
@@ -1078,10 +958,10 @@ public:
                 if (IRQLevel) {
                     Pflag = 0;
                     CheckInterrupts = false;
-                    todo_push(read_PC_to_operand);
-                    todo_push(push_PCH);
-                    todo_push(push_PCL);
-                    todo_push(push_P);
+                    todo_push(read_PC_to_operand_);
+                    todo_push(push_PCH_);
+                    todo_push(push_PCL_);
+                    todo_push(push_P_);
                     todo_push(set_I_AND);
                     todo_push(read_PCL_FFFE);
                     todo_push(read_PCH_FFFF);
@@ -1091,7 +971,7 @@ public:
                 }
             }
             opcode = Map->GetByteAt(PC);
-            ++PC;
+            increment_PC();
             ProcessOpcode();
             break;
         }
@@ -1323,19 +1203,11 @@ public:
     Byte * dmaTarget;
     Byte dmaOffset;
     int dmaTicks;
-    void DMA(const Byte & fromHi, Byte * to, const Byte & offset) {
-        todo_push_first(do_DMA);
-        dmaSource = (fromHi << BYTE_WIDTH);
-        dmaTarget = to;
-        dmaOffset = offset;
-        dmaTicks = 513;
 
-        const Word base = dmaSource;
-        for (Word i = 0; i < 0x0100; ++i) {
-            to[(i + offset) & WORD_LO_MASK] = Map->GetByteAt(base + i);
-        }
-    }
-
+    explicit Ricoh_RP2A03();
+    void SetStatus(const Byte & status);
+    Byte GetStatus(const Flag B) const;
+    void DMA(const Byte & fromHi, Byte * to, const Byte & offset);
     void Phi1();
     void Phi2();
 };
