@@ -332,9 +332,6 @@ void Ricoh_RP2A03::trigger_interrupt(const Word & interruptVector, const bool & 
     operations.push(M(end_cycle));
     operations.push(M(read_vector_to_PCH));
     operations.push(M(end_cycle));
-    operations.push(M(fetch_opcode)); // Make sure one instruction from the interrupt handler gets executed
-    operations.push(M(end_cycle));
-    operations.push(M(poll_interrupts));
 }
 
 void Ricoh_RP2A03::ModeBRK() {
@@ -506,22 +503,23 @@ Ricoh_RP2A03::Ricoh_RP2A03()
 
     // Build instruction LUT
     uOpCode = {
-       M( BRK),M( ORA),M(xHLT),M(xSLO),M(xNOP),M( ORA),M( ASL),M(xSLO),M( PHP),M( ORA),M( ASLa),M(xANC),M(xNOP),M( ORA),M( ASL),M(xSLO),
-       M( BPL),M( ORA),M(xHLT),M(xSLO),M(xNOP),M( ORA),M( ASL),M(xSLO),M( CLC),M( ORA),M(xNOP), M(xSLO),M(xNOP),M( ORA),M( ASL),M(xSLO),
-       M( JSR),M( AND),M(xHLT),M(xRLA),M( BIT),M( AND),M( ROL),M(xRLA),M( PLP),M( AND),M( ROLa),M(xANC),M( BIT),M( AND),M( ROL),M(xRLA),
-       M( BMI),M( AND),M(xHLT),M(xRLA),M(xNOP),M( AND),M( ROL),M(xRLA),M( SEC),M( AND),M(xNOP), M(xRLA),M(xNOP),M( AND),M( ROL),M(xRLA),
-       M( RTI),M( EOR),M(xHLT),M(xSRE),M(xNOP),M( EOR),M( LSR),M(xSRE),M( PHA),M( EOR),M( LSRa),M(xALR),M( JMP),M( EOR),M( LSR),M(xSRE),
-       M( BVC),M( EOR),M(xHLT),M(xSRE),M(xNOP),M( EOR),M( LSR),M(xSRE),M( CLI),M( EOR),M(xNOP), M(xSRE),M(xNOP),M( EOR),M( LSR),M(xSRE),
-       M( RTS),M( ADC),M(xHLT),M(xRRA),M(xNOP),M( ADC),M( ROR),M(xRRA),M( PLA),M( ADC),M( RORa),M(xARR),M( JMP),M( ADC),M( ROR),M(xRRA),
-       M( BVS),M( ADC),M(xHLT),M(xRRA),M(xNOP),M( ADC),M( ROR),M(xRRA),M( SEI),M( ADC),M(xNOP), M(xRRA),M(xNOP),M( ADC),M( ROR),M(xRRA),
-       M(xNOP),M( STA),M(xNOP),M(xSAX),M( STY),M( STA),M( STX),M(xSAX),M( DEY),M(xNOP),M( TXA), M(xXAA),M( STY),M( STA),M( STX),M(xAHX),
-       M( BCC),M( STA),M(xHLT),M(xAHX),M( STY),M( STA),M( STX),M(xSAX),M( TYA),M( STA),M( TXS), M(xTAS),M(xSHY),M( STA),M(xSHX),M(xAHX),
-       M( LDY),M( LDA),M( LDX),M(xLAX),M( LDY),M( LDA),M( LDX),M(xLAX),M( TAY),M( LDA),M( TAX), M(xLAX),M( LDY),M( LDA),M( LDX),M(xLAX),
-       M( BCS),M( LDA),M(xHLT),M(xLAX),M( LDY),M( LDA),M( LDX),M(xLAX),M( CLV),M( LDA),M( TSX), M(xLAS),M( LDY),M( LDA),M( LDX),M(xLAX),
-       M( CPY),M( CMP),M(xNOP),M(xDCP),M( CPY),M( CMP),M( DEC),M(xDCP),M( INY),M( CMP),M( DEX), M(xAXS),M( CPY),M( CMP),M( DEC),M(xDCP),
-       M( BNE),M( CMP),M(xHLT),M(xDCP),M(xNOP),M( CMP),M( DEC),M(xDCP),M( CLD),M( CMP),M(xNOP), M(xDCP),M(xNOP),M( CMP),M( DEC),M(xDCP),
-       M( CPX),M( SBC),M(xNOP),M(xISC),M( CPX),M( SBC),M( INC),M(xISC),M( INX),M( SBC),M( NOP), M(xSBC),M( CPX),M( SBC),M( INC),M(xISC),
-       M( BEQ),M( SBC),M(xHLT),M(xISC),M(xNOP),M( SBC),M( INC),M(xISC),M( SED),M( SBC),M(xNOP), M(xISC),M(xNOP),M( SBC),M( INC),M(xISC),
+//           x0      x1      x2      x3      x4      x5      x6      x7      x8      x9      xA       xB      xC      xD      xE      xF
+/* 0x */ M( BRK),M( ORA),M(xHLT),M(xSLO),M(xNOP),M( ORA),M( ASL),M(xSLO),M( PHP),M( ORA),M( ASLa),M(xANC),M(xNOP),M( ORA),M( ASL),M(xSLO),
+/* 1x */ M( BPL),M( ORA),M(xHLT),M(xSLO),M(xNOP),M( ORA),M( ASL),M(xSLO),M( CLC),M( ORA),M(xNOP), M(xSLO),M(xNOP),M( ORA),M( ASL),M(xSLO),
+/* 2x */ M( JSR),M( AND),M(xHLT),M(xRLA),M( BIT),M( AND),M( ROL),M(xRLA),M( PLP),M( AND),M( ROLa),M(xANC),M( BIT),M( AND),M( ROL),M(xRLA),
+/* 3x */ M( BMI),M( AND),M(xHLT),M(xRLA),M(xNOP),M( AND),M( ROL),M(xRLA),M( SEC),M( AND),M(xNOP), M(xRLA),M(xNOP),M( AND),M( ROL),M(xRLA),
+/* 4x */ M( RTI),M( EOR),M(xHLT),M(xSRE),M(xNOP),M( EOR),M( LSR),M(xSRE),M( PHA),M( EOR),M( LSRa),M(xALR),M( JMP),M( EOR),M( LSR),M(xSRE),
+/* 5x */ M( BVC),M( EOR),M(xHLT),M(xSRE),M(xNOP),M( EOR),M( LSR),M(xSRE),M( CLI),M( EOR),M(xNOP), M(xSRE),M(xNOP),M( EOR),M( LSR),M(xSRE),
+/* 6x */ M( RTS),M( ADC),M(xHLT),M(xRRA),M(xNOP),M( ADC),M( ROR),M(xRRA),M( PLA),M( ADC),M( RORa),M(xARR),M( JMP),M( ADC),M( ROR),M(xRRA),
+/* 7x */ M( BVS),M( ADC),M(xHLT),M(xRRA),M(xNOP),M( ADC),M( ROR),M(xRRA),M( SEI),M( ADC),M(xNOP), M(xRRA),M(xNOP),M( ADC),M( ROR),M(xRRA),
+/* 8x */ M(xNOP),M( STA),M(xNOP),M(xSAX),M( STY),M( STA),M( STX),M(xSAX),M( DEY),M(xNOP),M( TXA), M(xXAA),M( STY),M( STA),M( STX),M(xSAX),
+/* 9x */ M( BCC),M( STA),M(xHLT),M(xAHX),M( STY),M( STA),M( STX),M(xSAX),M( TYA),M( STA),M( TXS), M(xTAS),M(xSHY),M( STA),M(xSHX),M(xAHX),
+/* Ax */ M( LDY),M( LDA),M( LDX),M(xLAX),M( LDY),M( LDA),M( LDX),M(xLAX),M( TAY),M( LDA),M( TAX), M(xLAX),M( LDY),M( LDA),M( LDX),M(xLAX),
+/* Bx */ M( BCS),M( LDA),M(xHLT),M(xLAX),M( LDY),M( LDA),M( LDX),M(xLAX),M( CLV),M( LDA),M( TSX), M(xLAS),M( LDY),M( LDA),M( LDX),M(xLAX),
+/* Cx */ M( CPY),M( CMP),M(xNOP),M(xDCP),M( CPY),M( CMP),M( DEC),M(xDCP),M( INY),M( CMP),M( DEX), M(xAXS),M( CPY),M( CMP),M( DEC),M(xDCP),
+/* Dx */ M( BNE),M( CMP),M(xHLT),M(xDCP),M(xNOP),M( CMP),M( DEC),M(xDCP),M( CLD),M( CMP),M(xNOP), M(xDCP),M(xNOP),M( CMP),M( DEC),M(xDCP),
+/* Ex */ M( CPX),M( SBC),M(xNOP),M(xISC),M( CPX),M( SBC),M( INC),M(xISC),M( INX),M( SBC),M( NOP), M(xSBC),M( CPX),M( SBC),M( INC),M(xISC),
+/* Fx */ M( BEQ),M( SBC),M(xHLT),M(xISC),M(xNOP),M( SBC),M( INC),M(xISC),M( SED),M( SBC),M(xNOP), M(xISC),M(xNOP),M( SBC),M( INC),M(xISC),
     };
 }
 
@@ -529,10 +527,6 @@ void Ricoh_RP2A03::Phi1() {
     if (Halted) return;
 
     ++Ticks;
-    if (operations.empty()) {
-        operations.push(M(fetch_opcode));
-        operations.push(M(end_cycle));
-    }
     CycleActive = true;
     while (CycleActive) ConsumeOne();
     INSTR = (operations.empty() | (operations.first() == M(fetch_opcode)));
@@ -558,7 +552,7 @@ void Ricoh_RP2A03::DMA(const Byte & fromHi, Byte * to, const Byte & offset) {
 
     const Word base = dmaSource;
     for (Word i = 0; i < 0x0100; ++i) {
-        to[(i + offset) & WORD_LO_MASK] = Map->GetByteAt(base + i);
+        to[(i + offset) & WORD_LO_MASK] = GetByteAt(base + i);
     }
 }
 
@@ -580,11 +574,11 @@ Byte Ricoh_RP2A03::GetStatus(const Flag B) const {
 }
 
 void Ricoh_RP2A03::Push(const Byte & value) {
-    Map->SetByteAt(STACK_PAGE + S, value);
+    SetByteAt(STACK_PAGE + S, value);
     --S;
 }
 
 Byte Ricoh_RP2A03::Pull() {
     ++S; 
-    return Map->GetByteAt(STACK_PAGE + S);
+    return GetByteAt(STACK_PAGE + S);
 }

@@ -46,6 +46,8 @@ class Ricoh_RP2A03 {
         _T last() const {
             return items[head];
         }
+
+        size_t size() const { return (head - tail + _Size) % _Size; }
     };
 
     static constexpr Word VECTOR_NMI = 0xFFFA;
@@ -58,6 +60,12 @@ class Ricoh_RP2A03 {
         Left = 7, Right = 0,
     };
 
+    inline Byte GetByteAt(const Word & address) const { return Map->GetByteAt(address); }
+    inline void SetByteAt(const Word & address, const Byte & value) {
+        //if (address == 0x2000) std::cout << "$2000 <- $" << std::hex << int(value) << std::endl;
+        Map->SetByteAt(address, value);
+    }
+
     inline void index_address(const Byte & index) {
         address = (address & WORD_HI_MASK)
             | ((address + index) & WORD_LO_MASK);
@@ -68,37 +76,58 @@ class Ricoh_RP2A03 {
         if (AddressWasFixed) address += 0x0100;
     }
 
+    inline bool interrupted() {
+        // If an interrupt sequence was running (CheckInterrupts == false)
+        // do not queue another interrupt but let one instruction run
+        if (CheckInterrupts) {
+            if (NMIFlipFlop) {
+                //std::cout << std::endl << "NMI" << std::endl;
+                NMIFlipFlop = false;
+                trigger_interrupt(VECTOR_NMI, false);
+                return true;
+            }
+            if (IRQLevel) {
+                //std::cout << "IRQ" << std::endl;
+                trigger_interrupt(VECTOR_IRQ, false);
+                return true;
+            }
+        }
+        CheckInterrupts = true;
+
+        return false;
+    }
     inline void fetch_opcode() {
-        check_for_interrupts();
-        opcode = Map->GetByteAt(PC);
+        if (interrupted()) return;
+        
+        opcode = GetByteAt(PC);
         increment_PC();
         ProcessOpcode();
     }
     inline void increment_PC() { ++PC; }
-    inline void read_PC_to_operand() { operand = Map->GetByteAt(PC); }
+    inline void read_PC_to_operand() { operand = GetByteAt(PC); }
     inline void push_PCL() { Push(PC); }
     inline void push_PCH() { Push(PC >> 8); }
     inline void push_P() { Push(GetStatus(Pflag)); }
     inline void pull_PCL() { PC = (PC & WORD_HI_MASK) | Pull(); }
     inline void pull_PCH() { PC = (Pull() << BYTE_WIDTH) | (PC & WORD_LO_MASK); }
     inline void pull_P() { SetStatus(Pull()); }
-    inline void read_PC_to_address() { address = Map->GetByteAt(PC); }
-    inline void read_PC_to_addressLo() { address = (address & WORD_HI_MASK) | Map->GetByteAt(PC); }
-    inline void read_PC_to_addressHi() { address = (Map->GetByteAt(PC) << BYTE_WIDTH) | (address & WORD_LO_MASK); }
-    inline void read_address_to_operand() { operand = Map->GetByteAt(address); }
-    inline void read_operand_to_addressLo() { address = (address & WORD_HI_MASK) | Map->GetByteAt(operand); }
-    inline void read_operand_1_to_addressHi() { address = (Map->GetByteAt((operand + 1) & WORD_LO_MASK) << BYTE_WIDTH) | (address & WORD_LO_MASK); }
+    inline void read_PC_to_address() { address = GetByteAt(PC); }
+    inline void read_PC_to_addressLo() { address = (address & WORD_HI_MASK) | GetByteAt(PC); }
+    inline void read_PC_to_addressHi() { address = (GetByteAt(PC) << BYTE_WIDTH) | (address & WORD_LO_MASK); }
+    inline void read_address_to_operand() { operand = GetByteAt(address); }
+    inline void read_operand_to_addressLo() { address = (address & WORD_HI_MASK) | GetByteAt(operand); }
+    inline void read_operand_1_to_addressHi() { address = (GetByteAt((operand + 1) & WORD_LO_MASK) << BYTE_WIDTH) | (address & WORD_LO_MASK); }
     inline void index_address_by_X() { index_address(X); }
     inline void index_address_by_Y() { index_address(Y); }
     inline void fix_address_indexed_by_X() { fix_indexed_address(X); }
     inline void fix_address_indexed_by_Y() { fix_indexed_address(Y); }
-    inline void write_operand_to_address() { Map->SetByteAt(address, operand); }
-    inline void read_vector_to_PCL() { PC = (PC & WORD_HI_MASK) | Map->GetByteAt(vector); }
-    inline void read_vector_to_PCH() { PC = (Map->GetByteAt(vector + 1) << BYTE_WIDTH) | (PC & WORD_LO_MASK); }
+    inline void write_operand_to_address() { SetByteAt(address, operand); }
+    inline void read_vector_to_PCL() { PC = (PC & WORD_HI_MASK) | GetByteAt(vector); }
+    inline void read_vector_to_PCH() { PC = (GetByteAt(vector + 1) << BYTE_WIDTH) | (PC & WORD_LO_MASK); }
 
     inline void read_address_and_operand_to_address() {
         address = (address & WORD_HI_MASK) | ((address + 1) & WORD_LO_MASK);
-        address = (Map->GetByteAt(address) << BYTE_WIDTH) | operand;
+        address = (GetByteAt(address) << BYTE_WIDTH) | operand;
     }
 
     inline void move_address_to_operand() { operand = address; }
@@ -153,9 +182,9 @@ class Ricoh_RP2A03 {
     inline void LDX() { Transfer(operand, X); }
     inline void LDY() { Transfer(operand, Y); }
 
-    inline void STA() { Map->SetByteAt(address, A); }
-    inline void STX() { Map->SetByteAt(address, X); }
-    inline void STY() { Map->SetByteAt(address, Y); }
+    inline void STA() { SetByteAt(address, A); }
+    inline void STX() { SetByteAt(address, X); }
+    inline void STY() { SetByteAt(address, Y); }
     
     inline void TAX() { Transfer(A, X); }
     inline void TAY() { Transfer(A, Y); }
@@ -186,7 +215,7 @@ class Ricoh_RP2A03 {
     inline void DEC();
     inline void INC();
 
-    inline void BIT() { const auto mask = Map->GetByteAt(address); Z = (mask & A) == 0 ? 1 : 0; V = Bit<Ovf>(mask); N = Bit<Neg>(mask); }
+    inline void BIT() { const auto mask = GetByteAt(address); Z = (mask & A) == 0 ? 1 : 0; V = Bit<Ovf>(mask); N = Bit<Neg>(mask); }
 
     ////////////////////////////////////////////////////////////////
 
@@ -202,11 +231,11 @@ class Ricoh_RP2A03 {
             // The bahviour is corrupted
             // See http://forums.nesdev.com/viewtopic.php?f=3&t=3831&start=30
             const Word addr = (M << BYTE_WIDTH) | addrLo;
-            Map->SetByteAt(addr, M);
+            SetByteAt(addr, M);
         }
         else {
             const Word addr = (addrHi << BYTE_WIDTH) | addrLo;
-            Map->SetByteAt(addr, M);
+            SetByteAt(addr, M);
         }
     }
     inline void xSHY() {
@@ -218,11 +247,11 @@ class Ricoh_RP2A03 {
             // The bahviour is corrupted
             // See http://forums.nesdev.com/viewtopic.php?f=3&t=3831&start=30
             const Word addr = (M << BYTE_WIDTH) | addrLo;
-            Map->SetByteAt(addr, M);
+            SetByteAt(addr, M);
         }
         else {
             const Word addr = (addrHi << BYTE_WIDTH) | addrLo;
-            Map->SetByteAt(addr, M);
+            SetByteAt(addr, M);
         }
     }
 
@@ -244,12 +273,12 @@ class Ricoh_RP2A03 {
         }
     }
     inline void xXAA() {}
-    inline void xAHX() { const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH); Map->SetByteAt(address, A & X & H); }
-    inline void xTAS() { const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH); S = (A & X); Map->SetByteAt(address, A & X & H); }
+    inline void xAHX() { const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH); SetByteAt(address, A & X & H); }
+    inline void xTAS() { const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH); S = (A & X); SetByteAt(address, A & X & H); }
     inline void xLAS() { Transfer(operand & S, S); Transfer(S, A); Transfer(S, X); }
     inline void xAXS() { X = (A & X); Compare(X, operand); X = X - operand; }
     inline void xSBC() { SubstractWithCarry(operand); }
-    inline void xSAX() { Map->SetByteAt(address, A & X); }
+    inline void xSAX() { SetByteAt(address, A & X); }
     inline void xLAX() { Transfer(operand, A); Transfer(operand, X); }
 
 public:
@@ -377,26 +406,13 @@ public:
 
     inline void trigger_interrupt(const Word & interruptVector, const bool & isBRK);
 
-    inline void check_for_interrupts() {
-        if (CheckInterrupts) {
-            if (NMIFlipFlop) {
-                std::cout << "NMI" << std::endl;
-                NMIFlipFlop = false;
-                trigger_interrupt(VECTOR_NMI, false);
-                return;
-            }
-            if (IRQLevel) {
-                std::cout << "IRQ" << std::endl;
-                trigger_interrupt(VECTOR_IRQ, false);
-                return;
-            }
-        }
-    }
     inline void do_DMA();
     bool INSTR = false;
     void ConsumeOne() {
-        if (operations.empty()) return;
-
+        if (operations.empty()) {
+            operations.push(&Ricoh_RP2A03::fetch_opcode);
+            operations.push(&Ricoh_RP2A03::end_cycle);
+        }
         const auto op = operations.pop();
         (this->*op)();
     }

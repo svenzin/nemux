@@ -15,8 +15,6 @@
 #include <string>
 #include <vector>
 
-struct Ricoh_RP2A03;
-
 static const auto OPCODES_COUNT = 0x0100;
 
 namespace Instructions {
