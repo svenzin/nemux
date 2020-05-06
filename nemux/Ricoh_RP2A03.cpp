@@ -1,5 +1,95 @@
 #include "Ricoh_RP2A03.h"
 
+Ricoh_RP2A03::AddressingMode_f GetAddressingMode(Byte opcode) {
+    const Byte opType = (opcode & 0b00000011);
+    const Byte opMode = ((opcode & 0b00011100) >> 2);
+    const Byte opCode = ((opcode & 0b11100000) >> 5);
+
+    switch (opType) {
+    case 0: // Control instructions
+        switch (opMode) {
+        case 0:                  return & Ricoh_RP2A03::ModeImmediate;
+        case 1: if (opCode == 4) return & Ricoh_RP2A03::ModeZeropageWrite;
+                else             return & Ricoh_RP2A03::ModeZeropageRead;
+        case 2:                  return & Ricoh_RP2A03::ModeImplied;
+        case 3: if (opCode == 4) return & Ricoh_RP2A03::ModeAbsoluteWrite;
+                else             return & Ricoh_RP2A03::ModeAbsoluteRead;
+        case 4:                  return & Ricoh_RP2A03::ModeRelative;
+        case 5: if (opCode == 4) return & Ricoh_RP2A03::ModeZeropageXWrite;
+                else             return & Ricoh_RP2A03::ModeZeropageXRead;
+        case 6:                  return & Ricoh_RP2A03::ModeImplied;
+        case 7: if (opCode == 4) return & Ricoh_RP2A03::ModeAbsoluteXWrite;
+                else             return & Ricoh_RP2A03::ModeAbsoluteXRead;
+        }
+        break;
+    case 1: // ALU instructions
+        switch (opMode) {
+        case 0: if (opCode == 4) return & Ricoh_RP2A03::ModeIndirectXWrite;
+                else             return & Ricoh_RP2A03::ModeIndirectXRead;
+        case 1: if (opCode == 4) return & Ricoh_RP2A03::ModeZeropageWrite;
+                else             return & Ricoh_RP2A03::ModeZeropageRead;
+        case 2:                  return & Ricoh_RP2A03::ModeImmediate;
+        case 3: if (opCode == 4) return & Ricoh_RP2A03::ModeAbsoluteWrite;
+                else             return & Ricoh_RP2A03::ModeAbsoluteRead;
+        case 4: if (opCode == 4) return & Ricoh_RP2A03::ModeIndirectYWrite;
+                else             return & Ricoh_RP2A03::ModeIndirectYRead;
+        case 5: if (opCode == 4) return & Ricoh_RP2A03::ModeZeropageXWrite;
+                else             return & Ricoh_RP2A03::ModeZeropageXRead;
+        case 6: if (opCode == 4) return & Ricoh_RP2A03::ModeAbsoluteYWrite;
+                else             return & Ricoh_RP2A03::ModeAbsoluteYRead;
+        case 7: if (opCode == 4) return & Ricoh_RP2A03::ModeAbsoluteXWrite;
+                else             return & Ricoh_RP2A03::ModeAbsoluteXRead;
+        }
+        break;
+    case 2: // RMW instructions
+        switch (opMode) {
+        case 0:                       return & Ricoh_RP2A03::ModeImmediate;
+        case 1: if      (opCode == 4) return & Ricoh_RP2A03::ModeZeropageWrite;
+                else if (opCode == 5) return & Ricoh_RP2A03::ModeZeropageRead;
+                else                  return & Ricoh_RP2A03::ModeZeropageRMW;
+        case 2:                       return & Ricoh_RP2A03::ModeImplied;
+        case 3: if      (opCode == 4) return & Ricoh_RP2A03::ModeAbsoluteWrite;
+                else if (opCode == 5) return & Ricoh_RP2A03::ModeAbsoluteRead;
+                else                  return & Ricoh_RP2A03::ModeAbsoluteRMW;
+        case 4:                       return & Ricoh_RP2A03::ModeImplied;
+        case 5: if      (opCode == 4) return & Ricoh_RP2A03::ModeZeropageYWrite;
+                else if (opCode == 5) return & Ricoh_RP2A03::ModeZeropageYRead;
+                else                  return & Ricoh_RP2A03::ModeZeropageXRMW;
+        case 6:                       return & Ricoh_RP2A03::ModeImplied;
+        case 7: if      (opCode == 4) return & Ricoh_RP2A03::ModeAbsoluteYWrite;
+                else if (opCode == 5) return & Ricoh_RP2A03::ModeAbsoluteYRead;
+                else                  return & Ricoh_RP2A03::ModeAbsoluteXRMW;
+        }
+        break;
+    case 3: // Combined ALU/RMW instructions
+        switch (opMode) {
+        case 0: if      (opCode == 4) return & Ricoh_RP2A03::ModeIndirectXWrite;
+                else if (opCode == 5) return & Ricoh_RP2A03::ModeIndirectXRead;
+                else                  return & Ricoh_RP2A03::ModeIndirectXRMW;
+        case 1: if      (opCode == 4) return & Ricoh_RP2A03::ModeZeropageWrite;
+                else if (opCode == 5) return & Ricoh_RP2A03::ModeZeropageRead;
+                else                  return & Ricoh_RP2A03::ModeZeropageRMW; 
+        case 2:                       return & Ricoh_RP2A03::ModeImmediate;
+        case 3: if      (opCode == 4) return & Ricoh_RP2A03::ModeAbsoluteWrite;
+                else if (opCode == 5) return & Ricoh_RP2A03::ModeAbsoluteRead;
+                else                  return & Ricoh_RP2A03::ModeAbsoluteRMW; 
+        case 4: if      (opCode == 4) return & Ricoh_RP2A03::ModeIndirectYWrite;
+                else if (opCode == 5) return & Ricoh_RP2A03::ModeIndirectYRead;
+                else                  return & Ricoh_RP2A03::ModeIndirectYRMW;
+        case 5: if      (opCode == 4) return & Ricoh_RP2A03::ModeZeropageYWrite;
+                else if (opCode == 5) return & Ricoh_RP2A03::ModeZeropageYRead;
+                else                  return & Ricoh_RP2A03::ModeZeropageXRMW;
+        case 6: if      (opCode == 4) return & Ricoh_RP2A03::ModeAbsoluteYWrite;
+                else if (opCode == 5) return & Ricoh_RP2A03::ModeAbsoluteYRead;
+                else                  return & Ricoh_RP2A03::ModeAbsoluteYRMW;
+        case 7: if      (opCode == 4) return & Ricoh_RP2A03::ModeAbsoluteYWrite;
+                else if (opCode == 5) return & Ricoh_RP2A03::ModeAbsoluteYRead;
+                else                  return & Ricoh_RP2A03::ModeAbsoluteXRMW;
+        }
+        break;
+    }
+}
+
 Ricoh_RP2A03::Ricoh_RP2A03()
     : PC{ 0 }, S{ 0 }, A{ 0 }, X{ 0 }, Y{ 0 },
     N{ 0 }, V{ 0 }, D{ 0 }, I{ 0 }, Z{ 0 }, C{ 0 },
@@ -7,7 +97,12 @@ Ricoh_RP2A03::Ricoh_RP2A03()
     IRQ{ false }, IRQLevel{ false },
     NMI{ false }, NMIEdge{ false }, NMIFlipFlop{ false },
     ihead{ 0 }, itail{ 0 }
-{}
+{
+    // Build addressing mode LUT from opcode decoding
+    for (int opcode = 0; opcode < 0x100; ++opcode) {
+        modes[opcode] = GetAddressingMode(opcode);
+    }
+}
 
 void Ricoh_RP2A03::Phi1() {
     if (Halted) return;

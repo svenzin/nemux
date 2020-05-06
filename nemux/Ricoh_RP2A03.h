@@ -36,10 +36,14 @@ class Ricoh_RP2A03 {
     inline void fix_address_indexed_by_X() { AddressWasFixed = ((address & WORD_LO_MASK) < X); if (AddressWasFixed) address += 0x0100; }
     inline void fix_address_indexed_by_Y() { AddressWasFixed = ((address & WORD_LO_MASK) < Y); if (AddressWasFixed) address += 0x0100; }
     inline void write_operand_to_address() { Map->SetByteAt(address, operand); }
-    inline void read_to_PCL(const Word & vectorLo) { PC = (PC & WORD_HI_MASK) | Map->GetByteAt(vectorLo); }
-    inline void read_to_PCH(const Word & vectorHi) { PC = (Map->GetByteAt(vectorHi) << BYTE_WIDTH) | (PC & WORD_LO_MASK); }
+    inline void read_vector_to_PCL() { PC = (PC & WORD_HI_MASK) | Map->GetByteAt(vector); }
+    inline void read_vector_to_PCH() { PC = (Map->GetByteAt(vector + 1) << BYTE_WIDTH) | (PC & WORD_LO_MASK); }
 
 public:
+    static constexpr Word VECTOR_NMI = 0xFFFA;
+    static constexpr Word VECTOR_RST = 0xFFFC;
+    static constexpr Word VECTOR_IRQ = 0xFFFE;
+
     enum uOp {
         read_PC_to_opcode_AND_increment_PC,
         read_PC_to_operand_AND_increment_PC,
@@ -47,11 +51,9 @@ public:
         push_PCH_,
         push_PCL_,
         push_P_,
-        read_PCL_FFFE,
-        read_PCH_FFFF,
+        read_vector_to_PCL_,
+        read_vector_to_PCH_,
         set_I_AND,
-        read_PCL_FFFA,
-        read_PCH_FFFB,
         read_PC_to_operand_,
         read_PC_to_operand_AND,
         wait,
@@ -101,7 +103,32 @@ public:
         xxSLO, xxANC, xxRLA, xxSRE, xxALR, xxRRA, xxARR,
         xxSAX, xxXAA, xxAHX, xxTAS, xxLAX, xxLAS,
         xxDCP, xxAXS, xxISC, xxSBC,
+
+        opBRK, opJSR, opRTI, opRTS, xxHLT,
     };
+
+    static constexpr uOp uOpCode[0x100] = {
+        opBRK, opORA, xxHLT, xxSLO, xxNOP, opORA, opASL, xxSLO, opPHP, opORA, opASLa,xxANC, xxNOP, opORA, opASL, xxSLO,
+        opBPL, opORA, xxHLT, xxSLO, xxNOP, opORA, opASL, xxSLO, opCLC, opORA, xxNOP, xxSLO, xxNOP, opORA, opASL, xxSLO,
+        opJSR, opAND, xxHLT, xxRLA, opBIT, opAND, opROL, xxRLA, opPLP, opAND, opROLa,xxANC, opBIT, opAND, opROL, xxRLA,
+        opBMI, opAND, xxHLT, xxRLA, xxNOP, opAND, opROL, xxRLA, opSEC, opAND, xxNOP, xxRLA, xxNOP, opAND, opROL, xxRLA,
+        opRTI, opEOR, xxHLT, xxSRE, xxNOP, opEOR, opLSR, xxSRE, opPHA, opEOR, opLSRa,xxALR, opJMP, opEOR, opLSR, xxSRE,
+        opBVC, opEOR, xxHLT, xxSRE, xxNOP, opEOR, opLSR, xxSRE, opCLI, opEOR, xxNOP, xxSRE, xxNOP, opEOR, opLSR, xxSRE,
+        opRTS, opADC, xxHLT, xxRRA, xxNOP, opADC, opROR, xxRRA, opPLA, opADC, opRORa,xxARR, opJMP, opADC, opROR, xxRRA,
+        opBVS, opADC, xxHLT, xxRRA, xxNOP, opADC, opROR, xxRRA, opSEI, opADC, xxNOP, xxRRA, xxNOP, opADC, opROR, xxRRA,
+        xxNOP, opSTA, xxNOP, xxSAX, opSTY, opSTA, opSTX, xxSAX, opDEY, xxNOP, opTXA, xxXAA, opSTY, opSTA, opSTX, xxAHX,
+        opBCC, opSTA, xxHLT, xxAHX, opSTY, opSTA, opSTX, xxSAX, opTYA, opSTA, opTXS, xxTAS, xxSHY, opSTA, xxSHX, xxAHX,
+        opLDY, opLDA, opLDX, xxLAX, opLDY, opLDA, opLDX, xxLAX, opTAY, opLDA, opTAX, xxLAX, opLDY, opLDA, opLDX, xxLAX,
+        opBCS, opLDA, xxHLT, xxLAX, opLDY, opLDA, opLDX, xxLAX, opCLV, opLDA, opTSX, xxLAS, opLDY, opLDA, opLDX, xxLAX,
+        opCPY, opCMP, xxNOP, xxDCP, opCPY, opCMP, opDEC, xxDCP, opINY, opCMP, opDEX, xxAXS, opCPY, opCMP, opDEC, xxDCP,
+        opBNE, opCMP, xxHLT, xxDCP, xxNOP, opCMP, opDEC, xxDCP, opCLD, opCMP, xxNOP, xxDCP, xxNOP, opCMP, opDEC, xxDCP,
+        opCPX, opSBC, xxNOP, xxISC, opCPX, opSBC, opINC, xxISC, opINX, opSBC, opNOP, xxSBC, opCPX, opSBC, opINC, xxISC,
+        opBEQ, opSBC, xxHLT, xxISC, xxNOP, opSBC, opINC, xxISC, opSED, opSBC, xxNOP, xxISC, xxNOP, opSBC, opINC, xxISC,
+    };
+
+    typedef void(* AddressingMode_f)(Ricoh_RP2A03 &);
+    AddressingMode_f modes[0x100];
+
     std::array<uOp, 16> todo;
     int ihead, itail;
     bool todo_empty() { return ihead == itail; }
@@ -135,6 +162,7 @@ public:
     bool NMIFlipFlop;
     bool IRQLevel;
 
+    Word vector;
 
     Word address;
     Byte operand;
@@ -194,169 +222,169 @@ public:
     bool Halted = false;
     bool AddressWasFixed = false;
 
-    inline void ModeImplied() {
-        todo_push(read_PC_to_operand_AND);
+    static inline void ModeImplied(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_operand_AND);
     }
-    inline void ModeImmediate() {
-        todo_push(read_PC_to_operand_AND_increment_PC_AND);
+    static inline void ModeImmediate(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_operand_AND_increment_PC_AND);
     }
-    inline void ModeRelative() {
-        todo_push(read_PC_to_operand_AND_increment_PC);
+    static inline void ModeRelative(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_operand_AND_increment_PC);
     }
-    inline void ModeAbsoluteRead() {
-        todo_push(read_PC_to_AddressLo_AND_increment_PC);
-        todo_push(read_PC_to_AddressHi_AND_increment_PC);
-        todo_push(read_Address_to_operand_AND);
+    static inline void ModeAbsoluteRead(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_AddressLo_AND_increment_PC);
+        cpu.todo_push(read_PC_to_AddressHi_AND_increment_PC);
+        cpu.todo_push(read_Address_to_operand_AND);
     }
-    inline void ModeAbsoluteRMW() {
-        todo_push(read_PC_to_AddressLo_AND_increment_PC);
-        todo_push(read_PC_to_AddressHi_AND_increment_PC);
-        todo_push(read_Address_to_operand);
-        todo_push(write_operand_to_Address_AND);
+    static inline void ModeAbsoluteRMW(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_AddressLo_AND_increment_PC);
+        cpu.todo_push(read_PC_to_AddressHi_AND_increment_PC);
+        cpu.todo_push(read_Address_to_operand);
+        cpu.todo_push(write_operand_to_Address_AND);
     }
-    inline void ModeAbsoluteWrite() {
-        todo_push(read_PC_to_AddressLo_AND_increment_PC);
-        todo_push(read_PC_to_AddressHi_AND_increment_PC);
+    static inline void ModeAbsoluteWrite(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_AddressLo_AND_increment_PC);
+        cpu.todo_push(read_PC_to_AddressHi_AND_increment_PC);
     }
-    inline void ModeZeropageRead() {
-        todo_push(read_PC_to_Address_AND_increment_PC);
-        todo_push(read_Address_to_operand_AND);
+    static inline void ModeZeropageRead(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_Address_AND_increment_PC);
+        cpu.todo_push(read_Address_to_operand_AND);
     }
-    inline void ModeZeropageRMW() {
-        todo_push(read_PC_to_Address_AND_increment_PC);
-        todo_push(read_Address_to_operand);
-        todo_push(write_operand_to_Address_AND);
+    static inline void ModeZeropageRMW(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_Address_AND_increment_PC);
+        cpu.todo_push(read_Address_to_operand);
+        cpu.todo_push(write_operand_to_Address_AND);
     }
-    inline void ModeZeropageWrite() {
-        todo_push(read_PC_to_Address_AND_increment_PC);
+    static inline void ModeZeropageWrite(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_Address_AND_increment_PC);
     }
-    inline void ModeZeropageXRead() {
-        todo_push(read_PC_to_Address_AND_increment_PC);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(index_Address_by_X);
-        todo_push(read_Address_to_operand_AND);
+    static inline void ModeZeropageXRead(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_Address_AND_increment_PC);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(index_Address_by_X);
+        cpu.todo_push(read_Address_to_operand_AND);
     }
-    inline void ModeZeropageXRMW() {
-        todo_push(read_PC_to_Address_AND_increment_PC);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(index_Address_by_X);
-        todo_push(read_Address_to_operand);
-        todo_push(write_operand_to_Address_AND);
+    static inline void ModeZeropageXRMW(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_Address_AND_increment_PC);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(index_Address_by_X);
+        cpu.todo_push(read_Address_to_operand);
+        cpu.todo_push(write_operand_to_Address_AND);
     }
-    inline void ModeZeropageXWrite() {
-        todo_push(read_PC_to_Address_AND_increment_PC);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(index_Address_by_X);
+    static inline void ModeZeropageXWrite(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_Address_AND_increment_PC);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(index_Address_by_X);
     }
-    inline void ModeZeropageYRead() {
-        todo_push(read_PC_to_Address_AND_increment_PC);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(index_Address_by_Y);
-        todo_push(read_Address_to_operand_AND);
+    static inline void ModeZeropageYRead(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_Address_AND_increment_PC);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(index_Address_by_Y);
+        cpu.todo_push(read_Address_to_operand_AND);
     }
-    inline void ModeZeropageYWrite() {
-        todo_push(read_PC_to_Address_AND_increment_PC);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(index_Address_by_Y);
+    static inline void ModeZeropageYWrite(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_Address_AND_increment_PC);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(index_Address_by_Y);
     }
-    inline void ModeAbsoluteXRead() {
-        todo_push(read_PC_to_AddressLo_AND_increment_PC);
-        todo_push(read_PC_to_AddressHi_AND_increment_PC_AND);
-        todo_push(index_Address_by_X);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(fix_AddressHi_indexed_by_X_ReRead_AND);
+    static inline void ModeAbsoluteXRead(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_AddressLo_AND_increment_PC);
+        cpu.todo_push(read_PC_to_AddressHi_AND_increment_PC_AND);
+        cpu.todo_push(index_Address_by_X);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(fix_AddressHi_indexed_by_X_ReRead_AND);
     }
-    inline void ModeAbsoluteXRMW() {
-        todo_push(read_PC_to_AddressLo_AND_increment_PC);
-        todo_push(read_PC_to_AddressHi_AND_increment_PC_AND);
-        todo_push(index_Address_by_X);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(fix_AddressHi_indexed_by_X);
-        todo_push(read_Address_to_operand);
-        todo_push(write_operand_to_Address_AND);
+    static inline void ModeAbsoluteXRMW(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_AddressLo_AND_increment_PC);
+        cpu.todo_push(read_PC_to_AddressHi_AND_increment_PC_AND);
+        cpu.todo_push(index_Address_by_X);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(fix_AddressHi_indexed_by_X);
+        cpu.todo_push(read_Address_to_operand);
+        cpu.todo_push(write_operand_to_Address_AND);
     }
-    inline void ModeAbsoluteXWrite() {
-        todo_push(read_PC_to_AddressLo_AND_increment_PC);
-        todo_push(read_PC_to_AddressHi_AND_increment_PC_AND);
-        todo_push(index_Address_by_X);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(fix_AddressHi_indexed_by_X);
+    static inline void ModeAbsoluteXWrite(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_AddressLo_AND_increment_PC);
+        cpu.todo_push(read_PC_to_AddressHi_AND_increment_PC_AND);
+        cpu.todo_push(index_Address_by_X);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(fix_AddressHi_indexed_by_X);
     }
-    inline void ModeAbsoluteYRead() {
-        todo_push(read_PC_to_AddressLo_AND_increment_PC);
-        todo_push(read_PC_to_AddressHi_AND_increment_PC_AND);
-        todo_push(index_Address_by_Y);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(fix_AddressHi_indexed_by_Y_ReRead_AND);
+    static inline void ModeAbsoluteYRead(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_AddressLo_AND_increment_PC);
+        cpu.todo_push(read_PC_to_AddressHi_AND_increment_PC_AND);
+        cpu.todo_push(index_Address_by_Y);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(fix_AddressHi_indexed_by_Y_ReRead_AND);
     }
-    inline void ModeAbsoluteYRMW() {
-        todo_push(read_PC_to_AddressLo_AND_increment_PC);
-        todo_push(read_PC_to_AddressHi_AND_increment_PC_AND);
-        todo_push(index_Address_by_Y);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(fix_AddressHi_indexed_by_Y);
-        todo_push(read_Address_to_operand);
-        todo_push(write_operand_to_Address_AND);
+    static inline void ModeAbsoluteYRMW(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_AddressLo_AND_increment_PC);
+        cpu.todo_push(read_PC_to_AddressHi_AND_increment_PC_AND);
+        cpu.todo_push(index_Address_by_Y);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(fix_AddressHi_indexed_by_Y);
+        cpu.todo_push(read_Address_to_operand);
+        cpu.todo_push(write_operand_to_Address_AND);
     }
-    inline void ModeAbsoluteYWrite() {
-        todo_push(read_PC_to_AddressLo_AND_increment_PC);
-        todo_push(read_PC_to_AddressHi_AND_increment_PC_AND);
-        todo_push(index_Address_by_Y);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(fix_AddressHi_indexed_by_Y);
+    static inline void ModeAbsoluteYWrite(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_AddressLo_AND_increment_PC);
+        cpu.todo_push(read_PC_to_AddressHi_AND_increment_PC_AND);
+        cpu.todo_push(index_Address_by_Y);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(fix_AddressHi_indexed_by_Y);
     }
-    inline void ModeIndirectXRead() {
-        todo_push(read_PC_to_Address_AND_increment_PC);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(index_Address_by_X);
-        todo_push(move_Address_to_operand_AND);
-        todo_push(read_operand_to_AddressLo);
-        todo_push(read_operand_1_to_AddressHi);
-        todo_push(read_Address_to_operand_AND);
+    static inline void ModeIndirectXRead(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_Address_AND_increment_PC);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(index_Address_by_X);
+        cpu.todo_push(move_Address_to_operand_AND);
+        cpu.todo_push(read_operand_to_AddressLo);
+        cpu.todo_push(read_operand_1_to_AddressHi);
+        cpu.todo_push(read_Address_to_operand_AND);
     }
-    inline void ModeIndirectXRMW() {
-        todo_push(read_PC_to_Address_AND_increment_PC);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(index_Address_by_X);
-        todo_push(move_Address_to_operand_AND);
-        todo_push(read_operand_to_AddressLo);
-        todo_push(read_operand_1_to_AddressHi);
-        todo_push(read_Address_to_operand);
-        todo_push(write_operand_to_Address_AND);
+    static inline void ModeIndirectXRMW(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_Address_AND_increment_PC);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(index_Address_by_X);
+        cpu.todo_push(move_Address_to_operand_AND);
+        cpu.todo_push(read_operand_to_AddressLo);
+        cpu.todo_push(read_operand_1_to_AddressHi);
+        cpu.todo_push(read_Address_to_operand);
+        cpu.todo_push(write_operand_to_Address_AND);
     }
-    inline void ModeIndirectXWrite() {
-        todo_push(read_PC_to_Address_AND_increment_PC);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(index_Address_by_X);
-        todo_push(move_Address_to_operand_AND);
-        todo_push(read_operand_to_AddressLo);
-        todo_push(read_operand_1_to_AddressHi);
+    static inline void ModeIndirectXWrite(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_Address_AND_increment_PC);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(index_Address_by_X);
+        cpu.todo_push(move_Address_to_operand_AND);
+        cpu.todo_push(read_operand_to_AddressLo);
+        cpu.todo_push(read_operand_1_to_AddressHi);
     }
-    inline void ModeIndirectYRead() {
-        todo_push(read_PC_to_operand_AND_increment_PC);
-        todo_push(read_operand_to_AddressLo);
-        todo_push(read_operand_1_to_AddressHi_AND);
-        todo_push(index_Address_by_Y);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(fix_AddressHi_indexed_by_Y_ReRead_AND);
+    static inline void ModeIndirectYRead(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_operand_AND_increment_PC);
+        cpu.todo_push(read_operand_to_AddressLo);
+        cpu.todo_push(read_operand_1_to_AddressHi_AND);
+        cpu.todo_push(index_Address_by_Y);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(fix_AddressHi_indexed_by_Y_ReRead_AND);
     }
-    inline void ModeIndirectYRMW() {
-        todo_push(read_PC_to_operand_AND_increment_PC);
-        todo_push(read_operand_to_AddressLo);
-        todo_push(read_operand_1_to_AddressHi_AND);
-        todo_push(index_Address_by_Y);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(fix_AddressHi_indexed_by_Y);
-        todo_push(read_Address_to_operand);
-        todo_push(write_operand_to_Address_AND);
+    static inline void ModeIndirectYRMW(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_operand_AND_increment_PC);
+        cpu.todo_push(read_operand_to_AddressLo);
+        cpu.todo_push(read_operand_1_to_AddressHi_AND);
+        cpu.todo_push(index_Address_by_Y);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(fix_AddressHi_indexed_by_Y);
+        cpu.todo_push(read_Address_to_operand);
+        cpu.todo_push(write_operand_to_Address_AND);
     }
-    inline void ModeIndirectYWrite() {
-        todo_push(read_PC_to_operand_AND_increment_PC);
-        todo_push(read_operand_to_AddressLo);
-        todo_push(read_operand_1_to_AddressHi_AND);
-        todo_push(index_Address_by_Y);
-        todo_push(read_Address_to_operand_AND);
-        todo_push(fix_AddressHi_indexed_by_Y);
+    static inline void ModeIndirectYWrite(Ricoh_RP2A03 & cpu) {
+        cpu.todo_push(read_PC_to_operand_AND_increment_PC);
+        cpu.todo_push(read_operand_to_AddressLo);
+        cpu.todo_push(read_operand_1_to_AddressHi_AND);
+        cpu.todo_push(index_Address_by_Y);
+        cpu.todo_push(read_Address_to_operand_AND);
+        cpu.todo_push(fix_AddressHi_indexed_by_Y);
     }
     bool ProcessOpcode() {
         switch (opcode) {
@@ -381,14 +409,15 @@ public:
             return true;
         }
         case 0x00: { // BRK
+            vector = VECTOR_IRQ;
             Pflag = 1;
             todo_push(read_PC_to_operand_AND_increment_PC);
             todo_push(push_PCH_);
             todo_push(push_PCL_);
             todo_push(push_P_);
             todo_push(set_I_AND);
-            todo_push(read_PCL_FFFE);
-            todo_push(read_PCH_FFFF);
+            todo_push(read_vector_to_PCL_);
+            todo_push(read_vector_to_PCH_);
             return true;
         }
         case 0x40: { // RTI
@@ -416,325 +445,35 @@ public:
             todo_push(opJMP);
             return true;
         }
+        case 0x08: { // PHP
+            todo_push(wait);
+            todo_push(opPHP);
+            return true;
         }
-        const Byte opType = (opcode & 0b00000011);
-        const Byte opMode = ((opcode & 0b00011100) >> 2);
-        const Byte opCode = ((opcode & 0b11100000) >> 5);
-
-        switch (opType) {
-        case 0: // Control instructions
-            switch (opMode) {
-            case 0: ModeImmediate(); break;                                                 // Immediate
-            case 1: if (opCode == 4) ModeZeropageWrite();  else ModeZeropageRead();  break; // Zero page     R/W
-            case 2: ModeImplied();   break;                                                 // Implied
-            case 3: if (opCode == 4) ModeAbsoluteWrite();  else ModeAbsoluteRead();  break; // Absolute      R/W+JMP()
-            case 4: ModeRelative();  break;                                                 // Relative
-            case 5: if (opCode == 4) ModeZeropageXWrite(); else ModeZeropageXRead(); break; // Zero page X   R/W
-            case 6: ModeImplied();   break;                                                 // Implied
-            case 7: if (opCode == 4) ModeAbsoluteXWrite(); else ModeAbsoluteXRead(); break; // Absolute X    R/W
-            }
-            break;
-        case 1: // ALU instructions
-            switch (opMode) {
-            case 0: if (opCode == 4) ModeIndirectXWrite(); else ModeIndirectXRead(); break; // Indirect X    R/W
-            case 1: if (opCode == 4) ModeZeropageWrite();  else ModeZeropageRead();  break; // Zero page     R/W
-            case 2: ModeImmediate(); break;                                                 // Immediate
-            case 3: if (opCode == 4) ModeAbsoluteWrite();  else ModeAbsoluteRead();  break; // Absolute      R/W
-            case 4: if (opCode == 4) ModeIndirectYWrite(); else ModeIndirectYRead(); break; // Indirect Y    R/W
-            case 5: if (opCode == 4) ModeZeropageXWrite(); else ModeZeropageXRead(); break; // Zero page X   R/W
-            case 6: if (opCode == 4) ModeAbsoluteYWrite(); else ModeAbsoluteYRead(); break; // Absolute Y    R/W
-            case 7: if (opCode == 4) ModeAbsoluteXWrite(); else ModeAbsoluteXRead(); break; // Absolute X    R/W
-            }
-            break;
-        case 2: // RMW instructions
-            switch (opMode) {
-            case 0: ModeImmediate(); break;                                                                                           // Immediate
-            case 1: if (opCode == 4) ModeZeropageWrite();  else if (opCode == 5) ModeZeropageRead();  else ModeZeropageRMW();  break; // Zero page     R/RMW/W
-            case 2: ModeImplied();   break;                                                                                           // Implied
-            case 3: if (opCode == 4) ModeAbsoluteWrite();  else if (opCode == 5) ModeAbsoluteRead();  else ModeAbsoluteRMW();  break; // Absolute      R/RMW/W
-            case 4: ModeImplied();   break;                                                                                           // Implied (HLT)
-            case 5: if (opCode == 4) ModeZeropageYWrite(); else if (opCode == 5) ModeZeropageYRead(); else ModeZeropageXRMW(); break; // Zero page X/Y R/RMW/W
-            case 6: ModeImplied();   break;                                                                                           // Implied
-            case 7: if (opCode == 4) ModeAbsoluteYWrite(); else if (opCode == 5) ModeAbsoluteYRead(); else ModeAbsoluteXRMW(); break; // Absolute X/Y  R/RMW/W
-            }
-            break;
-        case 3: // Combined ALU/RMW instructions
-            switch (opMode) {
-            case 0: if (opCode == 4) ModeIndirectXWrite(); else if (opCode == 5) ModeIndirectXRead(); else ModeIndirectXRMW(); break; // Indirect X    R/W
-            case 1: if (opCode == 4) ModeZeropageWrite();  else if (opCode == 5) ModeZeropageRead();  else ModeZeropageRMW();  break; // Zero page     R/W
-            case 2: ModeImmediate();  break;                                                                                          // Immediate
-            case 3: if (opCode == 4) ModeAbsoluteWrite();  else if (opCode == 5) ModeAbsoluteRead();  else ModeAbsoluteRMW();  break; // Absolute      R/W
-            case 4: if (opCode == 4) ModeIndirectYWrite(); else if (opCode == 5) ModeIndirectYRead(); else ModeIndirectYRMW(); break; // Indirect Y    R/W
-            case 5: if (opCode == 4) ModeZeropageYWrite(); else if (opCode == 5) ModeZeropageYRead(); else ModeZeropageXRMW(); break; // Zero page X/Y R/W
-            case 6: if (opCode == 4) ModeAbsoluteYWrite(); else if (opCode == 5) ModeAbsoluteYRead(); else ModeAbsoluteYRMW(); break; // Absolute Y    R/W
-            case 7: if (opCode == 4) ModeAbsoluteYWrite(); else if (opCode == 5) ModeAbsoluteYRead(); else ModeAbsoluteXRMW(); break; // Absolute X/Y  R/W
-            }
-            break;
+        case 0x28: { // PLP
+            todo_push(wait);
+            todo_push(wait);
+            todo_push(opPLP);
+            return true;
         }
-        switch (opcode) {
-        case 0x80: case 0x04: case 0x44: case 0x64:
-        case 0x0C: case 0x14: case 0x34: case 0x54:
-        case 0x74: case 0xD4: case 0xF4: case 0x1C:
-        case 0x3C: case 0x5C: case 0x7C: case 0xDC:
-        case 0xFC: case 0x89: case 0x82: case 0xC2:
-        case 0xE2: case 0x1A: case 0x3A: case 0x5A:
-        case 0x7A: case 0xDA: case 0xFA:
-            todo_push(xxNOP); return true;
-        case 0x9C: todo_push(xxSHY); return true;
-        case 0x9E: todo_push(xxSHX); return true;
-
-        case 0x03:
-        case 0x07:
-        case 0x0F:
-        case 0x13:
-        case 0x17:
-        case 0x1B:
-        case 0x1F: todo_push(xxSLO); return true;
-        case 0x0B: todo_push(xxANC); return true;
-
-        case 0x23:
-        case 0x27:
-        case 0x2F:
-        case 0x33:
-        case 0x37:
-        case 0x3B:
-        case 0x3F: todo_push(xxRLA); return true;
-        case 0x2B: todo_push(xxANC); return true;
-
-        case 0x43:
-        case 0x47:
-        case 0x4F:
-        case 0x53:
-        case 0x57:
-        case 0x5B:
-        case 0x5F: todo_push(xxSRE); return true;
-        case 0x4B: todo_push(xxALR); return true;
-
-        case 0x63:
-        case 0x67:
-        case 0x6F:
-        case 0x73:
-        case 0x77:
-        case 0x7B:
-        case 0x7F: todo_push(xxRRA); return true;
-        case 0x6B: todo_push(xxARR); return true;
-
-        case 0x83:
-        case 0x87:
-        case 0x8F:
-        case 0x97: todo_push(xxSAX); return true;
-        case 0x8B: todo_push(xxXAA); return true;
-        case 0x93:
-        case 0x9F: todo_push(xxAHX); return true;
-        case 0x9B: todo_push(xxTAS); return true;
-
-        case 0xA3:
-        case 0xA7:
-        case 0xAB:
-        case 0xAF:
-        case 0xB3:
-        case 0xB7:
-        case 0xBF: todo_push(xxLAX); return true;
-        case 0xBB: todo_push(xxLAS); return true;
-
-        case 0xC3:
-        case 0xC7:
-        case 0xCF:
-        case 0xD3:
-        case 0xD7:
-        case 0xDB:
-        case 0xDF: todo_push(xxDCP); return true;
-        case 0xCB: todo_push(xxAXS); return true;
-
-        case 0xE3:
-        case 0xE7:
-        case 0xEF:
-        case 0xF3:
-        case 0xF7:
-        case 0xFB:
-        case 0xFF: todo_push(xxISC); return true;
-        case 0xEB: todo_push(xxSBC); return true;
-
-        case 0x48: { todo_push(wait); todo_push(opPHA); return true; }
-        case 0x08: { todo_push(wait); todo_push(opPHP); return true; }
-
-        case 0x68: { todo_push(wait); todo_push(wait); todo_push(opPLA); return true; }
-        case 0x28: { todo_push(wait); todo_push(wait); todo_push(opPLP); return true; }
-
-            ////////////////////////////////
-            // Implied or Accumulator
-        case 0x88: todo_push(opDEY); return true;
-        case 0xA8: todo_push(opTAY); return true;
-        case 0xC8: todo_push(opINY); return true;
-        case 0xE8: todo_push(opINX); return true;
-        case 0x18: todo_push(opCLC); return true;
-        case 0x38: todo_push(opSEC); return true;
-        case 0x58: todo_push(opCLI); return true;
-        case 0x78: todo_push(opSEI); return true;
-        case 0x98: todo_push(opTYA); return true;
-        case 0xB8: todo_push(opCLV); return true;
-        case 0xD8: todo_push(opCLD); return true;
-        case 0xF8: todo_push(opSED); return true;
-        case 0x0A: todo_push(opASLa); return true;
-        case 0x2A: todo_push(opROLa); return true;
-        case 0x4A: todo_push(opLSRa); return true;
-        case 0x6A: todo_push(opRORa); return true;
-        case 0x8A: todo_push(opTXA); return true;
-        case 0xAA: todo_push(opTAX); return true;
-        case 0xCA: todo_push(opDEX); return true;
-        case 0xEA: todo_push(opNOP); return true;
-        case 0x9A: todo_push(opTXS); return true;
-        case 0xBA: todo_push(opTSX); return true;
-
-            ////////////////////////////////
-            // Immediate
-        case 0xA0: todo_push(opLDY); return true;
-        case 0xC0: todo_push(opCPY); return true;
-        case 0xE0: todo_push(opCPX); return true;
-        case 0x09: todo_push(opORA); return true;
-        case 0x29: todo_push(opAND); return true;
-        case 0x49: todo_push(opEOR); return true;
-        case 0x69: todo_push(opADC); return true;
-        case 0xA9: todo_push(opLDA); return true;
-        case 0xC9: todo_push(opCMP); return true;
-        case 0xE9: todo_push(opSBC); return true;
-        case 0xA2: todo_push(opLDX); return true;
-
-            ////////////////////////////////
-            // Absolute
-        case 0x2C: todo_push(opBIT); return true;
-        case 0x8C: todo_push(opSTY); return true;
-        case 0xAC: todo_push(opLDY); return true;
-        case 0xCC: todo_push(opCPY); return true;
-        case 0xEC: todo_push(opCPX); return true;
-        case 0x0D: todo_push(opORA); return true;
-        case 0x2D: todo_push(opAND); return true;
-        case 0x4D: todo_push(opEOR); return true;
-        case 0x6D: todo_push(opADC); return true;
-        case 0x8D: todo_push(opSTA); return true;
-        case 0xAD: todo_push(opLDA); return true;
-        case 0xCD: todo_push(opCMP); return true;
-        case 0xED: todo_push(opSBC); return true;
-        case 0x0E: todo_push(opASL); return true;
-        case 0x2E: todo_push(opROL); return true;
-        case 0x4E: todo_push(opLSR); return true;
-        case 0x6E: todo_push(opROR); return true;
-        case 0x8E: todo_push(opSTX); return true;
-        case 0xAE: todo_push(opLDX); return true;
-        case 0xCE: todo_push(opDEC); return true;
-        case 0xEE: todo_push(opINC); return true;
-
-            ////////////////////////////////
-            // Zero page
-        case 0x24: todo_push(opBIT); return true;
-        case 0x84: todo_push(opSTY); return true;
-        case 0xA4: todo_push(opLDY); return true;
-        case 0xC4: todo_push(opCPY); return true;
-        case 0xE4: todo_push(opCPX); return true;
-        case 0x05: todo_push(opORA); return true;
-        case 0x25: todo_push(opAND); return true;
-        case 0x45: todo_push(opEOR); return true;
-        case 0x65: todo_push(opADC); return true;
-        case 0x85: todo_push(opSTA); return true;
-        case 0xA5: todo_push(opLDA); return true;
-        case 0xC5: todo_push(opCMP); return true;
-        case 0xE5: todo_push(opSBC); return true;
-        case 0x06: todo_push(opASL); return true;
-        case 0x26: todo_push(opROL); return true;
-        case 0x46: todo_push(opLSR); return true;
-        case 0x66: todo_push(opROR); return true;
-        case 0x86: todo_push(opSTX); return true;
-        case 0xA6: todo_push(opLDX); return true;
-        case 0xC6: todo_push(opDEC); return true;
-        case 0xE6: todo_push(opINC); return true;
-
-            ////////////////////////////////
-            // Zero page, X
-        case 0x94: todo_push(opSTY); return true;
-        case 0xB4: todo_push(opLDY); return true;
-        case 0x15: todo_push(opORA); return true;
-        case 0x35: todo_push(opAND); return true;
-        case 0x55: todo_push(opEOR); return true;
-        case 0x75: todo_push(opADC); return true;
-        case 0x95: todo_push(opSTA); return true;
-        case 0xB5: todo_push(opLDA); return true;
-        case 0xD5: todo_push(opCMP); return true;
-        case 0xF5: todo_push(opSBC); return true;
-        case 0x16: todo_push(opASL); return true;
-        case 0x36: todo_push(opROL); return true;
-        case 0x56: todo_push(opLSR); return true;
-        case 0x76: todo_push(opROR); return true;
-        case 0xD6: todo_push(opDEC); return true;
-        case 0xF6: todo_push(opINC); return true;
-
-            ////////////////////////////////
-            // Zero page, Y
-        case 0x96: todo_push(opSTX); return true;
-        case 0xB6: todo_push(opLDX); return true;
-
-            ////////////////////////////////
-            // Absolute, X
-        case 0xBC: todo_push(opLDY); return true;
-        case 0x1D: todo_push(opORA); return true;
-        case 0x3D: todo_push(opAND); return true;
-        case 0x5D: todo_push(opEOR); return true;
-        case 0x7D: todo_push(opADC); return true;
-        case 0x9D: todo_push(opSTA); return true;
-        case 0xBD: todo_push(opLDA); return true;
-        case 0xDD: todo_push(opCMP); return true;
-        case 0xFD: todo_push(opSBC); return true;
-        case 0x1E: todo_push(opASL); return true;
-        case 0x3E: todo_push(opROL); return true;
-        case 0x5E: todo_push(opLSR); return true;
-        case 0x7E: todo_push(opROR); return true;
-        case 0xDE: todo_push(opDEC); return true;
-        case 0xFE: todo_push(opINC); return true;
-
-            ////////////////////////////////
-            // Absolute, Y
-        case 0x19: todo_push(opORA); return true;
-        case 0x39: todo_push(opAND); return true;
-        case 0x59: todo_push(opEOR); return true;
-        case 0x79: todo_push(opADC); return true;
-        case 0x99: todo_push(opSTA); return true;
-        case 0xB9: todo_push(opLDA); return true;
-        case 0xD9: todo_push(opCMP); return true;
-        case 0xF9: todo_push(opSBC); return true;
-        case 0xBE: todo_push(opLDX); return true;
-
-            ////////////////////////////////
-            // Relative
-        case 0x10: todo_push(opBPL); return true;
-        case 0x30: todo_push(opBMI); return true;
-        case 0x50: todo_push(opBVC); return true;
-        case 0x70: todo_push(opBVS); return true;
-        case 0x90: todo_push(opBCC); return true;
-        case 0xB0: todo_push(opBCS); return true;
-        case 0xD0: todo_push(opBNE); return true;
-        case 0xF0: todo_push(opBEQ); return true;
-
-            ////////////////////////////////
-            // Indexed indirect (X)
-        case 0x01: todo_push(opORA); return true;
-        case 0x21: todo_push(opAND); return true;
-        case 0x41: todo_push(opEOR); return true;
-        case 0x61: todo_push(opADC); return true;
-        case 0x81: todo_push(opSTA); return true;
-        case 0xA1: todo_push(opLDA); return true;
-        case 0xC1: todo_push(opCMP); return true;
-        case 0xE1: todo_push(opSBC); return true;
-
-            ////////////////////////////////
-            // Indirect indexed (Y)
-        case 0x11: todo_push(opORA); return true;
-        case 0x31: todo_push(opAND); return true;
-        case 0x51: todo_push(opEOR); return true;
-        case 0x71: todo_push(opADC); return true;
-        case 0x91: todo_push(opSTA); return true;
-        case 0xB1: todo_push(opLDA); return true;
-        case 0xD1: todo_push(opCMP); return true;
-        case 0xF1: todo_push(opSBC); return true;
+        case 0x48: { // PHA
+            todo_push(wait);
+            todo_push(opPHA);
+            return true;
         }
+        case 0x68: { // PLA
+            todo_push(wait);
+            todo_push(wait);
+            todo_push(opPLA);
+            return true;
+        }
+        }
+
+        AddressingMode_f mode = modes[opcode];
+        mode(*this);
+        todo_push(uOpCode[opcode]);
+        return true;
+
         throw std::runtime_error("Unknown opcode");
         return false;
     }
@@ -752,10 +491,8 @@ public:
         case push_P_: push_P(); break;
         case push_PCL_: push_PCL(); break;
         case push_PCH_: push_PCH(); break;
-        case read_PCL_FFFA: read_to_PCL(0xFFFA); break;
-        case read_PCH_FFFB: read_to_PCH(0xFFFB); break;
-        case read_PCL_FFFE: read_to_PCL(0xFFFE); break;
-        case read_PCH_FFFF: read_to_PCH(0xFFFF); break;
+        case read_vector_to_PCL_: read_vector_to_PCL(); break;
+        case read_vector_to_PCH_: read_vector_to_PCH(); break;
         case increment_PC_: increment_PC(); break;
         case read_PC_to_Address_AND_increment_PC: { read_PC_to_address(); increment_PC(); break; }
         case read_PC_to_AddressLo_AND_increment_PC: { read_PC_to_addressLo(); increment_PC(); break; }
@@ -821,6 +558,7 @@ public:
                 if (NMIFlipFlop) {
                     NMIFlipFlop = false;
 
+                    vector = VECTOR_NMI;
                     Pflag = 0;
                     CheckInterrupts = false;
                     todo_push(read_PC_to_operand_);
@@ -828,13 +566,14 @@ public:
                     todo_push(push_PCL_);
                     todo_push(push_P_);
                     todo_push(set_I_AND);
-                    todo_push(read_PCL_FFFA);
-                    todo_push(read_PCH_FFFB);
+                    todo_push(read_vector_to_PCL_);
+                    todo_push(read_vector_to_PCH_);
                     todo_push(read_PC_to_opcode_AND_increment_PC); // Make sure one instruction from the interrupt handler gets executed
                     todo_push(interrupt_enable_AND);
                     return;
                 }
                 if (IRQLevel) {
+                    vector = VECTOR_IRQ;
                     Pflag = 0;
                     CheckInterrupts = false;
                     todo_push(read_PC_to_operand_);
@@ -842,8 +581,8 @@ public:
                     todo_push(push_PCL_);
                     todo_push(push_P_);
                     todo_push(set_I_AND);
-                    todo_push(read_PCL_FFFE);
-                    todo_push(read_PCH_FFFF);
+                    todo_push(read_vector_to_PCL_);
+                    todo_push(read_vector_to_PCH_);
                     todo_push(read_PC_to_opcode_AND_increment_PC); // Make sure one instruction from the interrupt handler gets executed
                     todo_push(interrupt_enable_AND);
                     return;
