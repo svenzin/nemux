@@ -93,288 +93,238 @@ Ricoh_RP2A03::AddressingMode_f GetAddressingMode(Byte opcode) {
 }
 
 void Ricoh_RP2A03::ModeImplied() {
-    operations.push(M(read_PC_to_operand));
+    Start(M(read_PC_to_operand));
 }
 void Ricoh_RP2A03::ModeImmediate() {
-    operations.push(M(read_PC_to_operand));
-    operations.push(M(increment_PC));
+    Start(M(read_PC_to_operand),
+          M(increment_PC));
 }
 void Ricoh_RP2A03::ModeRelative() {
-    operations.push(M(read_PC_to_operand));
-    operations.push(M(increment_PC));
-    operations.push(M(end_cycle));
+    Cycle(M(read_PC_to_operand),
+          M(increment_PC));
 }
 
 void Ricoh_RP2A03::ModeAbsoluteRead() {
     ModeAbsoluteWrite();
-    operations.push(M(read_address_to_operand));
+    Start(M(read_address_to_operand));
 }
 void Ricoh_RP2A03::ModeAbsoluteRMW() {
     ModeAbsoluteWrite();
-    operations.push(M(read_address_to_operand));
-    operations.push(M(end_cycle));
-    operations.push(M(write_operand_to_address));
+    Cycle(M(read_address_to_operand));
+    Start(M(write_operand_to_address));
 }
 void Ricoh_RP2A03::ModeAbsoluteWrite() {
-    operations.push(M(read_PC_to_addressLo));
-    operations.push(M(increment_PC));
-    operations.push(M(end_cycle));
-    operations.push(M(read_PC_to_addressHi));
-    operations.push(M(increment_PC));
-    operations.push(M(end_cycle));
+    Cycle(M(read_PC_to_addressLo),
+          M(increment_PC));
+    Cycle(M(read_PC_to_addressHi),
+          M(increment_PC));
 }
 
 void Ricoh_RP2A03::ModeZeropageRead() {
     ModeZeropageWrite();
-    operations.push(M(read_address_to_operand));
+    Start(M(read_address_to_operand));
 }
 void Ricoh_RP2A03::ModeZeropageRMW() {
     ModeZeropageWrite();
-    operations.push(M(read_address_to_operand));
-    operations.push(M(end_cycle));
-    operations.push(M(write_operand_to_address));
+    Cycle(M(read_address_to_operand));
+    Start(M(write_operand_to_address));
 }
 void Ricoh_RP2A03::ModeZeropageWrite() {
-    operations.push(M(read_PC_to_address));
-    operations.push(M(increment_PC));
-    operations.push(M(end_cycle));
+    Cycle(M(read_PC_to_address),
+          M(increment_PC));
 }
 
 void Ricoh_RP2A03::ModeZeropageXRead() {
     ModeZeropageXWrite();
-    operations.push(M(read_address_to_operand));
+    Start(M(read_address_to_operand));
 }
 void Ricoh_RP2A03::ModeZeropageXRMW() {
     ModeZeropageXWrite();
-    operations.push(M(read_address_to_operand));
-    operations.push(M(end_cycle));
-    operations.push(M(write_operand_to_address));
+    Cycle(M(read_address_to_operand));
+    Start(M(write_operand_to_address));
 }
 void Ricoh_RP2A03::ModeZeropageXWrite() {
-    operations.push(M(read_PC_to_address));
-    operations.push(M(increment_PC));
-    operations.push(M(end_cycle));
-    operations.push(M(read_address_to_operand));
-    operations.push(M(index_address_by_X));
-    operations.push(M(end_cycle));
+    index = X;
+    Cycle(M(read_PC_to_address),
+          M(increment_PC));
+    Cycle(M(read_address_to_operand),
+          M(index_address));
 }
 
 void Ricoh_RP2A03::ModeZeropageYRead() {
     ModeZeropageYWrite();
-    operations.push(M(read_address_to_operand));
+    Start(M(read_address_to_operand));
 }
 void Ricoh_RP2A03::ModeZeropageYWrite() {
-    operations.push(M(read_PC_to_address));
-    operations.push(M(increment_PC));
-    operations.push(M(end_cycle));
-    operations.push(M(read_address_to_operand));
-    operations.push(M(index_address_by_Y));
-    operations.push(M(end_cycle));
+    index = Y;
+    Cycle(M(read_PC_to_address),
+          M(increment_PC));
+    Cycle(M(read_address_to_operand),
+          M(index_address));
 }
 
 void Ricoh_RP2A03::detailAbsoluteX() {
-    operations.push(M(read_PC_to_addressLo));
-    operations.push(M(increment_PC));
-    operations.push(M(end_cycle));
-    operations.push(M(read_PC_to_addressHi));
-    operations.push(M(increment_PC));
-    operations.push(M(index_address_by_X));
-    operations.push(M(end_cycle));
-    operations.push(M(read_address_to_operand));
+    index = X;
+    Cycle(M(read_PC_to_addressLo),
+          M(increment_PC));
+    Cycle(M(read_PC_to_addressHi),
+          M(increment_PC),
+          M(index_address));
 }
 void Ricoh_RP2A03::ModeAbsoluteXRead() {
     detailAbsoluteX();
-    operations.push(M(fix_address_indexed_by_X));
-    operations.push(M(queue_read_if_address_fixed));
+    Start(M(read_address_to_operand),
+          M(fix_indexed_address),
+          M(queue_read_if_address_fixed));
 }
 void Ricoh_RP2A03::ModeAbsoluteXRMW() {
     detailAbsoluteX();
-    operations.push(M(fix_address_indexed_by_X));
-    operations.push(M(end_cycle));
-    operations.push(M(read_address_to_operand));
-    operations.push(M(end_cycle));
-    operations.push(M(write_operand_to_address));
+    Cycle(M(read_address_to_operand),
+          M(fix_indexed_address));
+    Cycle(M(read_address_to_operand));
+    Start(M(write_operand_to_address));
 }
 void Ricoh_RP2A03::ModeAbsoluteXWrite() {
     detailAbsoluteX();
-    operations.push(M(fix_address_indexed_by_X));
-    operations.push(M(end_cycle));
+    Cycle(M(read_address_to_operand),
+          M(fix_indexed_address));
+    Start(M(end_cycle));
 }
 
 void Ricoh_RP2A03::detailAbsoluteY() {
-    operations.push(M(read_PC_to_addressLo));
-    operations.push(M(increment_PC));
-    operations.push(M(end_cycle));
-    operations.push(M(read_PC_to_addressHi));
-    operations.push(M(increment_PC));
-    operations.push(M(index_address_by_Y));
-    operations.push(M(end_cycle));
-    operations.push(M(read_address_to_operand));
+    index = Y;
+    Cycle(M(read_PC_to_addressLo),
+          M(increment_PC));
+    Cycle(M(read_PC_to_addressHi),
+          M(increment_PC),
+          M(index_address));
 }
 void Ricoh_RP2A03::ModeAbsoluteYRead() {
     detailAbsoluteY();
-    operations.push(M(fix_address_indexed_by_Y));
-    operations.push(M(queue_read_if_address_fixed));
+    Start(M(read_address_to_operand),
+          M(fix_indexed_address),
+          M(queue_read_if_address_fixed));
 }
 void Ricoh_RP2A03::ModeAbsoluteYRMW() {
     detailAbsoluteY();
-    operations.push(M(fix_address_indexed_by_Y));
-    operations.push(M(end_cycle));
-    operations.push(M(read_address_to_operand));
-    operations.push(M(end_cycle));
-    operations.push(M(write_operand_to_address));
+    Cycle(M(read_address_to_operand),
+          M(fix_indexed_address));
+    Cycle(M(read_address_to_operand));
+    Start(M(write_operand_to_address));
 }
 void Ricoh_RP2A03::ModeAbsoluteYWrite() {
     detailAbsoluteY();
-    operations.push(M(fix_address_indexed_by_Y));
-    operations.push(M(end_cycle));
+    Cycle(M(read_address_to_operand),
+          M(fix_indexed_address));
 }
 
 void Ricoh_RP2A03::ModeIndirectXRead() {
     ModeIndirectXWrite();
-    operations.push(M(read_address_to_operand));
+    Start(M(read_address_to_operand));
 }
 void Ricoh_RP2A03::ModeIndirectXRMW() {
     ModeIndirectXWrite();
-    operations.push(M(read_address_to_operand));
-    operations.push(M(end_cycle));
-    operations.push(M(write_operand_to_address));
+    Cycle(M(read_address_to_operand));
+    Start(M(write_operand_to_address));
 }
 void Ricoh_RP2A03::ModeIndirectXWrite() {
-    operations.push(M(read_PC_to_address));
-    operations.push(M(increment_PC));
-    operations.push(M(end_cycle));
-    operations.push(M(read_address_to_operand));
-    operations.push(M(index_address_by_X));
-    operations.push(M(end_cycle));
-    operations.push(M(move_address_to_operand));
-    operations.push(M(read_operand_to_addressLo));
-    operations.push(M(end_cycle));
-    operations.push(M(read_operand_1_to_addressHi));
-    operations.push(M(end_cycle));
+    index = X;
+    Cycle(M(read_PC_to_address),
+          M(increment_PC));
+    Cycle(M(read_address_to_operand),
+          M(index_address));
+    Cycle(M(move_address_to_operand),
+          M(read_operand_to_addressLo));
+    Cycle(M(read_operand_1_to_addressHi));
 }
 
 void Ricoh_RP2A03::detailIndirectY() {
-    operations.push(M(read_PC_to_operand));
-    operations.push(M(increment_PC));
-    operations.push(M(end_cycle));
-    operations.push(M(read_operand_to_addressLo));
-    operations.push(M(end_cycle));
-    operations.push(M(read_operand_1_to_addressHi));
-    operations.push(M(index_address_by_Y));
-    operations.push(M(end_cycle));
-    operations.push(M(read_address_to_operand));
+    index = Y;
+    Cycle(M(read_PC_to_operand),
+          M(increment_PC));
+    Cycle(M(read_operand_to_addressLo));
+    Cycle(M(read_operand_1_to_addressHi),
+          M(index_address));
 }
 void Ricoh_RP2A03::ModeIndirectYRead() {
     detailIndirectY();
-    operations.push(M(fix_address_indexed_by_Y));
-    operations.push(M(queue_read_if_address_fixed));
+    Start(M(read_address_to_operand),
+          M(fix_indexed_address),
+          M(queue_read_if_address_fixed));
 }
 void Ricoh_RP2A03::ModeIndirectYRMW() {
     detailIndirectY();
-    operations.push(M(fix_address_indexed_by_Y));
-    operations.push(M(end_cycle));
-    operations.push(M(read_address_to_operand));
-    operations.push(M(end_cycle));
-    operations.push(M(write_operand_to_address));
+    Cycle(M(read_address_to_operand),
+          M(fix_indexed_address));
+    Cycle(M(read_address_to_operand));
+    Start(M(write_operand_to_address));
 }
 void Ricoh_RP2A03::ModeIndirectYWrite() {
     detailIndirectY();
-    operations.push(M(fix_address_indexed_by_Y));
-    operations.push(M(end_cycle));
+    Cycle(M(read_address_to_operand),
+          M(fix_indexed_address));
 }
 
 void Ricoh_RP2A03::ModePush() {
-    operations.push(M(read_PC_to_operand));
-    operations.push(M(end_cycle));
+    Cycle(M(read_PC_to_operand));
 }
 void Ricoh_RP2A03::ModePull() {
-    operations.push(M(read_PC_to_operand));
-    operations.push(M(end_cycle));
-    operations.push(M(end_cycle));
+    Cycle(M(read_PC_to_operand));
+    Cycle();
 }
 
 void Ricoh_RP2A03::ModeJump() {
-    operations.push(M(read_PC_to_addressLo));
-    operations.push(M(increment_PC));
-    operations.push(M(end_cycle));
-    operations.push(M(read_PC_to_addressHi));
-
+    Cycle(M(read_PC_to_addressLo),
+          M(increment_PC));
+    Start(M(read_PC_to_addressHi));
 }
 void Ricoh_RP2A03::ModeJumpIndirect() {
-    operations.push(M(read_PC_to_addressLo));
-    operations.push(M(increment_PC));
-    operations.push(M(end_cycle));
-    operations.push(M(read_PC_to_addressHi));
-    operations.push(M(increment_PC));
-    operations.push(M(end_cycle));
-    operations.push(M(read_address_to_operand));
-    operations.push(M(end_cycle));
-    operations.push(M(read_address_and_operand_to_address));
+    ModeJump();
+    Finish(M(increment_PC));
+    Cycle(M(read_address_to_operand));
+    Start(M(read_address_and_operand_to_address));
+}
 
+void Ricoh_RP2A03::ModeJSR() {
+    Cycle(M(read_PC_to_addressLo),
+          M(increment_PC));
+    Cycle();
+    Cycle(M(push_PCH));
+    Cycle(M(push_PCL));
+    Start(M(read_PC_to_addressHi));
 }
 
 void Ricoh_RP2A03::trigger_interrupt(const Word & interruptVector, const bool & isBRK) {
     vector = interruptVector;
     Pflag =  isBRK ? 1 : 0;
     CheckInterrupts = false;
-    operations.push(M(read_PC_to_operand));
-    if (isBRK) operations.push(M(increment_PC));
-    operations.push(M(end_cycle));
-    operations.push(M(push_PCH));
-    operations.push(M(end_cycle));
-    operations.push(M(push_PCL));
-    operations.push(M(end_cycle));
-    operations.push(M(push_P));
-    operations.push(M(end_cycle));
-    operations.push(M(SEI));
-    operations.push(M(read_vector_to_PCL));
-    operations.push(M(end_cycle));
-    operations.push(M(read_vector_to_PCH));
-    operations.push(M(end_cycle));
+    if (isBRK)
+        Cycle(M(read_PC_to_operand),
+              M(increment_PC));
+    else
+        Cycle(M(read_PC_to_operand));
+    Cycle(M(push_PCH));
+    Cycle(M(push_PCL));
+    Cycle(M(push_P));
+    Cycle(M(SEI),
+          M(read_vector_to_PCL));
+    Cycle(M(read_vector_to_PCH));
 }
 
-void Ricoh_RP2A03::ModeBRK() {
-    trigger_interrupt(VECTOR_IRQ, true);
+inline void Ricoh_RP2A03::ModeReturn(const bool & pullP, const bool & incPC) {
+    Cycle(M(read_PC_to_operand));
+    Cycle();
+    if (pullP)
+        Cycle(M(pull_P));
+    Cycle(M(pull_PCL));
+    if (incPC)
+        Start(M(pull_PCH),
+              M(increment_PC));
+    else
+        Start(M(pull_PCH));
 }
-
-void Ricoh_RP2A03::ModeJSR() {
-    operations.push(M(read_PC_to_addressLo));
-    operations.push(M(increment_PC));
-    operations.push(M(end_cycle));
-    operations.push(M(NOP));
-    operations.push(M(end_cycle));
-    operations.push(M(push_PCH));
-    operations.push(M(end_cycle));
-    operations.push(M(push_PCL));
-    operations.push(M(end_cycle));
-    operations.push(M(read_PC_to_addressHi));
-    operations.push(M(JMP));
-}
-
-void Ricoh_RP2A03::ModeRTI() {
-    operations.push(M(read_PC_to_operand));
-    operations.push(M(end_cycle));
-    operations.push(M(NOP));
-    operations.push(M(end_cycle));
-    operations.push(M(pull_P));
-    operations.push(M(end_cycle));
-    operations.push(M(pull_PCL));
-    operations.push(M(end_cycle));
-    operations.push(M(pull_PCH));
-}
-
-void Ricoh_RP2A03::ModeRTS() {
-    operations.push(M(read_PC_to_operand));
-    operations.push(M(end_cycle));
-    operations.push(M(NOP));
-    operations.push(M(end_cycle));
-    operations.push(M(pull_PCL));
-    operations.push(M(end_cycle));
-    operations.push(M(pull_PCH));
-    operations.push(M(end_cycle));
-    operations.push(M(increment_PC));
-}
+void Ricoh_RP2A03::ModeRTI() { ModeReturn(true, false); }
+void Ricoh_RP2A03::ModeRTS() { ModeReturn(false, true); }
 
 void Ricoh_RP2A03::queue_read_if_address_fixed() {
     if (AddressWasFixed) {
@@ -384,55 +334,8 @@ void Ricoh_RP2A03::queue_read_if_address_fixed() {
     }
 }
 
-void Ricoh_RP2A03::ASL() { ROLwithFlag(operand, 0);  operations.push_front(M(end_cycle)); operations.push_front(M(write_operand_to_address));
-}
-void Ricoh_RP2A03::ROL() { ROLwithFlag(operand, C);  operations.push_front(M(end_cycle)); operations.push_front(M(write_operand_to_address)); }
-void Ricoh_RP2A03::LSR() { RORwithFlag(operand, 0);  operations.push_front(M(end_cycle)); operations.push_front(M(write_operand_to_address)); }
-void Ricoh_RP2A03::ROR() { RORwithFlag(operand, C);  operations.push_front(M(end_cycle)); operations.push_front(M(write_operand_to_address)); }
-void Ricoh_RP2A03::DEC() { Transfer(operand - 1, operand);  operations.push_front(M(end_cycle)); operations.push_front(M(write_operand_to_address)); }
-void Ricoh_RP2A03::INC() { Transfer(operand + 1, operand);  operations.push_front(M(end_cycle)); operations.push_front(M(write_operand_to_address)); }
-
-void Ricoh_RP2A03::xSLO() {
-    C = Bit<Left>(operand);
-    Transfer(operand << 1, operand);
-    Transfer(A | operand, A);
-    operations.push_front(M(write_operand_to_address));
-    operations.push_front(M(end_cycle));
-}
-void Ricoh_RP2A03::xRLA() {
-    const auto c = Bit<Left>(operand);
-    Transfer((operand << 1) | Mask<Right>(C), operand);
-    C = c;
-    Transfer(A & operand, A);
-    operations.push_front(M(write_operand_to_address));
-    operations.push_front(M(end_cycle));
-}
-void Ricoh_RP2A03::xSRE() {
-    C = Bit<Right>(operand);
-    Transfer(operand >> 1, operand);
-    Transfer(A ^ operand, A);
-    operations.push_front(M(write_operand_to_address));
-    operations.push_front(M(end_cycle));
-}
-void Ricoh_RP2A03::xRRA() {
-    const auto c = Bit<Right>(operand);
-    Transfer((operand >> 1) | Mask<Left>(C), operand);
-    C = c;
-    AddWithCarry(operand);
-    operations.push_front(M(write_operand_to_address));
-    operations.push_front(M(end_cycle));
-}
-void Ricoh_RP2A03::xDCP() {
-    Transfer(operand - 1, operand);
-    Compare(A, operand);
-    operations.push_front(M(write_operand_to_address));
-    operations.push_front(M(end_cycle));
-}
-void Ricoh_RP2A03::xISC() {
-    Transfer(operand + 1, operand);
-    SubstractWithCarry(operand);
-    operations.push_front(M(write_operand_to_address));
-    operations.push_front(M(end_cycle));
+void Ricoh_RP2A03::r_m_w() {
+    Cycle(M(write_operand_to_address));
 }
 
 void Ricoh_RP2A03::branch_fix_PCH() {
@@ -490,7 +393,8 @@ Ricoh_RP2A03::Ricoh_RP2A03()
     for (int opcode = 0; opcode < 0x100; ++opcode) {
         modes[opcode] = GetAddressingMode(opcode);
     }
-    modes[0x00] = M(ModeBRK);          // BRK
+    // Set up special instructions
+    modes[0x00] = M(ModeImplied);      // BRK
     modes[0x20] = M(ModeJSR);          // JSR
     modes[0x40] = M(ModeRTI);          // RTI
     modes[0x60] = M(ModeRTS);          // RTS
@@ -552,7 +456,7 @@ void Ricoh_RP2A03::DMA(const Byte & fromHi, Byte * to, const Byte & offset) {
 
     const Word base = dmaSource;
     for (Word i = 0; i < 0x0100; ++i) {
-        to[(i + offset) & WORD_LO_MASK] = GetByteAt(base + i);
+        to[Byte(i + offset)] = GetByteAt(base + i);
     }
 }
 
@@ -582,3 +486,40 @@ Byte Ricoh_RP2A03::Pull() {
     ++S; 
     return GetByteAt(STACK_PAGE + S);
 }
+
+
+void Ricoh_RP2A03::Cycle() {
+    operations.push(M(end_cycle));
+}
+void Ricoh_RP2A03::Cycle(const MicroOp_f & op) {
+    operations.push(op);
+    operations.push(M(end_cycle));
+}
+void Ricoh_RP2A03::Cycle(const MicroOp_f & op1, const MicroOp_f & op2) {
+    operations.push(op1);
+    operations.push(op2);
+    operations.push(M(end_cycle));
+}
+void Ricoh_RP2A03::Cycle(const MicroOp_f & op1, const MicroOp_f & op2, const MicroOp_f & op3) {
+    operations.push(op1);
+    operations.push(op2);
+    operations.push(op3);
+    operations.push(M(end_cycle));
+}
+void Ricoh_RP2A03::Start(const MicroOp_f & op) {
+    operations.push(op);
+}
+void Ricoh_RP2A03::Start(const MicroOp_f & op1, const MicroOp_f & op2) {
+    operations.push(op1);
+    operations.push(op2);
+}
+void Ricoh_RP2A03::Start(const MicroOp_f & op1, const MicroOp_f & op2, const MicroOp_f & op3) {
+    operations.push(op1);
+    operations.push(op2);
+    operations.push(op3);
+}
+void Ricoh_RP2A03::Finish(const MicroOp_f & op) {
+    operations.push(op);
+    operations.push(M(end_cycle));
+}
+

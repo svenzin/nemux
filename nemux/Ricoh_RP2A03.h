@@ -66,15 +66,43 @@ class Ricoh_RP2A03 {
         Map->SetByteAt(address, value);
     }
 
-    inline void index_address(const Byte & index) {
-        address = (address & WORD_HI_MASK)
-            | ((address + index) & WORD_LO_MASK);
-    }
-    inline void fix_indexed_address(const Byte & index)
-    {
-        AddressWasFixed = ((address & WORD_LO_MASK) < index);
-        if (AddressWasFixed) address += 0x0100;
-    }
+    void SetLo(Word & w, const Byte & lo) { w = (w & WORD_HI_MASK) | lo; }
+    void SetHi(Word & w, const Byte & hi) { w = (hi << BYTE_WIDTH) | Byte(w); }
+    Byte GetLo(const Word & w) { return Byte(w); }
+    Byte GetHi(const Word & w) { return Byte(w >> BYTE_WIDTH); }
+    
+    // µops state
+    Word address;
+    Byte operand;
+    Flag Pflag;
+    Byte index;
+    bool AddressWasFixed = false;
+    Word vector;
+    bool CheckInterrupts = true;
+
+    inline void increment_PC()                        { ++PC; }
+    inline void read_PC_to_operand()                  { operand = GetByteAt(PC); }
+    inline void push_PCL()                            { Push(PC); }
+    inline void push_PCH()                            { Push(PC >> 8); }
+    inline void push_P()                              { Push(GetStatus(Pflag)); }
+    inline void pull_PCL()                            { SetLo(PC, Pull()); }
+    inline void pull_PCH()                            { SetHi(PC, Pull()); }
+    inline void pull_P()                              { SetStatus(Pull()); }
+    inline void read_PC_to_address()                  { address = GetByteAt(PC); }
+    inline void read_PC_to_addressLo()                { SetLo(address, GetByteAt(PC)); }
+    inline void read_PC_to_addressHi()                { SetHi(address, GetByteAt(PC)); }
+    inline void read_address_to_operand()             { operand = GetByteAt(address); }
+    inline void read_operand_to_addressLo()           { SetLo(address, GetByteAt(operand)); }
+    inline void read_operand_1_to_addressHi()         { SetHi(address, GetByteAt(Byte(operand + 1))); }
+    inline void index_address()                       { SetLo(address, address + index); }
+    inline void fix_indexed_address()                 { AddressWasFixed = (Byte(address) < index); if (AddressWasFixed) address += 0x0100; }
+    inline void write_operand_to_address()            { SetByteAt(address, operand); }
+    inline void read_vector_to_PCL()                  { SetLo(PC, GetByteAt(vector)); }
+    inline void read_vector_to_PCH()                  { SetHi(PC, GetByteAt(vector + 1)); }
+    inline void read_address_and_operand_to_address() { SetLo(address, address + 1); SetHi(address, GetByteAt(address)); SetLo(address, operand); }
+    inline void move_address_to_operand()             { operand = address; }
+    
+    inline void r_m_w(); // Read-Modify-Write
 
     inline bool interrupted() {
         // If an interrupt sequence was running (CheckInterrupts == false)
@@ -103,34 +131,6 @@ class Ricoh_RP2A03 {
         increment_PC();
         ProcessOpcode();
     }
-    inline void increment_PC() { ++PC; }
-    inline void read_PC_to_operand() { operand = GetByteAt(PC); }
-    inline void push_PCL() { Push(PC); }
-    inline void push_PCH() { Push(PC >> 8); }
-    inline void push_P() { Push(GetStatus(Pflag)); }
-    inline void pull_PCL() { PC = (PC & WORD_HI_MASK) | Pull(); }
-    inline void pull_PCH() { PC = (Pull() << BYTE_WIDTH) | (PC & WORD_LO_MASK); }
-    inline void pull_P() { SetStatus(Pull()); }
-    inline void read_PC_to_address() { address = GetByteAt(PC); }
-    inline void read_PC_to_addressLo() { address = (address & WORD_HI_MASK) | GetByteAt(PC); }
-    inline void read_PC_to_addressHi() { address = (GetByteAt(PC) << BYTE_WIDTH) | (address & WORD_LO_MASK); }
-    inline void read_address_to_operand() { operand = GetByteAt(address); }
-    inline void read_operand_to_addressLo() { address = (address & WORD_HI_MASK) | GetByteAt(operand); }
-    inline void read_operand_1_to_addressHi() { address = (GetByteAt((operand + 1) & WORD_LO_MASK) << BYTE_WIDTH) | (address & WORD_LO_MASK); }
-    inline void index_address_by_X() { index_address(X); }
-    inline void index_address_by_Y() { index_address(Y); }
-    inline void fix_address_indexed_by_X() { fix_indexed_address(X); }
-    inline void fix_address_indexed_by_Y() { fix_indexed_address(Y); }
-    inline void write_operand_to_address() { SetByteAt(address, operand); }
-    inline void read_vector_to_PCL() { PC = (PC & WORD_HI_MASK) | GetByteAt(vector); }
-    inline void read_vector_to_PCH() { PC = (GetByteAt(vector + 1) << BYTE_WIDTH) | (PC & WORD_LO_MASK); }
-
-    inline void read_address_and_operand_to_address() {
-        address = (address & WORD_HI_MASK) | ((address + 1) & WORD_LO_MASK);
-        address = (GetByteAt(address) << BYTE_WIDTH) | operand;
-    }
-
-    inline void move_address_to_operand() { operand = address; }
     inline void queue_read_if_address_fixed();
 
     inline void poll_interrupts() {
@@ -141,13 +141,14 @@ class Ricoh_RP2A03 {
 
     // RP2A03 instructions
     ////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////
 
     inline void NOP() {}
     
     inline void JMP() { PC = address; }
 
-    inline void BRK() {}
-    inline void JSR() {}
+    inline void BRK() { trigger_interrupt(VECTOR_IRQ, true); }
+    inline void JSR() { JMP(); }
     inline void RTI() {}
     inline void RTS() {}
 
@@ -201,85 +202,60 @@ class Ricoh_RP2A03 {
     inline void AND() { Transfer(A & operand, A); }
     inline void EOR() { Transfer(A ^ operand, A); }
     inline void ADC() { AddWithCarry(operand); }
-    inline void SBC() { SubstractWithCarry(operand); }
+    inline void SBC() { AddWithCarry(~operand); }
     
-    inline void ASLa() { ROLwithFlag(A, 0); }
-    inline void ROLa() { ROLwithFlag(A, C); }
-    inline void LSRa() { RORwithFlag(A, 0); }
-    inline void RORa() { RORwithFlag(A, C); }
+    inline void ASLa() { ROLc(A, 0); }
+    inline void ROLa() { ROLc(A, C); }
+    inline void LSRa() { RORc(A, 0); }
+    inline void RORa() { RORc(A, C); }
     
-    inline void ASL();
-    inline void ROL();
-    inline void LSR();
-    inline void ROR();
-    inline void DEC();
-    inline void INC();
+    inline void ASL() { r_m_w(); ROLc(operand, 0); }
+    inline void ROL() { r_m_w(); ROLc(operand, C); }
+    inline void LSR() { r_m_w(); RORc(operand, 0); }
+    inline void ROR() { r_m_w(); RORc(operand, C); }
+    inline void DEC() { r_m_w(); Transfer(operand - 1, operand); }
+    inline void INC() { r_m_w(); Transfer(operand + 1, operand); }
 
-    inline void BIT() { const auto mask = GetByteAt(address); Z = (mask & A) == 0 ? 1 : 0; V = Bit<Ovf>(mask); N = Bit<Neg>(mask); }
+    inline void BIT() {
+        Z = (operand & A) == 0 ? 1 : 0;
+        V = Bit<Ovf>(operand);
+        N = Bit<Neg>(operand);
+    }
 
     ////////////////////////////////////////////////////////////////
 
     inline void xNOP() {}
-    inline void xHLT() {}
+    inline void xHLT() { Halted = true; }
 
     inline void xSHX() {
-        const Byte addrLo = (address & WORD_LO_MASK);
-        const Byte addrHi = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
-        const auto M = (X & (addrHi + 1));
-        if (AddressWasFixed) {
-            // In case the resulting addres crosses a page
-            // The bahviour is corrupted
-            // See http://forums.nesdev.com/viewtopic.php?f=3&t=3831&start=30
-            const Word addr = (M << BYTE_WIDTH) | addrLo;
-            SetByteAt(addr, M);
-        }
-        else {
-            const Word addr = (addrHi << BYTE_WIDTH) | addrLo;
-            SetByteAt(addr, M);
-        }
+        const auto M = (X & (GetHi(address) + 1));
+        if (AddressWasFixed) SetHi(address, M);
+        SetByteAt(address, M);
     }
     inline void xSHY() {
-        const Byte addrLo = (address & WORD_LO_MASK);
-        const Byte addrHi = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
-        const auto M = (Y & (addrHi + 1));
-        if (AddressWasFixed) {
-            // In case the resulting addres crosses a page
-            // The bahviour is corrupted
-            // See http://forums.nesdev.com/viewtopic.php?f=3&t=3831&start=30
-            const Word addr = (M << BYTE_WIDTH) | addrLo;
-            SetByteAt(addr, M);
-        }
-        else {
-            const Word addr = (addrHi << BYTE_WIDTH) | addrLo;
-            SetByteAt(addr, M);
-        }
+        const auto M = (Y & (GetHi(address) + 1));
+        if (AddressWasFixed) SetHi(address, M);
+        SetByteAt(address, M);
     }
 
-    inline void xSLO();
-    inline void xRLA();
-    inline void xSRE();
-    inline void xRRA();
-    inline void xDCP();
-    inline void xISC();
+    inline void xSLO() { ASL(); ORA(); }
+    inline void xRLA() { ROL(); AND(); }
+    inline void xSRE() { LSR(); EOR(); }
+    inline void xRRA() { ROR(); ADC(); }
+    inline void xDCP() { DEC(); CMP(); }
+    inline void xISC() { INC(); SBC(); }
 
-    inline void xANC() { Transfer(A & operand, A); C = Bit<Left>(A); }
-    inline void xALR() { Transfer(A & operand, A); C = Bit<Right>(A); Transfer(A >> 1, A); }
-    inline void xARR() { Transfer(A & operand, A); Transfer((A >> 1) | Mask<Left>(C), A);
-        switch ((A >> 5) & 0x03) {
-        case 0: { C = 0; V = 0; break; }
-        case 1: { C = 0; V = 1; break; }
-        case 2: { C = 1; V = 1; break; }
-        case 3: { C = 1; V = 0; break; }
-        }
-    }
+    inline void xANC() { AND(); C = Bit<Left>(A); }
+    inline void xALR() { AND(); LSRa(); }
+    inline void xARR() { AND(); RORa(); C = Bit<6>(A); V = (C ^ Bit<5>(A)); }
     inline void xXAA() {}
-    inline void xAHX() { const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH); SetByteAt(address, A & X & H); }
-    inline void xTAS() { const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH); S = (A & X); SetByteAt(address, A & X & H); }
-    inline void xLAS() { Transfer(operand & S, S); Transfer(S, A); Transfer(S, X); }
-    inline void xAXS() { X = (A & X); Compare(X, operand); X = X - operand; }
-    inline void xSBC() { SubstractWithCarry(operand); }
+    inline void xAHX() { SetByteAt(address, A & X & GetHi(address)); }
+    inline void xTAS() { S = (A & X); xAHX(); }
+    inline void xLAS() { Transfer(operand & S, S); Transfer(S, A); TSX(); }
+    inline void xAXS() { X = (A & X); CPX(); X = X - operand; }
+    inline void xSBC() { SBC(); }
     inline void xSAX() { SetByteAt(address, A & X); }
-    inline void xLAX() { Transfer(operand, A); Transfer(operand, X); }
+    inline void xLAX() { LDA(); TAX(); }
 
 public:
     typedef void(Ricoh_RP2A03::* MicroOp_f)();
@@ -289,6 +265,20 @@ public:
     std::array<AddressingMode_f, 0x100> modes;
 
     CircularQueue<MicroOp_f, 64> operations;
+    void Cycle();
+    void Cycle(const MicroOp_f & op);
+    void Cycle(const MicroOp_f & op1,
+               const MicroOp_f & op2);
+    void Cycle(const MicroOp_f & op1,
+               const MicroOp_f & op2,
+               const MicroOp_f & op3);
+    void Start(const MicroOp_f & op);
+    void Start(const MicroOp_f & op1,
+               const MicroOp_f & op2);
+    void Start(const MicroOp_f & op1,
+               const MicroOp_f & op2,
+               const MicroOp_f & op3);
+    void Finish(const MicroOp_f & op);
 
     Word PC;
     Byte S, A, X, Y;
@@ -298,18 +288,11 @@ public:
 
     size_t Ticks;
 
-    bool CheckInterrupts = true;
-    bool IRQ;
-    bool NMI;
-
     bool NMIEdge;
     bool NMIFlipFlop;
     bool IRQLevel;
 
-    Word vector;
 
-    Word address;
-    Byte operand;
 
     inline void branch_fix_PCH();
     void Branch(const bool condition);
@@ -324,36 +307,28 @@ public:
         const auto r = lhs - rhs;
         C = (r >= 0) ? 1 : 0;
         Z = (r == 0) ? 1 : 0;
-        N = (IsBitSet<BYTE_SIGN_BIT>(r)) ? 1 : 0;
+        N = Bit<Neg>(r);
     }
 
-    void ROLwithFlag(Byte & value, const Flag flag) {
+    void ROLc(Byte & value, const Flag flag) {
         C = Bit<Left>(value);
         Transfer((value << 1) | Mask<Right>(flag), value);
     }
 
-    void RORwithFlag(Byte & value, const Flag flag) {
+    void RORc(Byte & value, const Flag flag) {
         C = Bit<Right>(value);
         Transfer((value >> 1) | Mask<Left>(flag), value);
     }
 
     void AddWithCarry(const Byte & value) {
         Word a = A + value + C;
-        C = (a > BYTE_MASK) ? 1 : 0;
+        C = Bit<Right>(GetHi(a));
         V = ~Bit<Neg>(A ^ value) & Bit<Neg>(A ^ a);
-        Transfer(a & BYTE_MASK, A);
-    }
-    void SubstractWithCarry(const Byte & value) {
-        Word a = A - value - (1 - C);              // Word a = A + ~value + C
-        C = (a > BYTE_MASK) ? 0 : 1;               // C = ~((a > BYTE_MASK) ? 1 : 0);
-        V = Bit<Neg>(A ^ value) & Bit<Neg>(A ^ a); // V = ~Bit<Neg>(A ^ ~value) & Bit<Neg>(A ^ a);
-        Transfer(a & BYTE_MASK, A);                // Transfer(a & BYTE_MASK, A);
+        Transfer(Byte(a), A);
     }
 
     Byte opcode;
-    Flag Pflag;
     bool Halted = false;
-    bool AddressWasFixed = false;
 
     inline void ModeImplied();
     inline void ModeImmediate();
@@ -385,21 +360,20 @@ public:
     inline void ModeIndirectYRMW();
     inline void ModeIndirectYWrite();
 
+    inline void ModeReturn(const bool & pullP, const bool & incPC);
     inline void ModePush();
     inline void ModePull();
     inline void ModeJump();
     inline void ModeJumpIndirect();
-    inline void ModeBRK();
     inline void ModeRTI();
     inline void ModeRTS();
     inline void ModeJSR();
     
     bool ProcessOpcode() {
         AddressingMode_f mode = modes[opcode];
-        (this->*mode)();
         
-        operations.push(uOpCode[opcode]);
-        operations.push(&Ricoh_RP2A03::end_cycle);
+        (this->*mode)();
+        Finish(uOpCode[opcode]);
         
         return true;
     }
@@ -410,8 +384,7 @@ public:
     bool INSTR = false;
     void ConsumeOne() {
         if (operations.empty()) {
-            operations.push(&Ricoh_RP2A03::fetch_opcode);
-            operations.push(&Ricoh_RP2A03::end_cycle);
+            Cycle(&Ricoh_RP2A03::fetch_opcode);
         }
         const auto op = operations.pop();
         (this->*op)();
@@ -423,13 +396,17 @@ public:
     int dmaTicks;
 
     bool CycleActive;
+    void SetStatus(const Byte & status);
+    Byte GetStatus(const Flag B) const;
 private:
     void Push(const Byte & value);
     Byte Pull();
+
 public:
+    bool IRQ;
+    bool NMI;
+
     explicit Ricoh_RP2A03();
-    void SetStatus(const Byte & status);
-    Byte GetStatus(const Flag B) const;
     void DMA(const Byte & fromHi, Byte * to, const Byte & offset);
     void Phi1();
     void Phi2();
