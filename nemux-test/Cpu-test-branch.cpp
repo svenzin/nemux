@@ -22,7 +22,7 @@ class CpuTestBranch : public ::testing::Test {
 public:
     static const Word BASE_PC = 10;
     static const int BASE_TICKS = 10;
-    static const int OFFSET_FROM_PREFETCH_NEXT = 1;
+    static const int OFFSET_FROM_PREFETCH_NEXT = 0;
 
     CpuTestBranch() : cpu("6502", &memory) {
         cpu.PC = BASE_PC;

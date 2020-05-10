@@ -100,7 +100,7 @@ void Ricoh_RP2A03::ModeImmediate() {
           M(increment_PC));
 }
 void Ricoh_RP2A03::ModeRelative() {
-    Cycle(M(read_PC_to_operand),
+    /*Cycle*/Start(M(read_PC_to_operand),
           M(increment_PC));
 }
 
@@ -188,7 +188,6 @@ void Ricoh_RP2A03::ModeAbsoluteXWrite() {
     detailAbsoluteX();
     Cycle(M(read_address_to_operand),
           M(fix_indexed_address));
-    Start(M(end_cycle));
 }
 
 void Ricoh_RP2A03::detailAbsoluteY() {
@@ -294,18 +293,24 @@ void Ricoh_RP2A03::ModeJSR() {
     Start(M(read_PC_to_addressHi));
 }
 
-void Ricoh_RP2A03::trigger_interrupt(const Word & interruptVector, const bool & isBRK) {
+void Ricoh_RP2A03::trigger_interrupt(const Word & interruptVector,
+                                     const bool & isBRK,
+                                     const bool & isRST) {
     vector = interruptVector;
     Pflag =  isBRK ? 1 : 0;
     CheckInterrupts = false;
-    if (isBRK)
-        Cycle(M(read_PC_to_operand),
-              M(increment_PC));
-    else
+    if (!isBRK)
         Cycle(M(read_PC_to_operand));
-    Cycle(M(push_PCH));
-    Cycle(M(push_PCL));
-    Cycle(M(push_P));
+    if (isRST) {
+        Cycle(M(decrement_S));
+        Cycle(M(decrement_S));
+        Cycle(M(decrement_S));
+    }
+    else {
+        Cycle(M(push_PCH));
+        Cycle(M(push_PCL));
+        Cycle(M(push_P));
+    }
     Cycle(M(SEI),
           M(read_vector_to_PCL));
     Cycle(M(read_vector_to_PCH));
@@ -317,11 +322,13 @@ inline void Ricoh_RP2A03::ModeReturn(const bool & pullP, const bool & incPC) {
     if (pullP)
         Cycle(M(pull_P));
     Cycle(M(pull_PCL));
-    if (incPC)
-        Start(M(pull_PCH),
-              M(increment_PC));
-    else
+    if (incPC) {
+        Cycle(M(pull_PCH));
+        Start(M(increment_PC));
+    }
+    else {
         Start(M(pull_PCH));
+    }
 }
 void Ricoh_RP2A03::ModeRTI() { ModeReturn(true, false); }
 void Ricoh_RP2A03::ModeRTS() { ModeReturn(false, true); }
@@ -394,7 +401,6 @@ Ricoh_RP2A03::Ricoh_RP2A03()
         modes[opcode] = GetAddressingMode(opcode);
     }
     // Set up special instructions
-    modes[0x00] = M(ModeImplied);      // BRK
     modes[0x20] = M(ModeJSR);          // JSR
     modes[0x40] = M(ModeRTI);          // RTI
     modes[0x60] = M(ModeRTS);          // RTS
@@ -445,6 +451,11 @@ void Ricoh_RP2A03::Phi2() {
         IRQLevel = IRQ;
     }
     NMIEdge = NMI;
+}
+
+void Ricoh_RP2A03::Reset() {
+    //operations.clear();
+    trigger_interrupt(VECTOR_RST, false, true);
 }
 
 void Ricoh_RP2A03::DMA(const Byte & fromHi, Byte * to, const Byte & offset) {

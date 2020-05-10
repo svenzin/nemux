@@ -20,6 +20,28 @@ using namespace Addressing;
 
 static const bool USE_RP2A03 = true;
 static int nmic = 0;
+static void Write2A03State(Cpu& cpu, Ricoh_RP2A03& rp2a03) {
+    rp2a03.Halted = !cpu.IsAlive;
+    rp2a03.PC = cpu.PC;
+    rp2a03.S = cpu.SP;
+    rp2a03.A = cpu.A;
+    rp2a03.X = cpu.X;
+    rp2a03.Y = cpu.Y;
+    rp2a03.SetStatus(cpu.GetStatus());
+    rp2a03.Map = cpu.Map;
+    rp2a03.Ticks = cpu.Ticks;
+}
+static void Read2A03State(Ricoh_RP2A03& rp2a03, Cpu& cpu) {
+    cpu.Ticks = rp2a03.Ticks;
+    if (rp2a03.INSTR) cpu.CurrentTick = rp2a03.Ticks;
+    cpu.PC = rp2a03.PC;
+    cpu.SP = rp2a03.S;
+    cpu.A = rp2a03.A;
+    cpu.X = rp2a03.X;
+    cpu.Y = rp2a03.Y;
+    cpu.SetStatus(rp2a03.GetStatus(0));
+    cpu.IsAlive = !rp2a03.Halted;
+}
 
 Word Cpu::ReadWordAt(const Word address) const {
     const auto lo = ReadByteAt(address);
@@ -408,7 +430,6 @@ void Cpu::Tick() {
         static bool nmiDelayed4 = false;
         if (m != nullptr) {
             if (!nmiDelayed4 && nmiDelayed3) {
-                std::cout << "NMI " << ++nmic << std::endl;
                 TriggerNMI();
             }
             nmiDelayed4 = nmiDelayed3;
@@ -420,7 +441,6 @@ void Cpu::Tick() {
             if (I == 0 && (
                 m->APU->Frame.Interrupt ||
                 m->APU->DMC1.Output.DMA.Interrupt)) {
-                std::cout << "IRQ" << std::endl;
                 TriggerIRQ();
             }
 
@@ -443,16 +463,7 @@ void Cpu::Tick() {
         }
     }
     else {
-        rp2a03.Halted = !IsAlive;
-        rp2a03.PC = PC;
-        rp2a03.S = SP;
-        rp2a03.A = A;
-        rp2a03.X = X;
-        rp2a03.Y = Y;
-        rp2a03.SetStatus(GetStatus());
-        rp2a03.Map = Map;
-        rp2a03.Ticks = Ticks;
-
+        Write2A03State(*this, rp2a03);
         rp2a03.Phi1();
         static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> *>(Map);
         if (m != nullptr) {
@@ -461,16 +472,7 @@ void Cpu::Tick() {
                 && (m->APU->Frame.Interrupt || m->APU->DMC1.Output.DMA.Interrupt);
         }
         rp2a03.Phi2();
-        
-        Ticks = rp2a03.Ticks;
-        if (rp2a03.INSTR) CurrentTick = Ticks;
-        PC = rp2a03.PC;
-        SP = rp2a03.S;
-        A = rp2a03.A;
-        X = rp2a03.X;
-        Y = rp2a03.Y;
-        SetStatus(rp2a03.GetStatus(rp2a03.Pflag));
-        IsAlive = !rp2a03.Halted;
+        Read2A03State(rp2a03, *this);
     }
 }
 
@@ -635,14 +637,22 @@ void Cpu::PowerUp() {
     PC = ReadWordAt(VectorRST);
 }
 void Cpu::Reset() {
-    PendingInterrupt = InterruptType::None;
-    Interrupt(0, VectorRST, true);
+    if (USE_RP2A03) {
+        rp2a03.Reset();
+    }
+    else {
+        std::cout << "RST" << std::endl;
+        PendingInterrupt = InterruptType::None;
+        Interrupt(0, VectorRST, true);
+    }
 }
 void Cpu::NMI() {
+    std::cout << "NMI " << nmic++ << std::endl;
     PendingInterrupt = InterruptType::None;
     Interrupt(0, VectorNMI);
 }
 void Cpu::IRQ() {
+    std::cout << "IRQ" << std::endl;
     PendingInterrupt = InterruptType::None;
     Interrupt(0, VectorIRQ);
 }
@@ -663,26 +673,9 @@ void Cpu::DMA(const Byte page,
     std::array<Byte, 0x0100> & target,
     const Byte offset) {
     if (USE_RP2A03) {
-        rp2a03.Halted = !IsAlive;
-        rp2a03.PC = PC;
-        rp2a03.S = SP;
-        rp2a03.A = A;
-        rp2a03.X = X;
-        rp2a03.Y = Y;
-        rp2a03.SetStatus(GetStatus());
-        rp2a03.Map = Map;
-        rp2a03.Ticks = Ticks;
-
+        Write2A03State(*this, rp2a03);
         rp2a03.DMA(page, target.data(), offset);
-
-        Ticks = rp2a03.Ticks;
-        PC = rp2a03.PC;
-        SP = rp2a03.S;
-        A = rp2a03.A;
-        X = rp2a03.X;
-        Y = rp2a03.Y;
-        SetStatus(rp2a03.GetStatus(rp2a03.Pflag));
-        IsAlive = !rp2a03.Halted;
+        Read2A03State(rp2a03, *this);
     }
     else {
         const Word base = page << BYTE_WIDTH;
@@ -697,15 +690,7 @@ void Cpu::DMA(const Byte page,
 }
 void Cpu::Execute(const Opcode &op) {
     if (USE_RP2A03) {
-        rp2a03.Halted = !IsAlive;
-        rp2a03.PC = PC;
-        rp2a03.S = SP;
-        rp2a03.A = A;
-        rp2a03.X = X;
-        rp2a03.Y = Y;
-        rp2a03.SetStatus(GetStatus());
-        rp2a03.Map = Map;
-        rp2a03.Ticks = Ticks;
+        Write2A03State(*this, rp2a03);
 
         int hexa;
         for (hexa = 0; hexa < 0x100; ++hexa) {
@@ -721,14 +706,7 @@ void Cpu::Execute(const Opcode &op) {
             rp2a03.Phi2();
         } while (!rp2a03.INSTR);
         
-        Ticks = rp2a03.Ticks;
-        PC = rp2a03.PC;
-        SP = rp2a03.S;
-        A = rp2a03.A;
-        X = rp2a03.X;
-        Y = rp2a03.Y;
-        SetStatus(rp2a03.GetStatus(rp2a03.Pflag));
-        IsAlive = !rp2a03.Halted;
+        Read2A03State(rp2a03, *this);
         return;
     }
     if (!IsAlive) return;

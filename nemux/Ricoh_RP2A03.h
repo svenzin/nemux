@@ -3,6 +3,7 @@
 
 #include "Types.h"
 #include "MemoryMap.h"
+#include "CircularQueue.h"
 
 #include <string>
 #include <vector>
@@ -11,49 +12,22 @@
 
 class Ricoh_RP2A03 {
 
-    template <typename _T, size_t _Size>
-    class CircularQueue {
-        std::array<_T, _Size> items;
-        size_t head, tail;
-    
-    public:
-        explicit CircularQueue() : head(0), tail(0) {}
-        
-        bool empty() const {
-            return head == tail;
-        }
 
-        void push(const _T & value) {
-            items[head] = value;
-            head = (head + 1) % _Size;
-        }
+    Byte GetLo(const Word & w) {
+        return Byte(w);
+    }
 
-        _T pop() {
-            const _T value = items[tail];
-            tail = (tail + 1) % _Size;
-            return value;
-        }
+    Byte GetHi(const Word & w) {
+        return Byte(w >> BYTE_WIDTH);
+    }
 
-        void push_front(const _T & value) {
-            tail = (tail - 1 + _Size) % _Size;
-            items[tail] = value;
-        }
+    void SetLo(Word & w, const Byte & lo) {
+        w = (w & WORD_HI_MASK) | lo;
+    }
 
-        _T first() const {
-            return items[tail];
-        }
-
-        _T last() const {
-            return items[head];
-        }
-
-        size_t size() const { return (head - tail + _Size) % _Size; }
-    };
-
-    static constexpr Word VECTOR_NMI = 0xFFFA;
-    static constexpr Word VECTOR_RST = 0xFFFC;
-    static constexpr Word VECTOR_IRQ = 0xFFFE;
-    static constexpr Word STACK_PAGE = 0x0100;
+    void SetHi(Word & w, const Byte & hi) {
+        w = (hi << BYTE_WIDTH) | Byte(w);
+    }
 
     enum Bits : size_t {
         Car, Zer, Int, Dec, Brk, Unu, Ovf, Neg,
@@ -66,18 +40,13 @@ class Ricoh_RP2A03 {
         Map->SetByteAt(address, value);
     }
 
-    void SetLo(Word & w, const Byte & lo) { w = (w & WORD_HI_MASK) | lo; }
-    void SetHi(Word & w, const Byte & hi) { w = (hi << BYTE_WIDTH) | Byte(w); }
-    Byte GetLo(const Word & w) { return Byte(w); }
-    Byte GetHi(const Word & w) { return Byte(w >> BYTE_WIDTH); }
-    
     // µops state
+    Word vector;
     Word address;
+    Byte index;
     Byte operand;
     Flag Pflag;
-    Byte index;
     bool AddressWasFixed = false;
-    Word vector;
     bool CheckInterrupts = true;
 
     inline void increment_PC()                        { ++PC; }
@@ -101,22 +70,24 @@ class Ricoh_RP2A03 {
     inline void read_vector_to_PCH()                  { SetHi(PC, GetByteAt(vector + 1)); }
     inline void read_address_and_operand_to_address() { SetLo(address, address + 1); SetHi(address, GetByteAt(address)); SetLo(address, operand); }
     inline void move_address_to_operand()             { operand = address; }
+    inline void decrement_S()                         { --S; }
     
     inline void r_m_w(); // Read-Modify-Write
 
     inline bool interrupted() {
         // If an interrupt sequence was running (CheckInterrupts == false)
         // do not queue another interrupt but let one instruction run
+        static int nmic = 0;
         if (CheckInterrupts) {
             if (NMIFlipFlop) {
-                //std::cout << std::endl << "NMI" << std::endl;
+                //std::cout << Id << " NMI " << nmic++ << std::endl;
                 NMIFlipFlop = false;
-                trigger_interrupt(VECTOR_NMI, false);
+                trigger_interrupt(VECTOR_NMI, false, false);
                 return true;
             }
             if (IRQLevel) {
-                //std::cout << "IRQ" << std::endl;
-                trigger_interrupt(VECTOR_IRQ, false);
+                //std::cout << Id << " IRQ" << std::endl;
+                trigger_interrupt(VECTOR_IRQ, false, false);
                 return true;
             }
         }
@@ -147,7 +118,7 @@ class Ricoh_RP2A03 {
     
     inline void JMP() { PC = address; }
 
-    inline void BRK() { trigger_interrupt(VECTOR_IRQ, true); }
+    inline void BRK() { trigger_interrupt(VECTOR_IRQ, true, false); }
     inline void JSR() { JMP(); }
     inline void RTI() {}
     inline void RTS() {}
@@ -280,13 +251,6 @@ public:
                const MicroOp_f & op3);
     void Finish(const MicroOp_f & op);
 
-    Word PC;
-    Byte S, A, X, Y;
-    Flag N, V, D, I, Z, C;
-
-    MemoryMap * Map;
-
-    size_t Ticks;
 
     bool NMIEdge;
     bool NMIFlipFlop;
@@ -378,7 +342,9 @@ public:
         return true;
     }
 
-    inline void trigger_interrupt(const Word & interruptVector, const bool & isBRK);
+    inline void trigger_interrupt(const Word & interruptVector,
+                                  const bool & isBRK,
+                                  const bool & isRST);
 
     inline void do_DMA();
     bool INSTR = false;
@@ -396,17 +362,36 @@ public:
     int dmaTicks;
 
     bool CycleActive;
-    void SetStatus(const Byte & status);
-    Byte GetStatus(const Flag B) const;
+
 private:
-    void Push(const Byte & value);
     Byte Pull();
+    void Push(const Byte & value);
+
 
 public:
+    // CPU state
+    Byte GetStatus(const Flag B) const;
+    void SetStatus(const Byte & status);
+    size_t Ticks;
+    Word PC;
+    Byte S, A, X, Y;
+    Flag N, V, D, I, Z, C;
+
+    static constexpr char * Id = "2A03";
+    static constexpr char * Name = "Ricoh RP2A03";
+
+    static constexpr Word VECTOR_NMI = 0xFFFA;
+    static constexpr Word VECTOR_RST = 0xFFFC;
+    static constexpr Word VECTOR_IRQ = 0xFFFE;
+    static constexpr Word STACK_PAGE = 0x0100;
+
     bool IRQ;
     bool NMI;
 
+    MemoryMap * Map;
+
     explicit Ricoh_RP2A03();
+    void Reset();
     void DMA(const Byte & fromHi, Byte * to, const Byte & offset);
     void Phi1();
     void Phi2();
