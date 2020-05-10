@@ -13,6 +13,8 @@
 #include "Palette.h"
 #include "MemoryMap.h"
 
+#include "Ricoh_RP2C02.h"
+
 #include <array>
 #include <iostream>
 #include <iomanip>
@@ -22,6 +24,8 @@ static constexpr size_t FRAME_HEIGHT = 240;
 static constexpr size_t VIDEO_WIDTH = 341;
 static constexpr size_t VIDEO_HEIGHT = 262;
 static constexpr size_t VIDEO_SIZE = VIDEO_WIDTH * VIDEO_HEIGHT;
+
+static const bool USE_RP2C02 = true;
 
 class Ppu {
 public:
@@ -71,6 +75,10 @@ public:
         SpriteHeight     = IsBitSet<5>(value) ?     16 :      8;
         //Mode             = IsBitSet<6>(value) ? Master :  Slave;
         NMIOnVBlank      = Bit<7>(value);
+
+        if (USE_RP2C02) {
+            rp2c02.Write2000(value);
+        }
     }
 
     void WriteControl2(Byte value) {
@@ -82,6 +90,11 @@ public:
         ShowBackground = IsBitSet<3>(value);
         ShowSprite     = IsBitSet<4>(value);
         ColourIntensity = ((value >> 5) & 0x07);
+
+        if (USE_RP2C02) {
+            rp2c02.ShowBackground = ShowBackground;
+            rp2c02.ShowSprite = ShowSprite;
+        }
     }
 
     Byte ReadStatus() {
@@ -93,6 +106,8 @@ public:
         VBlank = false;
         
         StatusReadOn = FrameTicks;
+
+        if (USE_RP2C02) rp2c02.Read2002();
 
         //WriteHiBus(status);
         return status;
@@ -127,6 +142,8 @@ public:
             ScrollY = value;
         }
         Latch.Step();
+
+        if (USE_RP2C02) rp2c02.Write2005(value);
     }
 
     void WriteAddress(Byte value) {
@@ -140,6 +157,8 @@ public:
             Address = (Address & WORD_HI_MASK) | value;
         }
         Latch.Step();
+
+        if (USE_RP2C02) rp2c02.Write2006(value);
     }
 
     Byte ReadData() {
@@ -153,6 +172,7 @@ public:
         }
         Address = (Address + AddressIncrement) & 0x3FFF;
         Bus.Write(data);
+        if (USE_RP2C02) rp2c02.Touch2007();
         return data;
     }
 
@@ -165,6 +185,7 @@ public:
             Map->SetByteAt(Address, value);
         }
         Address = (Address + AddressIncrement) & 0x3FFF;
+        if (USE_RP2C02) rp2c02.Touch2007();
     }
 
     Byte SpriteMultiplexer(Byte background, Byte sprite, bool isBehind) const {
@@ -204,8 +225,18 @@ public:
     void Tick() {
         ++Bus.Ticks;
         
-        const auto y = FrameTicks / VIDEO_WIDTH;
-        const auto x = FrameTicks % VIDEO_WIDTH;
+        size_t x, y;
+        if (USE_RP2C02) {
+            rp2c02.Map = Map;
+            rp2c02.Tick();
+            y = rp2c02.iy; // FrameTicks / VIDEO_WIDTH;
+            x = rp2c02.ix; // FrameTicks % VIDEO_WIDTH;
+        }
+        else {
+            y = FrameTicks / VIDEO_WIDTH;
+            x = FrameTicks % VIDEO_WIDTH;
+        }
+
         //if ((FrameCount%2)==0)
         if ((y < FRAME_HEIGHT) && (x < FRAME_WIDTH)) {
             if (x == 0) {
@@ -227,21 +258,27 @@ public:
             auto fg = 0;
             bool isbg = true;
             if (ShowBackground) {
-                auto tx = (x + ScrollX) / 8; const auto xx = (x + ScrollX) % 8;
-                auto ty = (y + ScrollY) / 8; const auto yy = (y + ScrollY) % 8;
-                auto nt = NameTable;
-                if (tx >= 32) { tx -= 32; nt ^= 0x0400; }
-                if (ty >= 30) { ty -= 30; nt ^= 0x0800; }
-                const auto td = Map->GetByteAt(nt + 32 * ty + tx);
-                const auto taddr = BackgroundTable + 16 * td + yy;
-                auto b = Map->GetByteAt(taddr);
-                auto v = (b >> (7 - xx)) & 0x01;
-                b = Map->GetByteAt(taddr + 8);
-                v += ((b >> (7 - xx)) & 0x01) << 1;
-                const auto atx = tx / 4; const auto aty = ty / 4;
-                const auto a = Map->GetByteAt(nt + 0x03C0 + 8 * aty + atx);
-                v += ((a >> (2 * (tx / 2 % 2) + 4 * (ty / 2 % 2))) & 0x3) << 2;
-                bg = v;
+                if (USE_RP2C02) {
+                    bg = rp2c02.bBG;
+                }
+                else {
+                    Byte td, a;
+                    auto tx = (x + ScrollX) / 8; const auto xx = (x + ScrollX) % 8;
+                    auto ty = (y + ScrollY) / 8; const auto yy = (y + ScrollY) % 8;
+                    auto nt = NameTable;
+                    if (tx >= 32) { tx -= 32; nt ^= 0x0400; }
+                    if (ty >= 30) { ty -= 30; nt ^= 0x0800; }
+                    td = Map->GetByteAt(nt + 32 * ty + tx);
+                    const auto taddr = BackgroundTable + 16 * td + yy;
+                    auto b = Map->GetByteAt(taddr);
+                    auto v = (b >> (7 - xx)) & 0x01;
+                    b = Map->GetByteAt(taddr + 8);
+                    v += ((b >> (7 - xx)) & 0x01) << 1;
+                    const auto atx = tx / 4; const auto aty = ty / 4;
+                    a = Map->GetByteAt(nt + 0x03C0 + 8 * aty + atx);
+                    v += ((a >> (2 * (tx / 2 % 2) + 4 * (ty / 2 % 2))) & 0x3) << 2;
+                    bg = v;
+                }
             }
             if (ShowSprite) {
                 for (auto i = 0; i < sprites.size(); ++i) {
@@ -303,26 +340,39 @@ public:
         vblDelayed1 = VBlank;
 
         const bool SuppressVBlank = (StatusReadOn == VBL_START);
-        if (FrameTicks == VBL_START) VBlank = !SuppressVBlank;
-        if (FrameTicks == VBL_STOP) VBlank = false;
-
+        if (USE_RP2C02) {
+            if (FrameTicks == VBL_START) VBlank = rp2c02.VBlank && !SuppressVBlank;
+            if (FrameTicks == VBL_STOP) VBlank = rp2c02.VBlank;
+        }
+        else {
+            if (FrameTicks == VBL_START) VBlank = !SuppressVBlank;
+            if (FrameTicks == VBL_STOP) VBlank = false;
+        }
         NMIActive = (NMIOnVBlank && vblDelayed2);
 
         static const auto SPRITE_ZERO_HIT_RESET = 261 * 341;
         if (FrameTicks == SPRITE_ZERO_HIT_RESET) SpriteZeroHit = false;
         
-        ++FrameTicks;
-        if ((FrameCount % 2 == 1)
-            && (FrameTicks == (VIDEO_SIZE - 2))
-            && (ShowBackground || ShowSprite)
-            )
+
+        if (USE_RP2C02) {
+            FrameTicks = rp2c02.Ticks;
+            FrameCount = rp2c02.Frame;
+            if (FrameTicks == 0) StatusReadOn = 0;
+        }
+        else {
             ++FrameTicks;
+            if ((FrameCount % 2 == 1)
+                && (FrameTicks == (VIDEO_SIZE - 2))
+                && (ShowBackground || ShowSprite)
+                ) rp2c02.Tick();
+                ++FrameTicks;
 
-        if (FrameTicks == VIDEO_SIZE) {
-            FrameTicks = 0;
-            ++FrameCount;
+            if (FrameTicks == VIDEO_SIZE) {
+                FrameTicks = 0;
+                ++FrameCount;
 
-            StatusReadOn = 0;
+                StatusReadOn = 0;
+            }
         }
     }
 
@@ -423,6 +473,8 @@ public:
     std::array<Byte, VIDEO_SIZE> Frame;
 
     size_t StatusReadOn;
+
+    Ricoh_RP2C02 rp2c02;
 };
 
 #endif /* PPU_H_ */
