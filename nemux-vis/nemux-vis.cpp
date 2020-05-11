@@ -203,7 +203,7 @@ Uint32 RGB(float r, float g, float b) {
     return RGB(Uint8(255 * r), Uint8(255 * g), Uint8(255 * b));
 }
 
-std::array<Uint32, 0x40> palette{
+std::array<Uint32, 0x40> base_palette{
     RGB( 84,  84,  84), RGB(  0,  30, 116), RGB(  8,  16, 144), RGB( 48,   0, 136),
     RGB( 68,   0, 100), RGB( 92,   0,  48), RGB( 84,   4,   0), RGB( 60,  24,   0),
     RGB( 32,  42,   0), RGB(  8,  58,   0), RGB(  0,  64,   0), RGB(  0,  60,   0),
@@ -221,6 +221,21 @@ std::array<Uint32, 0x40> palette{
     RGB(204, 210, 120), RGB(180, 222, 120), RGB(168, 226, 144), RGB(152, 226, 180),
     RGB(160, 214, 228), RGB(160, 162, 160), RGB(  0,   0,   0), RGB(  0,   0,   0)
 };
+std::array<Uint32, 0x200> palette;
+
+void BuildPalette() {
+    for (int i = 0; i < 0x40; ++i) {
+        const auto c = base_palette[i];
+        palette[0x000 + i] = c;
+        palette[0x040 + i] = 0xFFE0E0FF & c;
+        palette[0x080 + i] = 0xE0FFE0FF & c;
+        palette[0x0C0 + i] = 0xFFFFE0FF & c;
+        palette[0x100 + i] = 0xE0E0FFFF & c;
+        palette[0x140 + i] = 0xFFE0FFFF & c;
+        palette[0x180 + i] = 0xE0FFFFFF & c;
+        palette[0x1C0 + i] = 0xFFFFFFFF & c;
+    }
+}
 
 struct SDL {
     struct Window {
@@ -431,6 +446,8 @@ struct Fps {
 };
 
 int main(int argc, char ** argv) {
+    BuildPalette();
+
     std::vector<std::string> positionals;
     std::set<Options> options;
     std::string recordFilename;

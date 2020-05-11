@@ -326,7 +326,7 @@ public:
                 }
             }
             const auto ci = SpriteMultiplexer(bg, fg, isbg);
-            Frame[VIDEO_WIDTH * y + x] = PpuPalette.ReadAt(ci);
+            Frame[VIDEO_WIDTH * y + x] = (ColourIntensity << 6) | PpuPalette.ReadAt(ci);
         }
 
         //// NMI is activated on tick 1 (second tick) of scanline 241
@@ -474,7 +474,7 @@ public:
 
     size_t FrameTicks;
     size_t FrameCount;
-    std::array<Byte, VIDEO_SIZE> Frame;
+    std::array<Word, VIDEO_SIZE> Frame;
 
     size_t StatusReadOn;
 
