@@ -37,12 +37,26 @@ public:
         return (b * 0x0202020202ULL & 0x010884422010ULL) % 1023;
     }
 
+    Byte Backdrop() const {
+        if (RenderingEnabled()) return 0;
+        if (v < 0x3F00) return 0;
+        return (v & 0x00FF);
+    }
+
+    bool RenderingEnabled() const { return ShowBackground || ShowSprite; }
+    
+    // Control 1 register
     void Write2000(const Byte & value) {
         VramIncrement = IsBitSet<2>(value) ? 0x0020 : 0x0001;
         SpriteTable = IsBitSet<3>(value) ? 0x1000 : 0x0000;
         BackgroundTable = IsBitSet<4>(value) ? 0x1000 : 0x0000;
         SpriteHeight = IsBitSet<5>(value) ? 16 : 8;
         SetNametable(t, value);
+    }
+    // Control 2 register
+    void Write2001(const Byte & value) {
+        ShowBackground = IsBitSet<3>(value);
+        ShowSprite = IsBitSet<4>(value);
     }
     void Read2002() {
         w = 0;
@@ -77,40 +91,48 @@ public:
     void HInc() {
         LatchBG();
 
-        if (GetCoarseX(v) == 31) {
-            SetCoarseX(v, 0);
-            SetNTX(v, GetNTX(v) + 1);
-        }
-        else {
-            SetCoarseX(v, GetCoarseX(v) + 1);
+        if (RenderingEnabled()) {
+            if (GetCoarseX(v) == 31) {
+                SetCoarseX(v, 0);
+                SetNTX(v, GetNTX(v) + 1);
+            }
+            else {
+                SetCoarseX(v, GetCoarseX(v) + 1);
+            }
         }
     }
     void HReset() {
-        SetCoarseX(v, GetCoarseX(t));
-        SetNTX(v, GetNTX(t));
+        if (RenderingEnabled()) {
+            SetCoarseX(v, GetCoarseX(t));
+            SetNTX(v, GetNTX(t));
+        }
     }
     void VInc() {
-        if (GetFineY(v) == 7) {
-            SetFineY(v, 0);
-            if (GetCoarseY(v) == 29) {
-                SetCoarseY(v, 0);
-                SetNTY(v, GetNTY(v) + 1);
-            }
-            else if (GetCoarseY(v) == 31) {
-                SetCoarseY(v, 0);
+        if (RenderingEnabled()) {
+            if (GetFineY(v) == 7) {
+                SetFineY(v, 0);
+                if (GetCoarseY(v) == 29) {
+                    SetCoarseY(v, 0);
+                    SetNTY(v, GetNTY(v) + 1);
+                }
+                else if (GetCoarseY(v) == 31) {
+                    SetCoarseY(v, 0);
+                }
+                else {
+                    SetCoarseY(v, GetCoarseY(v) + 1);
+                }
             }
             else {
-                SetCoarseY(v, GetCoarseY(v) + 1);
+                SetFineY(v, GetFineY(v) + 1);
             }
-        }
-        else {
-            SetFineY(v, GetFineY(v) + 1);
         }
     }
     void VReset() {
-        SetCoarseY(v, GetCoarseY(t));
-        SetFineY(v, GetFineY(t));
-        SetNTY(v, GetNTY(t));
+        if (RenderingEnabled()) {
+            SetCoarseY(v, GetCoarseY(t));
+            SetFineY(v, GetFineY(t));
+            SetNTY(v, GetNTY(t));
+        }
     }
 
     void ReadNT() {
@@ -139,54 +161,62 @@ public:
         attrHi |= IsBitSet<1>(b) ? 0x00FF : 0x0000;
     }
     void BuildBG() {
-        const auto bitBGLo = (patternLo >> (15 - x)) & 0x01;
-        const auto bitBGHi = (patternHi >> (15 - x)) & 0x01;
-        const auto bitATLo = (attrLo >> (15 - x)) & 0x01;
-        const auto bitATHi = (attrHi >> (15 - x)) & 0x01;
-        bBG = bitBGLo | (bitBGHi << 1) | (bitATLo << 2) | (bitATHi << 3);
+        bBG = 0;
+        if (ShowBackground) {
+            const auto bitBGLo = (patternLo >> (15 - x)) & 0x01;
+            const auto bitBGHi = (patternHi >> (15 - x)) & 0x01;
+            const auto bitATLo = (attrLo >> (15 - x)) & 0x01;
+            const auto bitATHi = (attrHi >> (15 - x)) & 0x01;
+            bBG = bitBGLo | (bitBGHi << 1) | (bitATLo << 2) | (bitATHi << 3);
 
-        patternLo <<= 1;
-        patternHi <<= 1;
-        attrLo <<= 1;
-        attrHi <<= 1;
+            patternLo <<= 1;
+            patternHi <<= 1;
+            attrLo <<= 1;
+            attrHi <<= 1;
+        }
     }
     void BuildSprite() {
         bSprite = 0;
-        for (int n = 7; n >= 0; --n) {
-            if (Sprites[n].X > 0) {
-                --Sprites[n].X;
-            }
-            else if (Sprites[n].Width > 0) {
-                if ((Bit<0>(Sprites[n].Lo) != 0) || (Bit<0>(Sprites[n].Hi) != 0)) {
-                    bSprite = (Sprites[n].Lo & 0x01)
-                        | ((Sprites[n].Hi & 0x01) << 1)
-                        | ((Sprites[n].Attributes & 0x03) << 2)
-                        | SPRITE_PALETTE;
-                    BGPriority = IsBitSet<5>(Sprites[n].Attributes);
-                    if (n == 0) SpriteZeroHit = SpriteZeroHit || SpriteHit(bBG, bSprite, ix);
+        if (ShowSprite) {
+            for (int n = 7; n >= 0; --n) {
+                if (Sprites[n].X > 0) {
+                    --Sprites[n].X;
                 }
-                Sprites[n].Lo >>= 1;
-                Sprites[n].Hi >>= 1;
-                --Sprites[n].Width;
+                else if (Sprites[n].Width > 0) {
+                    if ((Bit<0>(Sprites[n].Lo) != 0) || (Bit<0>(Sprites[n].Hi) != 0)) {
+                        bSprite = (Sprites[n].Lo & 0x01)
+                            | ((Sprites[n].Hi & 0x01) << 1)
+                            | ((Sprites[n].Attributes & 0x03) << 2)
+                            | SPRITE_PALETTE;
+                        BGPriority = IsBitSet<5>(Sprites[n].Attributes);
+                        if (n == 0) SpriteZeroHit = SpriteZeroHit || SpriteHit(bBG, bSprite, ix);
+                    }
+                    Sprites[n].Lo >>= 1;
+                    Sprites[n].Hi >>= 1;
+                    --Sprites[n].Width;
+                }
             }
         }
     }
     bool SpriteHit(const Byte & background, const Byte & foreground, const size_t & x) const {
         if (x == 255) return false;
-        //if (!ShowBackground || !ShowSprite) return false;
+        if (!ShowBackground || !ShowSprite) return false;
         //if ((ClipBackground || ClipSprite) && (x < 8)) return false;
 
         const bool hit = (((background & 0x03) > 0) && ((foreground & 0x03) > 0));
         return hit;
     }
 
-
-    Word BackgroundTable, SpriteTable;
+    // $2000
     Byte VramIncrement;
+    Word SpriteTable;
+    Word BackgroundTable;
+    Byte SpriteHeight;
+
+    bool SpriteZeroHit;
+
     bool ShowBackground;
     bool ShowSprite;
-    Byte SpriteHeight;
-    bool SpriteZeroHit;
 
     size_t Ticks;
     size_t Frame;
@@ -250,11 +280,11 @@ public:
                 if (ix == 256) {
                     iSprite = 0;
                     for (int n = 0; n < 64; ++n) {
-                        OAM2[4 * iSprite] = OAM[4 * n];
-                        if (OAM[4 * n] <= iy && iy < OAM[4 * n] + SpriteHeight) {
-                            OAM2[4 * iSprite + 1] = OAM[4 * n + 1];
-                            OAM2[4 * iSprite + 2] = OAM[4 * n + 2];
-                            OAM2[4 * iSprite + 3] = OAM[4 * n + 3];
+                        OAM2[4 * iSprite] = (*pOAM)[4 * n];
+                        if ((*pOAM)[4 * n] <= iy && iy < (*pOAM)[4 * n] + SpriteHeight) {
+                            OAM2[4 * iSprite + 1] = (*pOAM)[4 * n + 1];
+                            OAM2[4 * iSprite + 2] = (*pOAM)[4 * n + 2];
+                            OAM2[4 * iSprite + 3] = (*pOAM)[4 * n + 3];
                             ++iSprite;
                             if (iSprite == 8) break;
                         }
@@ -270,22 +300,20 @@ public:
                 case 4: { // Read X
                     Sprites[iSprite].X = OAM2[4 * iSprite + 3];
                     Sprites[iSprite].Width = SPRITE_WIDTH;
-                    if (Sprites[iSprite].X < 0x1FF) {
-                        if (SpriteHeight == 8) {
-                            Sprites[iSprite].aLo = SpriteTable;
-                        }
-                        else {
-                            Sprites[iSprite].aLo = 0x1000 * Bit<0>(Sprites[iSprite].Tile);
-                            Sprites[iSprite].Tile &= 0xFE;
-                        }
-                        Sprites[iSprite].aLo += 16 * Sprites[iSprite].Tile;
-                        if (SpriteHeight == 16) {
-                            if ((iy - Sprites[iSprite].Y) >= 8) {
-                                Sprites[iSprite].aLo += 16;
-                            }
-                        }
-                        Sprites[iSprite].aHi = Sprites[iSprite].aLo + 8;
+                    if (SpriteHeight == 8) {
+                        Sprites[iSprite].aLo = SpriteTable;
                     }
+                    else {
+                        Sprites[iSprite].aLo = 0x1000 * Bit<0>(Sprites[iSprite].Tile);
+                        Sprites[iSprite].Tile &= 0xFE;
+                    }
+                    Sprites[iSprite].aLo += 16 * Sprites[iSprite].Tile;
+                    if (SpriteHeight == 16) {
+                        if ((iy - Sprites[iSprite].Y) >= 8) {
+                            Sprites[iSprite].aLo += 16;
+                        }
+                    }
+                    Sprites[iSprite].aHi = Sprites[iSprite].aLo + 8;
                     break;
                 }
                 case 5: { // Read X, Read Sprite Lo
@@ -406,15 +434,18 @@ public:
     static constexpr Byte SPRITE_PALETTE = 0x10;
 
     MemoryMap * Map;
-    std::array<Byte, 0x0100> OAM;
+    std::array<Byte, 0x0100> * pOAM;
 
     explicit Ricoh_RP2C02()
         : Ticks(0), Frame(0),
         VBlank(false),
         ShowBackground(false), ShowSprite(false),
+        SpriteZeroHit(false), 
+        // $2000
         VramIncrement(1),
-        BackgroundTable(0x0000), SpriteTable(0x0000),
-        SpriteHeight(8), SpriteZeroHit(false)
+        SpriteTable(0x0000),
+        BackgroundTable(0x0000),
+        SpriteHeight(8)
     {}
 };
 

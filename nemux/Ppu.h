@@ -92,8 +92,7 @@ public:
         ColourIntensity = ((value >> 5) & 0x07);
 
         if (USE_RP2C02) {
-            rp2c02.ShowBackground = ShowBackground;
-            rp2c02.ShowSprite = ShowSprite;
+            rp2c02.Write2001(value);
         }
     }
 
@@ -162,6 +161,7 @@ public:
     }
 
     Byte ReadData() {
+        if (USE_RP2C02) Address = rp2c02.v;
         Byte data;
         if (Address >= 0x3F00) {
             data = Bus.ReadPaletteHi() | PpuPalette.ReadAt(Address - 0x3F00);
@@ -207,6 +207,7 @@ public:
                 return sprite;
             }
             else {
+                if (USE_RP2C02) return rp2c02.Backdrop();
                 return 0;
             }
         }
@@ -228,10 +229,11 @@ public:
         size_t x, y;
         if (USE_RP2C02) {
             rp2c02.Map = Map;
-            rp2c02.OAM = SprRam;
+            rp2c02.pOAM = &SprRam;
             rp2c02.Tick();
             y = rp2c02.iy; // FrameTicks / VIDEO_WIDTH;
             x = rp2c02.ix; // FrameTicks % VIDEO_WIDTH;
+            SpriteZeroHit = rp2c02.SpriteZeroHit;
         }
         else {
             y = FrameTicks / VIDEO_WIDTH;
@@ -240,29 +242,31 @@ public:
 
         //if ((FrameCount%2)==0)
         if ((y < FRAME_HEIGHT) && (x < FRAME_WIDTH)) {
-            if (x == 0) {
-                sprites.clear();
-                for (auto s = 0; s < 64; s++) {
-                    const auto sy = y - SprRam[4 * s + 0] - 1;
-                    if ((0 <= sy) && (sy < SpriteHeight)) {
-                        sprites.push_back({
-                            s,
-                            {
-                                SprRam[4 * s + 0], SprRam[4 * s + 1],
-                                SprRam[4 * s + 2], SprRam[4 * s + 3]
-                            }
-                        });
-                    }
-                }
-            }
             auto bg = 0;
             auto fg = 0;
             bool isbg = true;
-            if (ShowBackground) {
-                if (USE_RP2C02) {
-                    bg = rp2c02.bBG;
+            if (USE_RP2C02) {
+                bg = rp2c02.bBG;
+                fg = rp2c02.bSprite;
+                isbg = rp2c02.BGPriority;
+            }
+            else {
+                if (x == 0) {
+                    sprites.clear();
+                    for (auto s = 0; s < 64; s++) {
+                        const auto sy = y - SprRam[4 * s + 0] - 1;
+                        if ((0 <= sy) && (sy < SpriteHeight)) {
+                            sprites.push_back({
+                                s,
+                                {
+                                    SprRam[4 * s + 0], SprRam[4 * s + 1],
+                                    SprRam[4 * s + 2], SprRam[4 * s + 3]
+                                }
+                            });
+                        }
+                    }
                 }
-                else {
+                if (ShowBackground) {
                     Byte td, a;
                     auto tx = (x + ScrollX) / 8; const auto xx = (x + ScrollX) % 8;
                     auto ty = (y + ScrollY) / 8; const auto yy = (y + ScrollY) % 8;
@@ -280,14 +284,7 @@ public:
                     v += ((a >> (2 * (tx / 2 % 2) + 4 * (ty / 2 % 2))) & 0x3) << 2;
                     bg = v;
                 }
-            }
-            if (ShowSprite) {
-                if (USE_RP2C02) {
-                    fg = rp2c02.bSprite;
-                    isbg = rp2c02.BGPriority;
-                    SpriteZeroHit = rp2c02.SpriteZeroHit;
-                }
-                else{
+                if (ShowSprite) {
                     for (auto i = 0; i < sprites.size(); ++i) {
                         auto sprite = sprites[i];
                         auto s = std::get<0>(sprite);
@@ -358,16 +355,15 @@ public:
         }
         NMIActive = (NMIOnVBlank && vblDelayed2);
 
-        static const auto SPRITE_ZERO_HIT_RESET = 261 * 341;
-        if (FrameTicks == SPRITE_ZERO_HIT_RESET) SpriteZeroHit = false;
-        
-
         if (USE_RP2C02) {
             FrameTicks = rp2c02.Ticks;
             FrameCount = rp2c02.Frame;
             if (FrameTicks == 0) StatusReadOn = 0;
         }
         else {
+            static const auto SPRITE_ZERO_HIT_RESET = 261 * 341;
+            if (FrameTicks == SPRITE_ZERO_HIT_RESET) SpriteZeroHit = false;
+
             ++FrameTicks;
             if ((FrameCount % 2 == 1)
                 && (FrameTicks == (VIDEO_SIZE - 2))
