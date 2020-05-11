@@ -228,6 +228,7 @@ public:
         size_t x, y;
         if (USE_RP2C02) {
             rp2c02.Map = Map;
+            rp2c02.OAM = SprRam;
             rp2c02.Tick();
             y = rp2c02.iy; // FrameTicks / VIDEO_WIDTH;
             x = rp2c02.ix; // FrameTicks % VIDEO_WIDTH;
@@ -281,41 +282,48 @@ public:
                 }
             }
             if (ShowSprite) {
-                for (auto i = 0; i < sprites.size(); ++i) {
-                    auto sprite = sprites[i];
-                    auto s = std::get<0>(sprite);
-                    auto data = std::get<1>(sprite);
-                    const auto sy = y - data[0] - 1;
-                    if ((0 <= sy) && (sy < SpriteHeight)) {
-                        const auto sx = x - data[3];
-                        if ((0 <= sx) && (sx < 8)) {
-                            const auto td = data[1];
-                            const auto at = data[2];
-                            const auto flipX = IsBitSet<6>(at);
-                            const auto flipY = IsBitSet<7>(at);
-                            isbg = IsBitSet<5>(at);
-                            int taddr;
-                            if (flipY) taddr = (SpriteHeight - 1 - sy);
-                            else taddr = sy;
-                            if (SpriteHeight == 8) taddr += SpriteTable + 16 * td;
-                            else {
-                                if (taddr >= 8) taddr += 8;
-                                taddr += ((td % 2) * 0x1000) + 16 * (td & 0xFE);
-                            }
-                            auto b = Map->GetByteAt(taddr);
-                            int v;
-                            if (flipX) v = (b >> sx) & 0x01;
-                            else v = (b >> (7 - sx)) & 0x01;
-                            b = Map->GetByteAt(taddr + 8);
-                            if (flipX) v += ((b >> sx) & 0x01) << 1;
-                            else v += ((b >> (7 - sx)) & 0x01) << 1;
-                            v += (at & 0x3) << 2;
-                            v += 0x10;
-                            fg = v;
+                if (USE_RP2C02) {
+                    fg = rp2c02.bSprite;
+                    isbg = rp2c02.BGPriority;
+                    SpriteZeroHit = rp2c02.SpriteZeroHit;
+                }
+                else{
+                    for (auto i = 0; i < sprites.size(); ++i) {
+                        auto sprite = sprites[i];
+                        auto s = std::get<0>(sprite);
+                        auto data = std::get<1>(sprite);
+                        const auto sy = y - data[0] - 1;
+                        if ((0 <= sy) && (sy < SpriteHeight)) {
+                            const auto sx = x - data[3];
+                            if ((0 <= sx) && (sx < 8)) {
+                                const auto td = data[1];
+                                const auto at = data[2];
+                                const auto flipX = IsBitSet<6>(at);
+                                const auto flipY = IsBitSet<7>(at);
+                                isbg = IsBitSet<5>(at);
+                                int taddr;
+                                if (flipY) taddr = (SpriteHeight - 1 - sy);
+                                else taddr = sy;
+                                if (SpriteHeight == 8) taddr += SpriteTable + 16 * td;
+                                else {
+                                    if (taddr >= 8) taddr += 8;
+                                    taddr += ((td % 2) * 0x1000) + 16 * (td & 0xFE);
+                                }
+                                auto b = Map->GetByteAt(taddr);
+                                int v;
+                                if (flipX) v = (b >> sx) & 0x01;
+                                else v = (b >> (7 - sx)) & 0x01;
+                                b = Map->GetByteAt(taddr + 8);
+                                if (flipX) v += ((b >> sx) & 0x01) << 1;
+                                else v += ((b >> (7 - sx)) & 0x01) << 1;
+                                v += (at & 0x3) << 2;
+                                v += 0x10;
+                                fg = v;
 
-                            if (s == 0)
-                                SpriteZeroHit = SpriteZeroHit || SpriteHit(bg, fg, x);
-                            if ((fg & 0x03) != 0) break;
+                                if (s == 0)
+                                    SpriteZeroHit = SpriteZeroHit || SpriteHit(bg, fg, x);
+                                if ((fg & 0x03) != 0) break;
+                            }
                         }
                     }
                 }

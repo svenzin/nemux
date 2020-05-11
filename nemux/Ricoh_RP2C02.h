@@ -11,34 +11,51 @@
 #include <iostream>
 
 class Ricoh_RP2C02 {
-    static constexpr Word XC = 0x001F;
-    static constexpr Word YC = 0x03E0;
-    static constexpr Word NT = 0x0C00;
-    static constexpr Word YF = 0x7000;
 public:
     Word v;
     Word t;
     Byte x;
     Flag w;
 
+    std::array<Byte, 64> OAM2;
+
+    static void SetCoarseX  (Word & w, const Byte & b) { w = (w & ~0x001F) | (b & 0x1F); }
+    static void SetCoarseY  (Word & w, const Byte & b) { w = (w & ~0x03E0) | ((b & 0x1F) << 5); }
+    static void SetFineY    (Word & w, const Byte & b) { w = (w & ~0x7000) | ((b & 0x07) << 12); }
+    static void SetNametable(Word & w, const Byte & b) { w = (w & ~0x0C00) | ((b & 0x03) << 10); }
+    static void SetNTX      (Word & w, const Byte & b) { w = (w & ~0x0400) | ((b & 0x01) << 10); }
+    static void SetNTY      (Word & w, const Byte & b) { w = (w & ~0x0800) | ((b & 0x01) << 11); }
+
+    static Byte GetCoarseX  (const Word & w) { return w & 0x001F; }
+    static Byte GetCoarseY  (const Word & w) { return (w & 0x03E0) >> 5; }
+    static Byte GetFineY    (const Word & w) { return (w & 0x7000) >> 12; }
+    static Byte GetNametable(const Word & w) { return (w & 0x0C00) >> 10; }
+    static Byte GetNTX      (const Word & w) { return (w & 0x0400) >> 10; }
+    static Byte GetNTY      (const Word & w) { return (w & 0x0800) >> 11; }
+
+    static Byte Reverse(const Byte & b) {
+        return (b * 0x0202020202ULL & 0x010884422010ULL) % 1023;
+    }
+
     void Write2000(const Byte & value) {
         VramIncrement = IsBitSet<2>(value) ? 0x0020 : 0x0001;
+        SpriteTable = IsBitSet<3>(value) ? 0x1000 : 0x0000;
         BackgroundTable = IsBitSet<4>(value) ? 0x1000 : 0x0000;
-
-        t = (t & ~NT) | ((value & 0x03) << 10);
+        SpriteHeight = IsBitSet<5>(value) ? 16 : 8;
+        SetNametable(t, value);
     }
     void Read2002() {
         w = 0;
     }
     void Write2005(const Byte & value) {
         if (w == 0) {
-            t = (t & ~XC) | ((value & 0xF8) >> 3);
+            SetCoarseX(t, value >> 3);
             x = value & 0x07;
             w = 1;
         }
         else {
-            t = (t & ~YF) | ((value & 0x07) << 12);
-            t = (t & ~YC) | ((value & 0xF8) << 2);
+            SetFineY(t, value);
+            SetCoarseY(t, value >> 3);
             w = 0;
         }
     }
@@ -60,42 +77,40 @@ public:
     void HInc() {
         LatchBG();
 
-        if ((v & XC) == XC) {
-            v &= ~XC;
-            v ^= 0x0400;
+        if (GetCoarseX(v) == 31) {
+            SetCoarseX(v, 0);
+            SetNTX(v, GetNTX(v) + 1);
         }
         else {
-            ++v;
+            SetCoarseX(v, GetCoarseX(v) + 1);
         }
     }
     void HReset() {
-        v &= ~XC;
-        v |= (t & XC);
-        v &= ~0x0400;
-        v |= (t & 0x0400);
+        SetCoarseX(v, GetCoarseX(t));
+        SetNTX(v, GetNTX(t));
     }
     void VInc() {
-        if ((v & YF) == YF) {
-            v &= ~YF;
-            if ((v & YC) == (29 << 5)) {
-                v &= ~YC;
-                v ^= 0x0800;
+        if (GetFineY(v) == 7) {
+            SetFineY(v, 0);
+            if (GetCoarseY(v) == 29) {
+                SetCoarseY(v, 0);
+                SetNTY(v, GetNTY(v) + 1);
             }
-            else if ((v & YC) == YC) {
-                v &= ~YC;
+            else if (GetCoarseY(v) == 31) {
+                SetCoarseY(v, 0);
             }
             else {
-                v += 0x0020;
+                SetCoarseY(v, GetCoarseY(v) + 1);
             }
         }
         else {
-            v += 0x1000;
+            SetFineY(v, GetFineY(v) + 1);
         }
     }
     void VReset() {
-        v = (v & ~YC) | (t & YC); // vert(v) = vert(t)
-        v = (v & ~YF) | (t & YF);
-        v = (v & ~0x0800) | (t & 0x0800);
+        SetCoarseY(v, GetCoarseY(t));
+        SetFineY(v, GetFineY(t));
+        SetNTY(v, GetNTY(t));
     }
 
     void ReadNT() {
@@ -107,10 +122,10 @@ public:
         bAT = Map->GetByteAt(aAT);
     }
     void ReadBGLo() {
-        bBGLo = Map->GetByteAt(BackgroundTable + 16 * bNT + ((v & YF) >> 12));
+        bBGLo = Map->GetByteAt(BackgroundTable + 16 * bNT + GetFineY(v));
     }
     void ReadBGHi() {
-        bBGHi = Map->GetByteAt(BackgroundTable + 16 * bNT + ((v & YF) >> 12) + 8);
+        bBGHi = Map->GetByteAt(BackgroundTable + 16 * bNT + GetFineY(v) + 8);
     }
     void LatchBG() {
         patternLo &= 0xFF00;
@@ -135,11 +150,43 @@ public:
         attrLo <<= 1;
         attrHi <<= 1;
     }
+    void BuildSprite() {
+        bSprite = 0;
+        for (int n = 7; n >= 0; --n) {
+            if (Sprites[n].X > 0) {
+                --Sprites[n].X;
+            }
+            else if (Sprites[n].Width > 0) {
+                if ((Bit<0>(Sprites[n].Lo) != 0) || (Bit<0>(Sprites[n].Hi) != 0)) {
+                    bSprite = (Sprites[n].Lo & 0x01)
+                        | ((Sprites[n].Hi & 0x01) << 1)
+                        | ((Sprites[n].Attributes & 0x03) << 2)
+                        | SPRITE_PALETTE;
+                    BGPriority = IsBitSet<5>(Sprites[n].Attributes);
+                    if (n == 0) SpriteZeroHit = SpriteZeroHit || SpriteHit(bBG, bSprite, ix);
+                }
+                Sprites[n].Lo >>= 1;
+                Sprites[n].Hi >>= 1;
+                --Sprites[n].Width;
+            }
+        }
+    }
+    bool SpriteHit(const Byte & background, const Byte & foreground, const size_t & x) const {
+        if (x == 255) return false;
+        //if (!ShowBackground || !ShowSprite) return false;
+        //if ((ClipBackground || ClipSprite) && (x < 8)) return false;
 
-    Word BackgroundTable;
+        const bool hit = (((background & 0x03) > 0) && ((foreground & 0x03) > 0));
+        return hit;
+    }
+
+
+    Word BackgroundTable, SpriteTable;
     Byte VramIncrement;
     bool ShowBackground;
     bool ShowSprite;
+    Byte SpriteHeight;
+    bool SpriteZeroHit;
 
     size_t Ticks;
     size_t Frame;
@@ -150,8 +197,15 @@ public:
         /*const auto */iy = Ticks / VIDEO_WIDTH;
 
         if (Ticks == VBL_START) VBlank = true;
-        if (Ticks == VBL_STOP) VBlank = false;
+        if (Ticks == VBL_STOP) {
+            VBlank = false;
+            SpriteZeroHit = false;
+        }
 
+        ////////////////////////////////
+        // Prepare BG
+        ////////////////////////////////
+        // Display BG
         if (iy < 240) { // Active scanlines
             if (ix == 0) { // Idle
             }
@@ -184,6 +238,87 @@ public:
             else { // Dummy NT fetches
                 if (ix % 2 == 1) ReadNT();
             }
+
+            ////////////////////////////////
+            // Prepare Sprite
+            if (ix == 0) { // Idle
+            }
+            else if (ix <= 64) { // OAM2 clear
+                OAM2[ix - 1] = 0xFF;
+            }
+            else if (ix <= 256) { // Sprite evaluation
+                if (ix == 256) {
+                    iSprite = 0;
+                    for (int n = 0; n < 64; ++n) {
+                        OAM2[4 * iSprite] = OAM[4 * n];
+                        if (OAM[4 * n] <= iy && iy < OAM[4 * n] + SpriteHeight) {
+                            OAM2[4 * iSprite + 1] = OAM[4 * n + 1];
+                            OAM2[4 * iSprite + 2] = OAM[4 * n + 2];
+                            OAM2[4 * iSprite + 3] = OAM[4 * n + 3];
+                            ++iSprite;
+                            if (iSprite == 8) break;
+                        }
+                    }
+                    iSprite = 0;
+                }
+            }
+            else if (ix <= 320) { // Sprite loading
+                switch (ix % 8) { // Starting at 1 because first cycle is 257
+                case 1: Sprites[iSprite].Y = OAM2[4 * iSprite];     break; // Read Y, Fetch garbage NT
+                case 2: Sprites[iSprite].Tile = OAM2[4 * iSprite + 1]; break; // Read tile number
+                case 3: Sprites[iSprite].Attributes = OAM2[4 * iSprite + 2]; break; // Read attribute, Fetch garbage AT
+                case 4: { // Read X
+                    Sprites[iSprite].X = OAM2[4 * iSprite + 3];
+                    Sprites[iSprite].Width = SPRITE_WIDTH;
+                    if (Sprites[iSprite].X < 0x1FF) {
+                        if (SpriteHeight == 8) {
+                            Sprites[iSprite].aLo = SpriteTable;
+                        }
+                        else {
+                            Sprites[iSprite].aLo = 0x1000 * Bit<0>(Sprites[iSprite].Tile);
+                            Sprites[iSprite].Tile &= 0xFE;
+                        }
+                        Sprites[iSprite].aLo += 16 * Sprites[iSprite].Tile;
+                        if (SpriteHeight == 16) {
+                            if ((iy - Sprites[iSprite].Y) >= 8) {
+                                Sprites[iSprite].aLo += 16;
+                            }
+                        }
+                        Sprites[iSprite].aHi = Sprites[iSprite].aLo + 8;
+                    }
+                    break;
+                }
+                case 5: { // Read X, Read Sprite Lo
+                    if (IsBitSet<7>(Sprites[iSprite].Attributes)) {
+                        Sprites[iSprite].Lo = Map->GetByteAt(Sprites[iSprite].aLo + 7 - ((iy - Sprites[iSprite].Y) % 8));
+                    }
+                    else {
+                        Sprites[iSprite].Lo = Map->GetByteAt(Sprites[iSprite].aLo + ((iy - Sprites[iSprite].Y) % 8));
+                    }
+                    if (IsBitClear<6>(Sprites[iSprite].Attributes)) {
+                        Sprites[iSprite].Lo = Reverse(Sprites[iSprite].Lo);
+                    }
+                    break;
+                }
+                case 6: break; // Read X
+                case 7: { // Read X, Read Sprite Hi
+                    if (IsBitSet<7>(Sprites[iSprite].Attributes)) {
+                        Sprites[iSprite].Hi = Map->GetByteAt(Sprites[iSprite].aHi + 7 - ((iy - Sprites[iSprite].Y) % 8));
+                    }
+                    else {
+                        Sprites[iSprite].Hi = Map->GetByteAt(Sprites[iSprite].aHi + ((iy - Sprites[iSprite].Y) % 8));
+                    }
+                    if (IsBitClear<6>(Sprites[iSprite].Attributes)) {
+                        Sprites[iSprite].Hi = Reverse(Sprites[iSprite].Hi);
+                    }
+                    break;
+                }
+                case 0: ++iSprite; break; // Read X
+                }
+            }
+            ////////////////////////////////
+            // Display Sprite
+            if (ix < 256) BuildSprite();
         }
         else if (iy < 261) { // Inactive scanlines
         }
@@ -240,6 +375,19 @@ public:
     Byte bNT, bAT, bBGLo, bBGHi;
     Byte bBG;
     Word patternLo, patternHi, attrLo, attrHi;
+
+    size_t iSprite, iByte;
+    Byte bSprite;
+    bool BGPriority;
+    struct SpriteUnit {
+        Byte X, Y;
+        Byte Width;
+        Byte Tile;
+        Byte Attributes;
+        Word aLo, aHi;
+        Byte Lo, Hi;
+    };
+    std::array<SpriteUnit, 8> Sprites;
 public:
     static constexpr char * Id = "2C02";
     static constexpr char * Name = "Ricoh RP2C02";
@@ -254,14 +402,19 @@ public:
     static constexpr size_t VBL_START = 241 * 341 + 1;
     static constexpr size_t VBL_STOP = 261 * 341 + 1;
 
+    static constexpr Byte SPRITE_WIDTH = 8;
+    static constexpr Byte SPRITE_PALETTE = 0x10;
+
     MemoryMap * Map;
+    std::array<Byte, 0x0100> OAM;
 
     explicit Ricoh_RP2C02()
         : Ticks(0), Frame(0),
         VBlank(false),
         ShowBackground(false), ShowSprite(false),
         VramIncrement(1),
-        BackgroundTable(0x0000)
+        BackgroundTable(0x0000), SpriteTable(0x0000),
+        SpriteHeight(8), SpriteZeroHit(false)
     {}
 };
 
