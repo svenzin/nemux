@@ -240,93 +240,97 @@ public:
             x = FrameTicks % VIDEO_WIDTH;
         }
 
-        //if ((FrameCount%2)==0)
-        if ((y < FRAME_HEIGHT) && (x < FRAME_WIDTH)) {
+
+        if (USE_RP2C02) {
+            const auto ci = rp2c02.pixel;
+            Frame[VIDEO_WIDTH * y + x] =
+                ((IsColour ? 0 : 1) << 9)
+                | (ColourIntensity << 6)
+                | PpuPalette.ReadAt(ci);
+        }
+        else if ((y < FRAME_HEIGHT) && (x < FRAME_WIDTH)) {
             auto bg = 0;
             auto fg = 0;
             bool isbg = true;
-            if (USE_RP2C02) {
-                bg = rp2c02.bBG;
-                fg = rp2c02.bSprite;
-                isbg = rp2c02.BGPriority;
-            }
-            else {
-                if (x == 0) {
-                    sprites.clear();
-                    for (auto s = 0; s < 64; s++) {
-                        const auto sy = y - SprRam[4 * s + 0] - 1;
-                        if ((0 <= sy) && (sy < SpriteHeight)) {
-                            sprites.push_back({
-                                s,
-                                {
-                                    SprRam[4 * s + 0], SprRam[4 * s + 1],
-                                    SprRam[4 * s + 2], SprRam[4 * s + 3]
-                                }
-                            });
-                        }
-                    }
-                }
-                if (ShowBackground) {
-                    Byte td, a;
-                    auto tx = (x + ScrollX) / 8; const auto xx = (x + ScrollX) % 8;
-                    auto ty = (y + ScrollY) / 8; const auto yy = (y + ScrollY) % 8;
-                    auto nt = NameTable;
-                    if (tx >= 32) { tx -= 32; nt ^= 0x0400; }
-                    if (ty >= 30) { ty -= 30; nt ^= 0x0800; }
-                    td = Map->GetByteAt(nt + 32 * ty + tx);
-                    const auto taddr = BackgroundTable + 16 * td + yy;
-                    auto b = Map->GetByteAt(taddr);
-                    auto v = (b >> (7 - xx)) & 0x01;
-                    b = Map->GetByteAt(taddr + 8);
-                    v += ((b >> (7 - xx)) & 0x01) << 1;
-                    const auto atx = tx / 4; const auto aty = ty / 4;
-                    a = Map->GetByteAt(nt + 0x03C0 + 8 * aty + atx);
-                    v += ((a >> (2 * (tx / 2 % 2) + 4 * (ty / 2 % 2))) & 0x3) << 2;
-                    bg = v;
-                }
-                if (ShowSprite) {
-                    for (auto i = 0; i < sprites.size(); ++i) {
-                        auto sprite = sprites[i];
-                        auto s = std::get<0>(sprite);
-                        auto data = std::get<1>(sprite);
-                        const auto sy = y - data[0] - 1;
-                        if ((0 <= sy) && (sy < SpriteHeight)) {
-                            const auto sx = x - data[3];
-                            if ((0 <= sx) && (sx < 8)) {
-                                const auto td = data[1];
-                                const auto at = data[2];
-                                const auto flipX = IsBitSet<6>(at);
-                                const auto flipY = IsBitSet<7>(at);
-                                isbg = IsBitSet<5>(at);
-                                int taddr;
-                                if (flipY) taddr = (SpriteHeight - 1 - sy);
-                                else taddr = sy;
-                                if (SpriteHeight == 8) taddr += SpriteTable + 16 * td;
-                                else {
-                                    if (taddr >= 8) taddr += 8;
-                                    taddr += ((td % 2) * 0x1000) + 16 * (td & 0xFE);
-                                }
-                                auto b = Map->GetByteAt(taddr);
-                                int v;
-                                if (flipX) v = (b >> sx) & 0x01;
-                                else v = (b >> (7 - sx)) & 0x01;
-                                b = Map->GetByteAt(taddr + 8);
-                                if (flipX) v += ((b >> sx) & 0x01) << 1;
-                                else v += ((b >> (7 - sx)) & 0x01) << 1;
-                                v += (at & 0x3) << 2;
-                                v += 0x10;
-                                fg = v;
-
-                                if (s == 0)
-                                    SpriteZeroHit = SpriteZeroHit || SpriteHit(bg, fg, x);
-                                if ((fg & 0x03) != 0) break;
+            Byte ci = 0;
+            if (x == 0) {
+                sprites.clear();
+                for (auto s = 0; s < 64; s++) {
+                    const auto sy = y - SprRam[4 * s + 0] - 1;
+                    if ((0 <= sy) && (sy < SpriteHeight)) {
+                        sprites.push_back({
+                            s,
+                            {
+                                SprRam[4 * s + 0], SprRam[4 * s + 1],
+                                SprRam[4 * s + 2], SprRam[4 * s + 3]
                             }
+                        });
+                    }
+                }
+            }
+            if (ShowBackground) {
+                Byte td, a;
+                auto tx = (x + ScrollX) / 8; const auto xx = (x + ScrollX) % 8;
+                auto ty = (y + ScrollY) / 8; const auto yy = (y + ScrollY) % 8;
+                auto nt = NameTable;
+                if (tx >= 32) { tx -= 32; nt ^= 0x0400; }
+                if (ty >= 30) { ty -= 30; nt ^= 0x0800; }
+                td = Map->GetByteAt(nt + 32 * ty + tx);
+                const auto taddr = BackgroundTable + 16 * td + yy;
+                auto b = Map->GetByteAt(taddr);
+                auto v = (b >> (7 - xx)) & 0x01;
+                b = Map->GetByteAt(taddr + 8);
+                v += ((b >> (7 - xx)) & 0x01) << 1;
+                const auto atx = tx / 4; const auto aty = ty / 4;
+                a = Map->GetByteAt(nt + 0x03C0 + 8 * aty + atx);
+                v += ((a >> (2 * (tx / 2 % 2) + 4 * (ty / 2 % 2))) & 0x3) << 2;
+                bg = v;
+            }
+            if (ShowSprite) {
+                for (auto i = 0; i < sprites.size(); ++i) {
+                    auto sprite = sprites[i];
+                    auto s = std::get<0>(sprite);
+                    auto data = std::get<1>(sprite);
+                    const auto sy = y - data[0] - 1;
+                    if ((0 <= sy) && (sy < SpriteHeight)) {
+                        const auto sx = x - data[3];
+                        if ((0 <= sx) && (sx < 8)) {
+                            const auto td = data[1];
+                            const auto at = data[2];
+                            const auto flipX = IsBitSet<6>(at);
+                            const auto flipY = IsBitSet<7>(at);
+                            isbg = IsBitSet<5>(at);
+                            int taddr;
+                            if (flipY) taddr = (SpriteHeight - 1 - sy);
+                            else taddr = sy;
+                            if (SpriteHeight == 8) taddr += SpriteTable + 16 * td;
+                            else {
+                                if (taddr >= 8) taddr += 8;
+                                taddr += ((td % 2) * 0x1000) + 16 * (td & 0xFE);
+                            }
+                            auto b = Map->GetByteAt(taddr);
+                            int v;
+                            if (flipX) v = (b >> sx) & 0x01;
+                            else v = (b >> (7 - sx)) & 0x01;
+                            b = Map->GetByteAt(taddr + 8);
+                            if (flipX) v += ((b >> sx) & 0x01) << 1;
+                            else v += ((b >> (7 - sx)) & 0x01) << 1;
+                            v += (at & 0x3) << 2;
+                            v += 0x10;
+                            fg = v;
+
+                            if (s == 0)
+                                SpriteZeroHit = SpriteZeroHit || SpriteHit(bg, fg, x);
+                            if ((fg & 0x03) != 0) break;
                         }
                     }
                 }
             }
-            const auto ci = SpriteMultiplexer(bg, fg, isbg);
-            Frame[VIDEO_WIDTH * y + x] = (ColourIntensity << 6) | PpuPalette.ReadAt(ci);
+            ci = SpriteMultiplexer(bg, fg, isbg);
+            Frame[VIDEO_WIDTH * y + x] =
+                ((IsColour ? 1:1) << 9)
+                | (ColourIntensity << 6)
+                | PpuPalette.ReadAt(ci);
         }
 
         //// NMI is activated on tick 1 (second tick) of scanline 241

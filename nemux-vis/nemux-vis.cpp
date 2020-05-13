@@ -221,7 +221,7 @@ std::array<Uint32, 0x40> base_palette{
     RGB(204, 210, 120), RGB(180, 222, 120), RGB(168, 226, 144), RGB(152, 226, 180),
     RGB(160, 214, 228), RGB(160, 162, 160), RGB(  0,   0,   0), RGB(  0,   0,   0)
 };
-std::array<Uint32, 0x200> palette;
+std::array<Uint32, 0x400> palette;
 
 void BuildPalette() {
     for (int i = 0; i < 0x40; ++i) {
@@ -234,6 +234,15 @@ void BuildPalette() {
         palette[0x140 + i] = 0xFFE0FFFF & c;
         palette[0x180 + i] = 0xE0FFFFFF & c;
         palette[0x1C0 + i] = 0xFFFFFFFF & c;
+
+        palette[0x200 + i] = palette[i & 0x30];
+        palette[0x240 + i] = palette[i & 0x30];
+        palette[0x280 + i] = palette[i & 0x30];
+        palette[0x2C0 + i] = palette[i & 0x30];
+        palette[0x300 + i] = palette[i & 0x30];
+        palette[0x340 + i] = palette[i & 0x30];
+        palette[0x380 + i] = palette[i & 0x30];
+        palette[0x3C0 + i] = palette[i & 0x30];
     }
 }
 

@@ -44,20 +44,19 @@ public:
     }
 
     bool RenderingEnabled() const { return ShowBackground || ShowSprite; }
+
+    Byte GetPixel(const Byte & bg, const Byte & fg) {
+        if ((bg & 0x03) != 0) {
+            if ((fg & 0x03) != 0) {
+                if (BGPriority) return bg;
+                return fg;
+            }
+            return bg;
+        }
+        if ((fg & 0x03) != 0) return fg;
+        return Backdrop();
+    }
     
-    // Control 1 register
-    void Write2000(const Byte & value) {
-        VramIncrement = IsBitSet<2>(value) ? 0x0020 : 0x0001;
-        SpriteTable = IsBitSet<3>(value) ? 0x1000 : 0x0000;
-        BackgroundTable = IsBitSet<4>(value) ? 0x1000 : 0x0000;
-        SpriteHeight = IsBitSet<5>(value) ? 16 : 8;
-        SetNametable(t, value);
-    }
-    // Control 2 register
-    void Write2001(const Byte & value) {
-        ShowBackground = IsBitSet<3>(value);
-        ShowSprite = IsBitSet<4>(value);
-    }
     void Read2002() {
         w = 0;
     }
@@ -89,8 +88,6 @@ public:
     }
 
     void HInc() {
-        LatchBG();
-
         if (RenderingEnabled()) {
             if (GetCoarseX(v) == 31) {
                 SetCoarseX(v, 0);
@@ -189,7 +186,7 @@ public:
                             | ((Sprites[n].Attributes & 0x03) << 2)
                             | SPRITE_PALETTE;
                         BGPriority = IsBitSet<5>(Sprites[n].Attributes);
-                        if (n == 0) SpriteZeroHit = SpriteZeroHit || SpriteHit(bBG, bSprite, ix);
+                        if (Sprites[n].Id == 0) SpriteZeroHit = SpriteZeroHit || SpriteHit(bBG, bSprite, ix);
                     }
                     Sprites[n].Lo >>= 1;
                     Sprites[n].Hi >>= 1;
@@ -207,6 +204,146 @@ public:
         return hit;
     }
 
+    // Scanline patterns
+    void SL_PrepareBG() {
+        if      (ix == 0)  {} // Idle
+        else if (ix < 256) {  // Active frame
+            switch (ix % 8) {
+            //case 0: LatchBG(); break; // inc hori(v)
+            case 1: ReadNT(); break; // fetch NT
+            case 3: ReadAT(); break; // fetch AT
+            case 5: ReadBGLo(); break; // fetch BGLo
+            case 7: ReadBGHi(); break; // fetch BGHi
+            }
+        }
+        else if (ix < 321) {} // Inactive
+        else if (ix < 337) {  // Prefetch next line
+            switch (ix % 8) {
+            //case 0: LatchBG(); break; // inc hori(v)
+            case 1: ReadNT(); break; // fetch NT
+            case 3: ReadAT(); break; // fetch AT
+            case 5: ReadBGLo(); break; // fetch BGLo
+            case 7: ReadBGHi(); break; // fetch BGHi
+            }
+        }
+        else { // Dummy NT fetches
+            if (ix % 2 == 1) ReadNT();
+        }
+    }
+
+    void SL_TickBG() {
+        if (ix == 0) {} // Idle
+        else if (ix < 256) { // Active frame
+            if ((ix % 8) == 0) {
+                LatchBG();
+                HInc();
+            }
+        }
+        else if (ix == 256) { // Next line
+            LatchBG();
+            HInc();
+            VInc();
+        }
+        else if (ix == 257) { // Next line
+            HReset();
+        }
+        else if (ix < 321) {} // Inactive
+        else if (ix < 337) {  // Prefetch next line
+            if ((ix % 8) == 0) {
+                LatchBG();
+                HInc();
+            }
+        }
+    }
+
+    void SL_BuildBG() {
+        if      (ix == 0)  {}         // Idle
+        else if (ix < 257) BuildBG(); // Active frame
+        else if (ix < 321) {}         // Inactive
+        else if (ix < 337) BuildBG(); // Prefetch next line
+    }
+
+    void SL_PrepareSprite() {
+        if (ix == 0) {} // Idle
+        else if (ix <= 64) OAM2[ix - 1] = 0xFF; // OAM2 clear
+        else if (ix <= 256) { // Sprite evaluation
+            if (ix == 256) {
+                iSprite = 0;
+                for (int n = 0; n < 64; ++n) {
+                    OAM2_SpriteId[iSprite] = n;
+                    OAM2[4 * iSprite] = (*pOAM)[4 * n];
+                    if ((*pOAM)[4 * n] <= iy && iy < (*pOAM)[4 * n] + SpriteHeight) {
+                        OAM2[4 * iSprite + 1] = (*pOAM)[4 * n + 1];
+                        OAM2[4 * iSprite + 2] = (*pOAM)[4 * n + 2];
+                        OAM2[4 * iSprite + 3] = (*pOAM)[4 * n + 3];
+                        ++iSprite;
+                        if (iSprite == 8) break;
+                    }
+                }
+                iSprite = 0;
+            }
+        }
+        else if (ix <= 320) { // Sprite loading
+            switch (ix % 8) { // Starting at 1 because first cycle is 257
+            case 1: Sprites[iSprite].Y = OAM2[4 * iSprite];     break; // Read Y, Fetch garbage NT
+            case 2: Sprites[iSprite].Tile = OAM2[4 * iSprite + 1]; break; // Read tile number
+            case 3: Sprites[iSprite].Attributes = OAM2[4 * iSprite + 2]; break; // Read attribute, Fetch garbage AT
+            case 4: { // Read X
+                Sprites[iSprite].X = OAM2[4 * iSprite + 3];
+                Sprites[iSprite].Width = SPRITE_WIDTH;
+                Sprites[iSprite].Id = OAM2_SpriteId[iSprite];
+                if (SpriteHeight == 8) {
+                    Sprites[iSprite].aLo = SpriteTable;
+                }
+                else {
+                    Sprites[iSprite].aLo = 0x1000 * Bit<0>(Sprites[iSprite].Tile);
+                    Sprites[iSprite].Tile &= 0xFE;
+                }
+                Sprites[iSprite].aLo += 16 * Sprites[iSprite].Tile;
+                if (SpriteHeight == 16) {
+                    if ((iy - Sprites[iSprite].Y) >= 8) {
+                        Sprites[iSprite].aLo += 16;
+                    }
+                }
+                Sprites[iSprite].aHi = Sprites[iSprite].aLo + 8;
+                break;
+            }
+            case 5: { // Read X, Read Sprite Lo
+                if (IsBitSet<7>(Sprites[iSprite].Attributes)) {
+                    Sprites[iSprite].Lo = Map->GetByteAt(Sprites[iSprite].aLo + 7 - ((iy - Sprites[iSprite].Y) % 8));
+                }
+                else {
+                    Sprites[iSprite].Lo = Map->GetByteAt(Sprites[iSprite].aLo + ((iy - Sprites[iSprite].Y) % 8));
+                }
+                if (IsBitClear<6>(Sprites[iSprite].Attributes)) {
+                    Sprites[iSprite].Lo = Reverse(Sprites[iSprite].Lo);
+                }
+                break;
+            }
+            case 6: break; // Read X
+            case 7: { // Read X, Read Sprite Hi
+                if (IsBitSet<7>(Sprites[iSprite].Attributes)) {
+                    Sprites[iSprite].Hi = Map->GetByteAt(Sprites[iSprite].aHi + 7 - ((iy - Sprites[iSprite].Y) % 8));
+                }
+                else {
+                    Sprites[iSprite].Hi = Map->GetByteAt(Sprites[iSprite].aHi + ((iy - Sprites[iSprite].Y) % 8));
+                }
+                if (IsBitClear<6>(Sprites[iSprite].Attributes)) {
+                    Sprites[iSprite].Hi = Reverse(Sprites[iSprite].Hi);
+                }
+                break;
+            }
+            case 0: ++iSprite; break; // Read X
+            }
+        }
+    }
+
+    // TODO: Fix active frame to 257 (see ninja gaiden)
+    void SL_BuildSprite() {
+        if      (ix == 0)  {}             // Idle
+        else if (ix < 257) BuildSprite(); // Active frame
+    }
+
     // $2000
     Byte VramIncrement;
     Word SpriteTable;
@@ -217,6 +354,7 @@ public:
 
     bool ShowBackground;
     bool ShowSprite;
+    bool IsGreyscale;
 
     size_t Ticks;
     size_t Frame;
@@ -232,163 +370,41 @@ public:
             SpriteZeroHit = false;
         }
 
+        bBG = bSprite = 0;
+
         ////////////////////////////////
         // Prepare BG
+        if      (iy < 240) SL_PrepareBG(); // Active scanlines
+        else if (iy < 261) {}              // Inactive scanlines
+        else {                             // Prerender line
+            SL_PrepareBG();
+            if (280 <= ix && ix < 305) VReset(); // Inactive but prepare v, t
+        }
+
         ////////////////////////////////
         // Display BG
-        if (iy < 240) { // Active scanlines
-            if (ix == 0) { // Idle
-            }
-            else if (ix < 257) { // Active frame
-                switch (ix % 8) {
-                case 0: HInc(); break; // inc hori(v)
-                case 1: ReadNT(); break; // fetch NT
-                case 3: ReadAT(); break; // fetch AT
-                case 5: ReadBGLo(); break; // fetch BGLo
-                case 7: ReadBGHi(); break; // fetch BGHi
-                }
-                BuildBG();
-            }
-            else if (ix == 257) { // Next line
-                HReset();
-                VInc();
-            }
-            else if (ix < 321) { // Inactive
-            }
-            else if (ix < 337) {  // Prefetch next line
-                switch (ix % 8) {
-                case 0: HInc(); break; // inc hori(v)
-                case 1: ReadNT(); break; // fetch NT
-                case 3: ReadAT(); break; // fetch AT
-                case 5: ReadBGLo(); break; // fetch BGLo
-                case 7: ReadBGHi(); break; // fetch BGHi
-                }
-                BuildBG();
-            }
-            else { // Dummy NT fetches
-                if (ix % 2 == 1) ReadNT();
-            }
+        if      (iy < 240) SL_BuildBG(); // Active scanlines
+        else if (iy < 261) {}            // Inactive scanlines
+        else               SL_BuildBG(); // Prerender line
 
-            ////////////////////////////////
-            // Prepare Sprite
-            if (ix == 0) { // Idle
-            }
-            else if (ix <= 64) { // OAM2 clear
-                OAM2[ix - 1] = 0xFF;
-            }
-            else if (ix <= 256) { // Sprite evaluation
-                if (ix == 256) {
-                    iSprite = 0;
-                    for (int n = 0; n < 64; ++n) {
-                        OAM2[4 * iSprite] = (*pOAM)[4 * n];
-                        if ((*pOAM)[4 * n] <= iy && iy < (*pOAM)[4 * n] + SpriteHeight) {
-                            OAM2[4 * iSprite + 1] = (*pOAM)[4 * n + 1];
-                            OAM2[4 * iSprite + 2] = (*pOAM)[4 * n + 2];
-                            OAM2[4 * iSprite + 3] = (*pOAM)[4 * n + 3];
-                            ++iSprite;
-                            if (iSprite == 8) break;
-                        }
-                    }
-                    iSprite = 0;
-                }
-            }
-            else if (ix <= 320) { // Sprite loading
-                switch (ix % 8) { // Starting at 1 because first cycle is 257
-                case 1: Sprites[iSprite].Y = OAM2[4 * iSprite];     break; // Read Y, Fetch garbage NT
-                case 2: Sprites[iSprite].Tile = OAM2[4 * iSprite + 1]; break; // Read tile number
-                case 3: Sprites[iSprite].Attributes = OAM2[4 * iSprite + 2]; break; // Read attribute, Fetch garbage AT
-                case 4: { // Read X
-                    Sprites[iSprite].X = OAM2[4 * iSprite + 3];
-                    Sprites[iSprite].Width = SPRITE_WIDTH;
-                    if (SpriteHeight == 8) {
-                        Sprites[iSprite].aLo = SpriteTable;
-                    }
-                    else {
-                        Sprites[iSprite].aLo = 0x1000 * Bit<0>(Sprites[iSprite].Tile);
-                        Sprites[iSprite].Tile &= 0xFE;
-                    }
-                    Sprites[iSprite].aLo += 16 * Sprites[iSprite].Tile;
-                    if (SpriteHeight == 16) {
-                        if ((iy - Sprites[iSprite].Y) >= 8) {
-                            Sprites[iSprite].aLo += 16;
-                        }
-                    }
-                    Sprites[iSprite].aHi = Sprites[iSprite].aLo + 8;
-                    break;
-                }
-                case 5: { // Read X, Read Sprite Lo
-                    if (IsBitSet<7>(Sprites[iSprite].Attributes)) {
-                        Sprites[iSprite].Lo = Map->GetByteAt(Sprites[iSprite].aLo + 7 - ((iy - Sprites[iSprite].Y) % 8));
-                    }
-                    else {
-                        Sprites[iSprite].Lo = Map->GetByteAt(Sprites[iSprite].aLo + ((iy - Sprites[iSprite].Y) % 8));
-                    }
-                    if (IsBitClear<6>(Sprites[iSprite].Attributes)) {
-                        Sprites[iSprite].Lo = Reverse(Sprites[iSprite].Lo);
-                    }
-                    break;
-                }
-                case 6: break; // Read X
-                case 7: { // Read X, Read Sprite Hi
-                    if (IsBitSet<7>(Sprites[iSprite].Attributes)) {
-                        Sprites[iSprite].Hi = Map->GetByteAt(Sprites[iSprite].aHi + 7 - ((iy - Sprites[iSprite].Y) % 8));
-                    }
-                    else {
-                        Sprites[iSprite].Hi = Map->GetByteAt(Sprites[iSprite].aHi + ((iy - Sprites[iSprite].Y) % 8));
-                    }
-                    if (IsBitClear<6>(Sprites[iSprite].Attributes)) {
-                        Sprites[iSprite].Hi = Reverse(Sprites[iSprite].Hi);
-                    }
-                    break;
-                }
-                case 0: ++iSprite; break; // Read X
-                }
-            }
-            ////////////////////////////////
-            // Display Sprite
-            if (ix < 256) BuildSprite();
-        }
-        else if (iy < 261) { // Inactive scanlines
-        }
-        else {  // Prerender line
-            // Clear VBlank
-            if (ix == 0) { // Idle
-            }
-            else if (ix < 257) { // Active frame
-                switch (ix % 8) {
-                case 0: HInc(); break; // inc hori(v)
-                case 1: ReadNT(); break; // fetch NT
-                case 3: ReadAT(); break; // fetch AT
-                case 5: ReadBGLo(); break; // fetch BGLo
-                case 7: ReadBGHi(); break; // fetch BGHi
-                }
-                BuildBG();
-            }
-            else if (ix == 257) { // Next line
-                HReset();
-                VInc();
-            }
-            else if (ix < 280) { // Inactive
-            }
-            else if (ix < 305) { // Inactive but prepare v, t
-                VReset();
-            }
-            else if (ix < 321) { // Inactive
-            }
-            else if (ix < 337) {  // Prefetch next line
-                switch (ix % 8) {
-                case 0: HInc(); break; // inc hori(v)
-                case 1: ReadNT(); break; // fetch NT
-                case 3: ReadAT(); break; // fetch AT
-                case 5: ReadBGLo(); break; // fetch BGLo
-                case 7: ReadBGHi(); break; // fetch BGHi
-                }
-                BuildBG();
-            }
-            else { // Dummy NT fetches
-                if (ix % 2 == 1) ReadNT();
-            }
-        }
+        ////////////////////////////////
+        // Tick BG
+        if      (iy < 240) SL_TickBG(); // Active scanlines
+        else if (iy < 261) {}           // Inactive scanlines
+        else               SL_TickBG(); // Prerender line
+
+        ////////////////////////////////
+        // Prepare Sprite
+        if      (iy < 240) SL_PrepareSprite(); // Active scanlines
+        else if (iy < 261) {}                  // Inactive scanlines
+        else               SL_PrepareSprite(); // Prerender line
+
+        ////////////////////////////////
+        // Display Sprite
+        if (iy < 240) SL_BuildSprite(); // Active scanlines
+
+
+        pixel = GetPixel(bBG, bSprite);
 
         ++Ticks;
         if (Ticks == VIDEO_SIZE) {
@@ -403,11 +419,13 @@ public:
     Byte bNT, bAT, bBGLo, bBGHi;
     Byte bBG;
     Word patternLo, patternHi, attrLo, attrHi;
+    Byte pixel;
 
     size_t iSprite, iByte;
     Byte bSprite;
     bool BGPriority;
     struct SpriteUnit {
+        Byte Id;
         Byte X, Y;
         Byte Width;
         Byte Tile;
@@ -436,17 +454,47 @@ public:
     MemoryMap * Map;
     std::array<Byte, 0x0100> * pOAM;
 
+
+private:
+public:
+
     explicit Ricoh_RP2C02()
         : Ticks(0), Frame(0),
         VBlank(false),
-        ShowBackground(false), ShowSprite(false),
-        SpriteZeroHit(false), 
-        // $2000
+        SpriteZeroHit(false),
+
+        // $2000 Control
+        // Nametable
         VramIncrement(1),
         SpriteTable(0x0000),
         BackgroundTable(0x0000),
-        SpriteHeight(8)
+        SpriteHeight(8),
+        // NMIOnVBlank
+
+        // $2001 Mask
+        IsGreyscale(false),
+        // ClipBG
+        // ClipSprite
+        ShowBackground(false),
+        ShowSprite(false)
+        // ColourEmphasis
     {}
+
+    // Control register
+    void Write2000(const Byte & value) {
+        VramIncrement = IsBitSet<2>(value) ? 0x0020 : 0x0001;
+        SpriteTable = IsBitSet<3>(value) ? 0x1000 : 0x0000;
+        BackgroundTable = IsBitSet<4>(value) ? 0x1000 : 0x0000;
+        SpriteHeight = IsBitSet<5>(value) ? 16 : 8;
+        SetNametable(t, value);
+    }
+    
+    // Mask register
+    void Write2001(const Byte & value) {
+        IsGreyscale = IsBitSet<0>(value);
+        ShowBackground = IsBitSet<3>(value);
+        ShowSprite = IsBitSet<4>(value);
+    }
 };
 
 #endif /* RICOH_RC2C02_H_ */
