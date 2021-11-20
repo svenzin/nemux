@@ -130,6 +130,32 @@ public:
         }
     };
 
+    explicit NsfFile(std::istream & input) : Header(input) {
+        Validate(Header);
+
+        auto n = Header.DataSize;
+        if (n != 0) {
+            if ((Header.LoadAddress + n) > 0x10000) throw invalid_format("NSF data content is too large");
+            NsfData.resize(n);
+            if (!input.read(reinterpret_cast<char*>(NsfData.data()), n)) {
+                throw invalid_format("Could not read NSF data content");
+            }
+        } else {
+            n = 0x10000 - Header.LoadAddress;
+            NsfData.resize(n);
+            if (!input.read(reinterpret_cast<char *>(NsfData.data()), n)) {
+                n = input.gcount();
+            }
+            if (n == 0) throw invalid_format("Could not read NSF data content");
+            const auto dummy = input.peek();
+            if (input.good()) throw invalid_format("NSF data content is too large");
+            NsfData.resize(n);
+        }
+    }
+
+    HeaderDesc Header;
+    std::vector<Byte> NsfData;
+    
     static void Validate(const HeaderDesc& desc) {
         if (desc.Version != 1) throw unsupported_format("Only NSF v1 is supported");
         if (desc.SongCount == 0) throw invalid_format("NSF file contains no song");

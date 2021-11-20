@@ -13,6 +13,16 @@ struct NSFFileTest : public ::testing::Test {
         data[0x02] = NSF_TAG[2];
         data[0x03] = NSF_TAG[3];
         data[0x04] = NSF_TAG[4];
+
+        // Minimum valid header
+        data[0x05] = 1; // Version
+        data[0x06] = 1; // SongCount
+        data[0x07] = 1; // FirstSong
+        data[0x09] = 0x80; // LoadAddress
+        data[0x0B] = 0x80; // InitAddress
+        data[0x0D] = 0x80; // PlayAddress
+        data[0x6E] = 1; // PeriodNTSC
+        data[0x78] = 1; // PeriodPAL
     }
 };
 
@@ -292,14 +302,6 @@ TEST_F(NSFFileTest, NsfFile_Rejected) {
     auto GetValidHeader = [this]() {
         std::istringstream iss(data);
         NsfFile::HeaderDesc header(iss);
-        header.Version = 1;
-        header.SongCount = 1;
-        header.FirstSong = 0;
-        header.LoadAddress = 0x8000;
-        header.InitAddress = 0x8000;
-        header.PlayAddress = 0x8000;
-        header.PeriodNTSC = 1;
-        header.PeriodPAL = 1;
         return header;
     };
     EXPECT_NO_THROW(NsfFile::Validate(GetValidHeader()));
@@ -382,5 +384,52 @@ TEST_F(NSFFileTest, NsfFile_Rejected) {
         auto header = GetValidHeader();
         header.UsesVT02Plus = true;
         EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
+    }
+}
+
+TEST_F(NSFFileTest, NsfFile_TooSmall) {
+    std::string file = data + std::string(0x1000, 0x00);
+    {
+        // 256 bytes data in a 4K file
+        file[0x7E] = 0x01;
+        std::istringstream iss(file);
+        EXPECT_NO_THROW(NsfFile nsf(iss));
+    }
+    {
+        // 8K data in a 4K file
+        file[0x7E] = 0x20;
+        std::istringstream iss(file);
+        EXPECT_THROW(NsfFile nsf(iss), invalid_format);
+    }
+}
+
+TEST_F(NSFFileTest, NsfFile_TooLarge) {
+    // Trying to read 1 MiB of NSF data without bankswitching
+    std::string file = data + std::string(0x100000, 0x00);
+    {
+        std::istringstream iss(file);
+        EXPECT_THROW(NsfFile nsf(iss), invalid_format);
+    }
+    {
+        file[0x7F] = 0x10;
+        std::istringstream iss(file);
+        EXPECT_THROW(NsfFile nsf(iss), invalid_format);
+    }
+}
+
+TEST_F(NSFFileTest, NsfFile_NsfData) {
+    std::string file = data + std::string(0x1000, 0x00);
+    {
+        // available data in a 4K file
+        std::istringstream iss(file);
+        NsfFile nsf(iss);
+        EXPECT_EQ(0x1000, nsf.NsfData.size());
+    }
+    {
+        // 256 bytes data in a 4K file
+        file[0x7E] = 0x01;
+        std::istringstream iss(file);
+        NsfFile nsf(iss);
+        EXPECT_EQ(0x100, nsf.NsfData.size());
     }
 }
