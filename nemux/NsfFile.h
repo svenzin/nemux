@@ -74,7 +74,6 @@ public:
             Version = header[0x05];
             SongCount = header[0x06];
             FirstSong = header[0x07] - 1;
-            if (FirstSong >= SongCount) throw invalid_format("Initial song in NSF header is invalid");
 
             auto ReadWordAt = [&header](std::size_t index) {
                 const Word lo = header[index];
@@ -83,11 +82,8 @@ public:
                 return addr;
             };
             LoadAddress = ReadWordAt(0x08);
-            if (LoadAddress < 0x8000) throw invalid_format("Load address in NSF header is invalid");
             InitAddress = ReadWordAt(0x0A);
-            if (InitAddress < 0x8000) throw invalid_format("Init address in NSF header is invalid");
             PlayAddress = ReadWordAt(0x0C);
-            if (PlayAddress < 0x8000) throw invalid_format("Play address in NSF header is invalid");
 
             auto ReadStringAt = [&header](std::size_t index) {
                 std::size_t len = 0;
@@ -103,9 +99,7 @@ public:
             CopyrightHolderName = ReadStringAt(0x4E);
 
             PeriodNTSC = ReadWordAt(0x6E);
-            if (PeriodNTSC == 0) throw invalid_format("NTSC play period in NSF header is invalid");
             PeriodPAL = ReadWordAt(0x78);
-            if (PeriodPAL == 0) throw invalid_format("PAL play period in NSF header is invalid");
 
             for (int i = 0; i < NSF_BANK_COUNT; ++i) {
                 InitialBank[i] = header[0x70 + i];
@@ -132,11 +126,28 @@ public:
             UsesSunsoft5B = IsBitSet<Sunsoft5B>(header[0x7B]);
             UsesVT02Plus = IsBitSet<VT02Plus>(header[0x7B]);
 
-            DataSize = header[0x7D]
-                + (header[0x7E] << BYTE_WIDTH)
-                + (header[0x7F] << (2 * BYTE_WIDTH));
+            DataSize = header[0x7D] + (ReadWordAt(0x7E) << BYTE_WIDTH);
         }
     };
+
+    static void Validate(const HeaderDesc& desc) {
+        if (desc.Version != 1) throw unsupported_format("Only NSF v1 is supported");
+        if (desc.SongCount == 0) throw invalid_format("NSF file contains no song");
+        if (desc.FirstSong >= desc.SongCount) throw invalid_format("Initial song is out-of-bounds");
+        if (desc.LoadAddress < 0x8000) throw unsupported_format("Load address is invalid");
+        if (desc.InitAddress < 0x8000) throw unsupported_format("Init address is invalid");
+        if (desc.PlayAddress < 0x8000) throw unsupported_format("Play address is invalid");
+        if (desc.PeriodNTSC == 0) throw invalid_format("NTSC period cannot be 0");
+        if (desc.PeriodPAL == 0) throw invalid_format("PAL period cannot be 0");
+        if (desc.UsesBankswitching) throw unsupported_format("Bankswitcing is not supported");
+        if (desc.UsesVRC6) throw unsupported_format("VRC6 is not supported");
+        if (desc.UsesVRC7) throw unsupported_format("VRC7 is not supported");
+        if (desc.UsesFDS) throw unsupported_format("FDS is not supported");
+        if (desc.UsesMMC5) throw unsupported_format("MMC5is not supported");
+        if (desc.UsesNamco163) throw unsupported_format("Namco 163 is not supported");
+        if (desc.UsesSunsoft5B) throw unsupported_format("Sunsoft 5B is not supported");
+        if (desc.UsesVT02Plus) throw unsupported_format("VT02+ is not supported");
+    }
 };
 
 #endif //NSF_FILE_H_

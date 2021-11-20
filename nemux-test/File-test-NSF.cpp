@@ -13,17 +13,6 @@ struct NSFFileTest : public ::testing::Test {
         data[0x02] = NSF_TAG[2];
         data[0x03] = NSF_TAG[3];
         data[0x04] = NSF_TAG[4];
-
-        // Some fields cannot be 0 in order to be initially valid
-        // Song count and index
-        data[0x06] = data[0x07] = 0xFF;
-        // Load, Init and Play addresses
-        for (int i = 0x08; i <= 0x0D; ++i) {
-            data[i] = 0xFF;
-        }
-        // NTSC and PAL periods
-        data[0x6E] = data[0x6F] = 0xFF;
-        data[0x78] = data[0x79] = 0xFF;
     }
 };
 
@@ -67,26 +56,12 @@ TEST_F(NSFFileTest, Header_First_Song_Index) {
     EXPECT_EQ(2, header.FirstSong);
 }
 
-TEST_F(NSFFileTest, Header_Invalid_First_Song_Index) {
-    data[0x06] = 10;
-    data[0x07] = 30;
-    std::istringstream iss(data);
-    EXPECT_THROW(NsfFile::HeaderDesc header(iss), invalid_format);
-}
-
 TEST_F(NSFFileTest, Header_Load_Address) {
     data[0x08] = 0x01;
     data[0x09] = 0x80;
     std::istringstream iss(data);
     NsfFile::HeaderDesc header(iss);
     EXPECT_EQ(0x8001, header.LoadAddress);
-}
-
-TEST_F(NSFFileTest, Header_Invalid_Load_Address) {
-    data[0x08] = 0x01;
-    data[0x09] = 0x70;
-    std::istringstream iss(data);
-    EXPECT_THROW(NsfFile::HeaderDesc header(iss), invalid_format);
 }
 
 TEST_F(NSFFileTest, Header_Init_Address) {
@@ -97,26 +72,12 @@ TEST_F(NSFFileTest, Header_Init_Address) {
     EXPECT_EQ(0x8001, header.InitAddress);
 }
 
-TEST_F(NSFFileTest, Header_Invalid_Init_Address) {
-    data[0x0A] = 0x01;
-    data[0x0B] = 0x70;
-    std::istringstream iss(data);
-    EXPECT_THROW(NsfFile::HeaderDesc header(iss), invalid_format);
-}
-
 TEST_F(NSFFileTest, Header_Play_Address) {
     data[0x0C] = 0x01;
     data[0x0D] = 0x80;
     std::istringstream iss(data);
     NsfFile::HeaderDesc header(iss);
     EXPECT_EQ(0x8001, header.PlayAddress);
-}
-
-TEST_F(NSFFileTest, Header_Invalid_Play_Address) {
-    data[0x0C] = 0x01;
-    data[0x0D] = 0x70;
-    std::istringstream iss(data);
-    EXPECT_THROW(NsfFile::HeaderDesc header(iss), invalid_format);
 }
 
 TEST_F(NSFFileTest, Header_Song_Name) {
@@ -184,13 +145,6 @@ TEST_F(NSFFileTest, Header_Period_NTSC) {
     EXPECT_EQ(0x1234, header.PeriodNTSC);
 }
 
-TEST_F(NSFFileTest, Header_Invalid_Period_NTSC) {
-    data[0x6E] = 0x00;
-    data[0x6F] = 0x00;
-    std::istringstream iss(data);
-    EXPECT_THROW(NsfFile::HeaderDesc header(iss), invalid_format);
-}
-
 TEST_F(NSFFileTest, Header_No_Bankswitching) {
     for (int i = 0; i < NSF_BANK_COUNT; ++i) {
         data[0x70 + i] = 0;
@@ -221,13 +175,6 @@ TEST_F(NSFFileTest, Header_Period_PAL) {
     std::istringstream iss(data);
     NsfFile::HeaderDesc header(iss);
     EXPECT_EQ(0x1234, header.PeriodPAL);
-}
-
-TEST_F(NSFFileTest, Header_Invalid_Period_PAL) {
-    data[0x78] = 0x00;
-    data[0x79] = 0x00;
-    std::istringstream iss(data);
-    EXPECT_THROW(NsfFile::HeaderDesc header(iss), invalid_format);
 }
 
 TEST_F(NSFFileTest, Header_NTSC_PAL_Support) {
@@ -339,4 +286,101 @@ TEST_F(NSFFileTest, Header_Data_Size) {
     std::istringstream iss(data);
     NsfFile::HeaderDesc header(iss);
     EXPECT_EQ(0x123456, header.DataSize);
+}
+
+TEST_F(NSFFileTest, NsfFile_Rejected) {
+    auto GetValidHeader = [this]() {
+        std::istringstream iss(data);
+        NsfFile::HeaderDesc header(iss);
+        header.Version = 1;
+        header.SongCount = 1;
+        header.FirstSong = 0;
+        header.LoadAddress = 0x8000;
+        header.InitAddress = 0x8000;
+        header.PlayAddress = 0x8000;
+        header.PeriodNTSC = 1;
+        header.PeriodPAL = 1;
+        return header;
+    };
+    EXPECT_NO_THROW(NsfFile::Validate(GetValidHeader()));
+    {
+        auto header = GetValidHeader();
+        header.Version = 2;
+        EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
+    }
+    {
+        auto header = GetValidHeader();
+        header.SongCount = 0;
+        EXPECT_THROW(NsfFile::Validate(header), invalid_format);
+    }
+    {
+        auto header = GetValidHeader();
+        header.FirstSong = 1;
+        EXPECT_THROW(NsfFile::Validate(header), invalid_format);
+    }
+    {
+        auto header = GetValidHeader();
+        header.LoadAddress = 0x7FFF;
+        EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
+    }
+    {
+        auto header = GetValidHeader();
+        header.InitAddress = 0x7FFF;
+        EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
+    }
+    {
+        auto header = GetValidHeader();
+        header.PlayAddress = 0x7FFF;
+        EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
+    }
+    {
+        auto header = GetValidHeader();
+        header.PeriodNTSC = 0;
+        EXPECT_THROW(NsfFile::Validate(header), invalid_format);
+    }
+    {
+        auto header = GetValidHeader();
+        header.PeriodPAL = 0;
+        EXPECT_THROW(NsfFile::Validate(header), invalid_format);
+    }
+    {
+        auto header = GetValidHeader();
+        header.UsesBankswitching = true;
+        EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
+    }
+    {
+        auto header = GetValidHeader();
+        header.UsesVRC6 = true;
+        EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
+    }
+    {
+        auto header = GetValidHeader();
+        header.UsesVRC7 = true;
+        EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
+    }
+    {
+        auto header = GetValidHeader();
+        header.UsesFDS = true;
+        EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
+    }
+    {
+        auto header = GetValidHeader();
+        header.UsesMMC5 = true;
+        EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
+    }
+    {
+        auto header = GetValidHeader();
+        header.UsesNamco163 = true;
+        EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
+    }
+    {
+        auto header = GetValidHeader();
+        header.UsesSunsoft5B = true;
+        EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
+    }
+    {
+        auto header = GetValidHeader();
+        header.UsesVT02Plus = true;
+        EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
+    }
 }
