@@ -2,34 +2,14 @@
 #define NES_FILE_H_
 
 #include "BitUtil.h"
+#include "Error.h"
 
 #include <iostream>
-#include <stdexcept>
 #include <fstream>
 #include <array>
 #include <vector>
 
 #define NES_TAG "NES" "\x1A"
-
-struct invalid_format : public std::runtime_error {
-    explicit invalid_format(const std::string & what)
-        : std::runtime_error(what)
-    {}
-
-    explicit invalid_format(const char * what)
-        : std::runtime_error(what)
-    {}
-};
-
-struct unsupported_format : public std::runtime_error {
-    explicit unsupported_format(const std::string & what)
-        : std::runtime_error(what)
-    {}
-
-    explicit unsupported_format(const char * what)
-        : std::runtime_error(what)
-    {}
-};
 
 class NesFile {
 public:
