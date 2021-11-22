@@ -22,4 +22,7 @@ typedef Byte Flag;
 #define WORD_HI_MASK    0xFF00
 #define WORD_LO_MASK    0x00FF
 
+Byte LO(const Word & w);
+Byte HI(const Word & w);
+
 #endif /* TYPES_H_ */
