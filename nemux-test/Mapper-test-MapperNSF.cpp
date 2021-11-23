@@ -26,8 +26,11 @@ TEST_F(MapperNSFTest, CpuAddressType) {
     for (int addr = 0x4020; addr <= 0x40FF; ++addr) {
         EXPECT_EQ(Mapper_NSF::CpuAddressType::Invalid, nsf.GetCpuAddressType(addr));
     }
-    for (int addr = 0x4100; addr <= 0x42FF; ++addr) {
-        EXPECT_EQ(Mapper_NSF::CpuAddressType::PlayerSoftware, nsf.GetCpuAddressType(addr));
+    for (int addr = 0x4100; addr <= 0x410F; ++addr) {
+        EXPECT_EQ(Mapper_NSF::CpuAddressType::PlayerRAM, nsf.GetCpuAddressType(addr));
+    }
+    for (int addr = 0x4110; addr <= 0x42FF; ++addr) {
+        EXPECT_EQ(Mapper_NSF::CpuAddressType::PlayerROM, nsf.GetCpuAddressType(addr));
     }
     for (int addr = 0x4300; addr <= 0x5FFF; ++addr) {
         EXPECT_EQ(Mapper_NSF::CpuAddressType::Invalid, nsf.GetCpuAddressType(addr));
@@ -60,6 +63,22 @@ TEST_F(MapperNSFTest, RAM_At_6000_8000) {
 
 TEST_F(MapperNSFTest, ROM_At_8000_Plus) {
     for (int addr = 0x8000; addr <= 0xFFFF; ++addr) {
+        const auto b = nsf.GetCpuAt(addr);
+        nsf.SetCpuAt(addr, b + 1);
+        EXPECT_EQ(b, nsf.GetCpuAt(addr));
+    }
+}
+
+TEST_F(MapperNSFTest, PlayerRAM) {
+    for (int addr = 0x4100; addr <= 0x410F; ++addr) {
+        const auto b = nsf.GetCpuAt(addr);
+        nsf.SetCpuAt(addr, b + 1);
+        EXPECT_EQ(b + 1, nsf.GetCpuAt(addr));
+    }
+}
+
+TEST_F(MapperNSFTest, PlayerROM) {
+    for (int addr = 0x4110; addr <= 0x42FF; ++addr) {
         const auto b = nsf.GetCpuAt(addr);
         nsf.SetCpuAt(addr, b + 1);
         EXPECT_EQ(b, nsf.GetCpuAt(addr));
@@ -199,8 +218,11 @@ TEST_F(MapperNSFBankedTest, CpuAddressType) {
     for (int addr = 0x4020; addr <= 0x40FF; ++addr) {
         EXPECT_EQ(Mapper_NSF::CpuAddressType::Invalid, nsf.GetCpuAddressType(addr));
     }
-    for (int addr = 0x4100; addr <= 0x42FF; ++addr) {
-        EXPECT_EQ(Mapper_NSF::CpuAddressType::PlayerSoftware, nsf.GetCpuAddressType(addr));
+    for (int addr = 0x4100; addr <= 0x410F; ++addr) {
+        EXPECT_EQ(Mapper_NSF::CpuAddressType::PlayerRAM, nsf.GetCpuAddressType(addr));
+    }
+    for (int addr = 0x4110; addr <= 0x42FF; ++addr) {
+        EXPECT_EQ(Mapper_NSF::CpuAddressType::PlayerROM, nsf.GetCpuAddressType(addr));
     }
     for (int addr = 0x4300; addr <= 0x5FF7; ++addr) {
         EXPECT_EQ(Mapper_NSF::CpuAddressType::Invalid, nsf.GetCpuAddressType(addr));
