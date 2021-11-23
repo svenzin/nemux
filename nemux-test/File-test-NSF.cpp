@@ -338,17 +338,18 @@ TEST_F(NSFFileTest, NsfFile_Rejected) {
     {
         auto header = GetValidHeader();
         header.PeriodNTSC = 0;
+        header.SupportsNTSC = true;
         EXPECT_THROW(NsfFile::Validate(header), invalid_format);
+        header.SupportsNTSC = false;
+        EXPECT_NO_THROW(NsfFile::Validate(header));
     }
     {
         auto header = GetValidHeader();
         header.PeriodPAL = 0;
+        header.SupportsPAL = true;
         EXPECT_THROW(NsfFile::Validate(header), invalid_format);
-    }
-    {
-        auto header = GetValidHeader();
-        header.UsesBankswitching = true;
-        EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
+        header.SupportsPAL = false;
+        EXPECT_NO_THROW(NsfFile::Validate(header));
     }
     {
         auto header = GetValidHeader();
@@ -433,3 +434,35 @@ TEST_F(NSFFileTest, NsfFile_NsfData) {
         EXPECT_EQ(0x100, nsf.NsfData.size());
     }
 }
+
+TEST_F(NSFFileTest, Header_Play_Address_Bug_0) {
+    data[0x0C] = 0xB4;
+    data[0x0D] = 0xB3;
+    std::istringstream iss(data);
+    NsfFile::HeaderDesc header(iss);
+    EXPECT_EQ(0xB3B4, header.PlayAddress);
+}
+
+TEST_F(NSFFileTest, NsfFile_Banked_NotTooLarge) {
+    // Trying to read 1 MiB of NSF data without bankswitching
+    for (int i = 0; i < NSF_BANK_COUNT; ++i) {
+        data[0x70 + i] = i;
+    }
+    std::string file = data + std::string(0x100000, 0x00);
+    {
+        // Read all 1M
+        std::istringstream iss(file);
+        NsfFile nsf(iss);
+        EXPECT_TRUE(nsf.Header.UsesBankswitching);
+        EXPECT_EQ(0x100000, nsf.NsfData.size());
+    }
+    {
+        // Read first 512K
+        file[0x7F] = 0x08;
+        std::istringstream iss(file);
+        NsfFile nsf(iss);
+        EXPECT_TRUE(nsf.Header.UsesBankswitching);
+        EXPECT_EQ(0x080000, nsf.NsfData.size());
+    }
+}
+

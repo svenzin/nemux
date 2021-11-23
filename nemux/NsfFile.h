@@ -76,8 +76,8 @@ public:
             FirstSong = header[0x07] - 1;
 
             auto ReadWordAt = [&header](std::size_t index) {
-                const Word lo = header[index];
-                const Word hi = header[index + 1];
+                const Word lo = static_cast<unsigned char>(header[index]);
+                const Word hi = static_cast<unsigned char>(header[index + 1]);
                 const Word addr = lo + (hi << BYTE_WIDTH);
                 return addr;
             };
@@ -133,15 +133,12 @@ public:
     explicit NsfFile(std::istream & input) : Header(input) {
         Validate(Header);
 
-        auto n = Header.DataSize;
-        if (n != 0) {
-            if ((Header.LoadAddress + n) > 0x10000) throw invalid_format("NSF data content is too large");
-            NsfData.resize(n);
-            if (!input.read(reinterpret_cast<char*>(NsfData.data()), n)) {
-                throw invalid_format("Could not read NSF data content");
-            }
-        } else {
-            n = 0x10000 - Header.LoadAddress;
+        std::size_t n = Header.DataSize;
+        if (n == 0) {
+            n = Header.UsesBankswitching ?
+                256 * 0x1000 - (Header.LoadAddress & 0x0FFF)
+                :
+                0x10000 - Header.LoadAddress;
             NsfData.resize(n);
             if (!input.read(reinterpret_cast<char *>(NsfData.data()), n)) {
                 n = input.gcount();
@@ -150,6 +147,15 @@ public:
             const auto dummy = input.peek();
             if (input.good()) throw invalid_format("NSF data content is too large");
             NsfData.resize(n);
+        } else {
+            if (!Header.UsesBankswitching
+                && ((Header.LoadAddress + n) > 0x10000)) {
+                throw invalid_format("NSF data content is too large");
+            }
+            NsfData.resize(n);
+            if (!input.read(reinterpret_cast<char*>(NsfData.data()), n)) {
+                throw invalid_format("Could not read NSF data content");
+            }
         }
     }
 
@@ -163,9 +169,10 @@ public:
         if (desc.LoadAddress < 0x8000) throw unsupported_format("Load address is invalid");
         if (desc.InitAddress < 0x8000) throw unsupported_format("Init address is invalid");
         if (desc.PlayAddress < 0x8000) throw unsupported_format("Play address is invalid");
-        if (desc.PeriodNTSC == 0) throw invalid_format("NTSC period cannot be 0");
-        if (desc.PeriodPAL == 0) throw invalid_format("PAL period cannot be 0");
-        if (desc.UsesBankswitching) throw unsupported_format("Bankswitcing is not supported");
+        if ((desc.PeriodNTSC == 0)
+            && desc.SupportsNTSC) throw invalid_format("NTSC period cannot be 0");
+        if ((desc.PeriodPAL == 0)
+            && desc.SupportsPAL) throw invalid_format("PAL period cannot be 0");
         if (desc.UsesVRC6) throw unsupported_format("VRC6 is not supported");
         if (desc.UsesVRC7) throw unsupported_format("VRC7 is not supported");
         if (desc.UsesFDS) throw unsupported_format("FDS is not supported");
