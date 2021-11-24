@@ -17,6 +17,7 @@ public:
     Byte x;
     Flag w;
 
+    std::array<Byte, 8> OAM2_SpriteId;
     std::array<Byte, 64> OAM2;
 
     static void SetCoarseX  (Word & w, const Byte & b) { w = (w & ~0x001F) | (b & 0x1F); }
