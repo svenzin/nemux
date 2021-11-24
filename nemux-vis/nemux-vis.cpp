@@ -15,6 +15,8 @@
 #include "Mapper_1.h"
 #include "Mapper_2.h"
 #include "Mapper_3.h"
+#include "NsfFile.h"
+#include "Mapper_Nsf.h"
 #include "Cpu.h"
 #include "Ppu.h"
 #include "Controllers.h"
@@ -348,6 +350,7 @@ enum class Options
     Record,
     Replay,
     Test,
+    NSF,
 };
 
 static int frames = 0;
@@ -482,6 +485,9 @@ int main(int argc, char ** argv) {
                 options.insert(Options::Test);
                 recordFilename = argv[++i];
             }
+            else if (param == "-nsf") {
+                options.insert(Options::NSF);
+            }
             else {
                 error("Unrecognized parameter: " + param);
                 return 1;
@@ -512,11 +518,6 @@ int main(int argc, char ** argv) {
             }
             filepath = positionals[0];
         }
-        log("Opening NES ROM at " + filepath + " ...");
-        std::ifstream file(filepath, std::ios::binary);
-        NesFile rom(file);
-        log("Done.");
-
         std::ofstream record;
         if (IsSet(Options::Record)) {
             record.open(recordFilename);
@@ -524,11 +525,23 @@ int main(int argc, char ** argv) {
         }
 
         std::unique_ptr<NesMapper> mapper;
-        switch (rom.Header.MapperNumber) {
-        case 0: mapper.reset(new Mapper_000(rom)); break;
-        case 1: mapper.reset(new Mapper_001(rom)); break;
-        case 2: mapper.reset(new Mapper_002(rom)); break;
-        case 3: mapper.reset(new Mapper_003(rom)); break;
+        if (IsSet(Options::NSF)) {
+            log("Opening NSF ROM at " + filepath + " ...");
+            std::ifstream file(filepath, std::ios::binary);
+            NsfFile rom(file);
+            log("Done.");
+            mapper.reset(new Mapper_NSF(rom));
+        } else {
+            log("Opening NES ROM at " + filepath + " ...");
+            std::ifstream file(filepath, std::ios::binary);
+            NesFile rom(file);
+            log("Done.");
+            switch (rom.Header.MapperNumber) {
+            case 0: mapper.reset(new Mapper_000(rom)); break;
+            case 1: mapper.reset(new Mapper_001(rom)); break;
+            case 2: mapper.reset(new Mapper_002(rom)); break;
+            case 3: mapper.reset(new Mapper_003(rom)); break;
+            }
         }
         
         Machine nes(mapper);
