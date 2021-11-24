@@ -293,15 +293,14 @@ TEST_F(ApuTest, Pulse_Sweep_MuteOnInvalidTargetPeriod) {
 }
 
 TEST_F(ApuTest, Pulse_Sweep_UpdatePeriod) {
+    // After handling the reload flag (see Pulse_Sweep_Reload)
+    // The divider starts at 0 (that's implementation-defined)
+    // So the first tick will trigger a sweep update and a divider reload
+
     // Enabled, Period = 4 half-frames
     pulse.T.Period = 0x0142;
     pulse.WriteSweep(0xB2); // 1011 0010 : Enabled / P=3+1 / A=2
-    EXPECT_EQ(1, pulse.TickSweep(true));
-    EXPECT_EQ(0x0142, pulse.T.Period);
-    EXPECT_EQ(1, pulse.TickSweep(true));
-    EXPECT_EQ(0x0142, pulse.T.Period);
-    EXPECT_EQ(1, pulse.TickSweep(true));
-    EXPECT_EQ(0x0142, pulse.T.Period);
+    EXPECT_EQ(0, pulse.SweepT);
     EXPECT_EQ(1, pulse.TickSweep(true));
     EXPECT_EQ(0x0142 + 0x0050, pulse.T.Period);
     EXPECT_EQ(1, pulse.TickSweep(true));
@@ -312,6 +311,14 @@ TEST_F(ApuTest, Pulse_Sweep_UpdatePeriod) {
     EXPECT_EQ(0x0142 + 0x0050, pulse.T.Period);
     EXPECT_EQ(1, pulse.TickSweep(true));
     EXPECT_EQ(0x0142 + 0x0050 + 0x0064, pulse.T.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142 + 0x0050 + 0x0064, pulse.T.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142 + 0x0050 + 0x0064, pulse.T.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142 + 0x0050 + 0x0064, pulse.T.Period);
+    EXPECT_EQ(1, pulse.TickSweep(true));
+    EXPECT_EQ(0x0142 + 0x0050 + 0x0064 + 0x007D, pulse.T.Period);
 
     // Disabled, Period = 4 half-frames
     pulse.T.Period = 0x0142;
@@ -366,6 +373,9 @@ TEST_F(ApuTest, Pulse_Sweep_NoUpdateWhenShiftIsZero) {
     EXPECT_EQ(0x0142, pulse.T.Period);}
 
 TEST_F(ApuTest, Pulse_Sweep_Reload) {
+    // Note the internal pulse.SweepT is now set to (period - 1)
+    // See Pulse_Sweep_UpdatePeriod to confirm the period is correct
+    
     // Enabled, Period = 5
     pulse.T.Period = 0x0100;
     pulse.WriteSweep(0xC1); // 1100 0001 : Enabled / P=4+1 / Positive / A=1
@@ -373,13 +383,13 @@ TEST_F(ApuTest, Pulse_Sweep_Reload) {
     EXPECT_EQ(0, pulse.SweepT);
     pulse.TickSweep(true);
     EXPECT_EQ(5, pulse.SweepPeriod);
-    EXPECT_EQ(5, pulse.SweepT);
+    EXPECT_EQ(4, pulse.SweepT);
     pulse.WriteSweep(0xD1); // 1101 0001 : Enabled / P=5+1 / Positive / A=1
     EXPECT_EQ(6, pulse.SweepPeriod);
-    EXPECT_EQ(5, pulse.SweepT);
+    EXPECT_EQ(4, pulse.SweepT);
     pulse.TickSweep(true);
     EXPECT_EQ(6, pulse.SweepPeriod);
-    EXPECT_EQ(6, pulse.SweepT);
+    EXPECT_EQ(5, pulse.SweepT);
 }
 
 TEST_F(ApuTest, Pulse_Envelope_ConstantVolume) {

@@ -189,6 +189,7 @@ struct LinearCounter {
     bool Control = false;
 
     int Tick(const bool quarterFrame) {
+        const int value = ((Count > 0) ? 1 : 0);
         if (quarterFrame) {
             if (Reload) {
                 Count = ReloadValue;
@@ -198,7 +199,7 @@ struct LinearCounter {
             }
             if (!Control) Reload = false;
         }
-        return ((Count > 0) ? 1 : 0);
+        return value;
     }
 };
 
@@ -317,7 +318,7 @@ struct Pulse {
             }
 
             if ((SweepT == 0) || SweepReload) {
-                SweepT = SweepPeriod;
+                SweepT = SweepPeriod - 1;
                 SweepReload = false;
             }
             else {
