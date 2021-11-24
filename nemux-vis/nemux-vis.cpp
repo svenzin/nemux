@@ -759,9 +759,18 @@ int main(int argc, char ** argv) {
                         case replay::CheckFrame: {
                             std::cout << "Check frame" << std::endl;
                             Byte d;
+                            bool success = true;
+                            std::array<Uint32, VIDEO_SIZE> difference;
                             for (int i = 0; i < VIDEO_SIZE; ++i) {
                                 replay >> d;
-                                if (nes.ppu.Frame[i] != d) throw std::runtime_error("Frame check failed");
+                                const bool isSame = (nes.ppu.Frame[i] == d);
+                                success = success && isSame;
+                                difference[i] = isSame ? Grey(32) : Grey(224);
+                            }
+                            if (!success) {
+                                SDL::SetScale(3);
+                                SDL::Show(VIDEO_WIDTH, VIDEO_HEIGHT, difference.data());
+                                throw std::runtime_error("Frame check failed");
                             }
                             break;
                         }
