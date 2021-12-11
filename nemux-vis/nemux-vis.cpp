@@ -59,7 +59,8 @@ public:
         ppu.Tick();
         ppu.Tick();
         ppu.Tick();
-        const auto sample = apu.Tick();
+        const auto cpuSample = apu.Tick();
+        const auto sample = mapper->Tick(cpuSample);
         return{ ppu.FrameCount != frame, sample };
     }
 

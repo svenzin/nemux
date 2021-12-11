@@ -25,6 +25,8 @@ public:
     virtual Byte GetPpuAt(const Word address) const = 0;
 
     virtual void SetPpuAt(const Word address, const Byte value) = 0;
+
+    virtual float Tick(const float audioCPU) { return audioCPU; }
 };
 
 #endif /* MAPPER_H_ */
