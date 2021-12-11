@@ -110,10 +110,15 @@ struct MapperNSFBankedTest : public ::testing::Test {
     NsfFile nsf_file;
     Mapper_NSF nsf;
 
+    std::ifstream large_stream;
+    NsfFile large_file;
+
     MapperNSFBankedTest()
         : nsf_stream("nsf.banked.nsf", std::ios::binary),
         nsf_file(nsf_stream),
-        nsf(nsf_file)
+        nsf(nsf_file),
+        large_stream("nsf.banked.large.nsf", std::ios::binary),
+        large_file(large_stream)
     {}
 };
 
@@ -241,4 +246,27 @@ TEST_F(MapperNSFBankedTest, CpuAddressType) {
     }
 }
 
+TEST_F(MapperNSFBankedTest, Handle_Large_Number_Of_Banks) {
+    large_file.Header.LoadAddress = 0x8000;
+    large_file.Header.InitialBank[0] = 8;
+    large_file.Header.InitialBank[1] = 8;
+    large_file.Header.InitialBank[2] = 8;
+    large_file.Header.InitialBank[3] = 8;
+    large_file.Header.InitialBank[4] = 8;
+    large_file.Header.InitialBank[5] = 8;
+    large_file.Header.InitialBank[6] = 8;
+    large_file.Header.InitialBank[7] = 8;
+    Mapper_NSF nsf(large_file);
+    for (int i = 0; i < 0x1000; ++i) {
+        EXPECT_EQ(large_file.NsfData[0x8000 + i], nsf.GetCpuAt(0x8000 + i));
+        EXPECT_EQ(large_file.NsfData[0x8000 + i], nsf.GetCpuAt(0x9000 + i));
+        EXPECT_EQ(large_file.NsfData[0x8000 + i], nsf.GetCpuAt(0xA000 + i));
+        EXPECT_EQ(large_file.NsfData[0x8000 + i], nsf.GetCpuAt(0xB000 + i));
+        EXPECT_EQ(large_file.NsfData[0x8000 + i], nsf.GetCpuAt(0xC000 + i));
+        EXPECT_EQ(large_file.NsfData[0x8000 + i], nsf.GetCpuAt(0xD000 + i));
+        EXPECT_EQ(large_file.NsfData[0x8000 + i], nsf.GetCpuAt(0xE000 + i));
+        if (i >= 0x0FFA) continue; // skip interrupt vectors
+        EXPECT_EQ(large_file.NsfData[0x8000 + i], nsf.GetCpuAt(0xF000 + i));
+    }
+}
 

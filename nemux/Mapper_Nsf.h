@@ -9,6 +9,7 @@
 
 class Mapper_NSF : public NesMapper {
 public:
+#define INVALID_BANK Byte(-1)
     bool IsBanked;
     std::array<Byte, 0x10> Banks;
 
@@ -66,9 +67,11 @@ public:
     
     explicit Mapper_NSF(const NsfFile & nsf)
     : IsBanked(nsf.Header.UsesBankswitching) {
-        for (int i = 0; i < 0x10; ++i) Banks[i] = i;
+        for (int i = 0; i < 0x08; ++i) Banks[i] = INVALID_BANK;
         if (IsBanked) {
             for (int i = 0; i < 8; ++i) Banks[8 + i] = nsf.Header.InitialBank[i];
+        } else {
+            for (int i = 0; i < 8; ++i) Banks[8 + i] = i;
         }
         
         Ram.fill(0);
@@ -108,7 +111,7 @@ public:
             return Ram[address & 0x1FFF];
         case CpuAddressType::ROM: {
             const auto addr = Translate(address);
-            return Rom[addr & 0x7FFF];
+            return Rom[addr];
         }
         case CpuAddressType::PlayerRAM:
         case CpuAddressType::PlayerROM:
