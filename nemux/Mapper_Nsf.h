@@ -4,7 +4,7 @@
 #include "Mapper.h"
 //#include "MemoryMap.h"
 #include "NsfFile.h"
-
+#include "VRC6_Audio.h"
 //#include <algorithm>
 
 class Mapper_NSF : public NesMapper {
@@ -65,6 +65,9 @@ public:
         0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA,
     };
     
+    bool UsesVRC6;
+    VRC6_Audio VRC6;
+    
     explicit Mapper_NSF(const NsfFile & nsf)
     : IsBanked(nsf.Header.UsesBankswitching) {
         for (int i = 0; i < 0x08; ++i) Banks[i] = INVALID_BANK;
@@ -89,6 +92,8 @@ public:
             std::copy_n(nsf.NsfData.cbegin(), n, Rom.begin() + p);
         }
 
+        UsesVRC6 = nsf.Header.UsesVRC6;
+
         Vectors[0] = NMI_HANDLER;
         Vectors[1] = PLAYER_PAGE;
         Vectors[2] = RST_HANDLER;
@@ -109,6 +114,7 @@ public:
         switch (atype) {
         case CpuAddressType::RAM:
             return Ram[address & 0x1FFF];
+        case CpuAddressType::VRC6:
         case CpuAddressType::ROM: {
             const auto addr = Translate(address);
             return Rom[addr];
@@ -128,6 +134,21 @@ public:
         case CpuAddressType::RAM: Ram[address & 0x1FFF] = value; break;
         case CpuAddressType::Register: SetBank(address & 0xF, value); break;
         case CpuAddressType::PlayerRAM: PlayerSoftware[address - PLAYER_ADDR] = value; break;
+        case CpuAddressType::VRC6: {
+            switch (address) {
+            case 0x9000: VRC6.Pulse1.WriteControl(value); break;
+            case 0x9001: VRC6.Pulse1.WritePeriodLo(value); break;
+            case 0x9002: VRC6.Pulse1.WritePeriodHi(value); break;
+            case 0x9003: VRC6.WriteFrequencyScaling(value); break;
+            case 0xA000: VRC6.Pulse2.WriteControl(value); break;
+            case 0xA001: VRC6.Pulse2.WritePeriodLo(value); break;
+            case 0xA002: VRC6.Pulse2.WritePeriodHi(value); break;
+            case 0xB000: VRC6.Saw.WriteControl(value); break;
+            case 0xB001: VRC6.Saw.WritePeriodLo(value); break;
+            case 0xB002: VRC6.Saw.WritePeriodHi(value); break;
+            }
+            break;
+        }
         }
     }
 
@@ -144,6 +165,7 @@ public:
         ROM,
         Register,
         Vector,
+        VRC6,
     };
 
     CpuAddressType GetCpuAddressType(const Word address) const {
@@ -154,7 +176,17 @@ public:
         if (address < 0x5FF8) return CpuAddressType::Invalid;
         if (address < 0x6000) return IsBanked ? CpuAddressType::Register : CpuAddressType::Invalid;
         if (address < 0x8000) return CpuAddressType::RAM;
-        if (address < 0xFFFA) return CpuAddressType::ROM;
+        if (address < 0xFFFA) {
+            if (UsesVRC6) {
+                switch (address) {
+                case 0x9000: case 0x9001: case 0x9002: case 0x9003:
+                case 0xA000: case 0xA001: case 0xA002:
+                case 0xB000: case 0xB001: case 0xB002:
+                    return CpuAddressType::VRC6;
+                }
+            }
+            return CpuAddressType::ROM;
+        }
         return CpuAddressType::Vector;
     }
 
@@ -169,6 +201,14 @@ public:
 
     Word Translate(const Word addr) const {
         return (GetBank(addr) << 12) + (addr & 0x0FFF);
+    }
+
+    float Tick(const float audioCPU) override {
+        if (UsesVRC6) {
+            const auto vrc6 = VRC6.Tick() / 64.0f;
+            return 0.5f * (audioCPU + vrc6);
+        }
+        return audioCPU;
     }
 };
 

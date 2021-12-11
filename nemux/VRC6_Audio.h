@@ -20,7 +20,7 @@ struct VRC6_Audio {
         return pulse1 + pulse2 + saw;
     }
     
-    bool Halted = true;
+    bool Halted = false;
     int Scale = 1;
     void WriteFrequencyScaling(const Byte value) {
         Halted = IsBitSet<0>(value);

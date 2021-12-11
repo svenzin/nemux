@@ -270,3 +270,24 @@ TEST_F(MapperNSFBankedTest, Handle_Large_Number_Of_Banks) {
     }
 }
 
+struct MapperNSFVRC6Test : public ::testing::Test {
+    std::ifstream nsf_stream;
+    NsfFile nsf_file;
+    Mapper_NSF nsf;
+
+    MapperNSFVRC6Test()
+        : nsf_stream("nsf.vrc6.nsf", std::ios::binary),
+        nsf_file(nsf_stream),
+        nsf(nsf_file)
+    {}
+};
+
+TEST_F(MapperNSFVRC6Test, CpuAddressType_VRC6) {
+    for (auto addr : {
+        0x9000, 0x9001, 0x9002, 0x9003,
+        0xA000, 0xA001, 0xA002,
+        0xB000, 0xB001, 0xB002 }) {
+        EXPECT_EQ(Mapper_NSF::CpuAddressType::VRC6, nsf.GetCpuAddressType(addr));
+    }
+}
+

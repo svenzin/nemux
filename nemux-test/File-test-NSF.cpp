@@ -353,11 +353,6 @@ TEST_F(NSFFileTest, NsfFile_Rejected) {
     }
     {
         auto header = GetValidHeader();
-        header.UsesVRC6 = true;
-        EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
-    }
-    {
-        auto header = GetValidHeader();
         header.UsesVRC7 = true;
         EXPECT_THROW(NsfFile::Validate(header), unsupported_format);
     }

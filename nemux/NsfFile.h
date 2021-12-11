@@ -173,7 +173,6 @@ public:
             && desc.SupportsNTSC) throw invalid_format("NTSC period cannot be 0");
         if ((desc.PeriodPAL == 0)
             && desc.SupportsPAL) throw invalid_format("PAL period cannot be 0");
-        if (desc.UsesVRC6) throw unsupported_format("VRC6 is not supported");
         if (desc.UsesVRC7) throw unsupported_format("VRC7 is not supported");
         if (desc.UsesFDS) throw unsupported_format("FDS is not supported");
         if (desc.UsesMMC5) throw unsupported_format("MMC5is not supported");
