@@ -436,8 +436,8 @@ public:
     };
     std::array<SpriteUnit, 8> Sprites;
 public:
-    static constexpr char * Id = "2C02";
-    static constexpr char * Name = "Ricoh RP2C02";
+    static constexpr const char * Id = "2C02";
+    static constexpr const char * Name = "Ricoh RP2C02";
 
     static constexpr size_t VIDEO_WIDTH = 341;
     static constexpr size_t VIDEO_HEIGHT = 262;

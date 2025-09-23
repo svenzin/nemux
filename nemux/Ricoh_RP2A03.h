@@ -40,7 +40,7 @@ class Ricoh_RP2A03 {
         Map->SetByteAt(address, value);
     }
 
-    // µops state
+    // ï¿½ops state
     Word vector;
     Word address;
     Byte index;
@@ -377,8 +377,8 @@ public:
     Byte S, A, X, Y;
     Flag N, V, D, I, Z, C;
 
-    static constexpr char * Id = "2A03";
-    static constexpr char * Name = "Ricoh RP2A03";
+    static constexpr const char * Id = "2A03";
+    static constexpr const char * Name = "Ricoh RP2A03";
 
     static constexpr Word VECTOR_NMI = 0xFFFA;
     static constexpr Word VECTOR_RST = 0xFFFC;

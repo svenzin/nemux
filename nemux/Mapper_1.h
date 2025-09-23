@@ -127,7 +127,7 @@ public:
     BankedAddress ToPrgRom(const Word address) const {
         if (PrgMode == PRGBankingMode::SwitchFirstBank) {
             if (address < 0xC000) return{ PrgBank, Word(address & 0x3FFF) };
-            return{ PrgBanks.size() - 1, Word(address & 0x3FFF) };
+            return{ (unsigned int)(PrgBanks.size() - 1), Word(address & 0x3FFF) };
         }
         if (PrgMode == PRGBankingMode::SwitchLastBank) {
             if (address < 0xC000) return{ 0, Word(address & 0x3FFF) };

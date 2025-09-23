@@ -35,7 +35,7 @@ public:
     BankedAddress TranslateCpu(const Word address) const {
         const Word addr = address & 0x3FFF;
         const unsigned int bank = (address & 0x7FFF) / 0x4000;
-        if (bank == 1) return{ PrgRom.size() - 1, addr };
+        if (bank == 1) return{ static_cast<unsigned int>(PrgRom.size() - 1), addr };
         return{ CurrentBank, addr };
     }
 
