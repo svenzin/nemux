@@ -4,3 +4,6 @@
 [submodule "3rd-party/nes-test-roms"]
 	path = 3rd-party/nes-test-roms
 	url = https://github.com/christopherpow/nes-test-roms.git
+[submodule "3rd-party/vcpkg"]
+	path = 3rd-party/vcpkg
+	url = https://github.com/microsoft/vcpkg.git
