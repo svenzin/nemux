@@ -1,0 +1,15 @@
+{
+  "dependencies": [
+    {
+        "name": "sdl2",
+        "version>=": "2.0.12"
+    }
+  ],
+  "builtin-baseline": "9a98f93671f984351377044210854900bfd73171",
+  "overrides": [
+    {
+      "name": "sdl2",
+      "version": "2.0.12"
+    }
+  ]
+}

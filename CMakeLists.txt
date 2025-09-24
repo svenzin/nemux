@@ -1,4 +1,9 @@
-cmake_minimum_required(VERSION 4.1)
+cmake_minimum_required(VERSION 3.16)
+
+set(CMAKE_TOOLCHAIN_FILE
+    ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/vcpkg/scripts/buildsystems/vcpkg.cmake
+    # CACHE STRING "Vcpkg toolchain file"
+)
 
 project(nemux)
 
@@ -18,6 +23,7 @@ add_subdirectory(nemux)
 
 add_subdirectory(nemux-cli)
 
+find_package(SDL2 CONFIG REQUIRED)
 add_subdirectory(nemux-vis)
 
 add_subdirectory(3rd-party/googletest)
