@@ -427,6 +427,8 @@ TEST_F(PpuTest, ReadData_ReadBufferOnHighAddress) {
 }
 
 TEST_F(PpuTest, NMI_DetailedActivation) {
+    FAIL();
+    
     ppu.WriteControl1(Mask<7>(true));
     EXPECT_EQ(true, ppu.NMIOnVBlank);
 
@@ -546,6 +548,8 @@ TEST_F(PpuTest, NMI_MultipleTriggersStopOnStatusRead) {
 }
 
 TEST_F(PpuTest, PpuFrameTime_DisabledRendering) {
+    FAIL();
+
     // 1 pixel per PPU cycle
     const auto T0 = VIDEO_SIZE;
 
@@ -572,6 +576,8 @@ TEST_F(PpuTest, PpuFrameTime_DisabledRendering) {
 }
 
 TEST_F(PpuTest, PpuFrameTime_EnabledRendering) {
+    FAIL();
+    
     // 1 pixel per PPU cycle
     const auto T0 = VIDEO_SIZE;
 

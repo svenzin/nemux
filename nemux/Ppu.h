@@ -25,7 +25,7 @@ static constexpr size_t VIDEO_WIDTH = 341;
 static constexpr size_t VIDEO_HEIGHT = 262;
 static constexpr size_t VIDEO_SIZE = VIDEO_WIDTH * VIDEO_HEIGHT;
 
-static const bool USE_RP2C02 = true;
+static const bool USE_RP2C02 = false;
 
 class Ppu {
 public:

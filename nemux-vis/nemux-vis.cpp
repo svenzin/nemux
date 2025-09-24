@@ -28,7 +28,17 @@ using std::setfill;
 using std::setw;
 using std::endl;
 
+// TODO
 #undef main
+
+namespace logger {
+    void _log(std::ostream& out, const char* category, const std::string & msg) {
+        out << "[" << category << "] " << msg << std::endl;
+    }
+
+    void info(const std::string& msg) { _log(std::cout, "INFO", msg); }
+    void error(const std::string& msg) { _log(std::cerr, "ERROR", msg); }
+}
 
 class Machine {
 public:
@@ -273,7 +283,7 @@ struct SDL {
                 SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                 SDL::get()->Scale * sx, SDL::get()->Scale * sy,
                 SDL_WINDOW_SHOWN);
-            ren = SDL_CreateRenderer(win, -1, 0);
+            ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_SOFTWARE);
             SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
             SDL_RenderSetLogicalSize(ren, sx, sy);
             tex = SDL_CreateTexture(ren,
@@ -404,7 +414,7 @@ void PushFrameSamples(const std::vector<float> & frame) {
     case DropSamples:
     default: {
         const int step = 37; // 1.789773 MHz / 48 kHz ~= 37.29 APU samples per audio sample
-        for (size_t i = 0; i < 800; i++) {
+        for (size_t i = 0; (i < 800) && (i * step < frame.size()); i++) {
             const float s = frame[step * i];
             Sint16 SampleValue = 20000 * s - 10000;
             SDLaudio.push_back(SampleValue);
@@ -787,19 +797,38 @@ int main(int argc, char ** argv) {
         else {
             bool replayCheckFrame = false;
             bool replayReset = false;
-            SDL::SetScale(3);
+            //SDL::SetScale(3);
+            int SCALE{ 3 };
 
             std::array<Uint32, VIDEO_SIZE> pixels;
             pixels.fill(0);
 
-            SDL_Window * win;
-            SDL_Renderer * ren;
+            if (auto error = SDL_Init(SDL_INIT_EVERYTHING)) {
+                logger::error("SDL_Init Error: " + std::string(SDL_GetError()));
+                throw std::runtime_error("Failed to initialize SDL");
+            }
+            
             SDL_Texture * tex;
-            win = SDL_CreateWindow("Software Renderer",
-                SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                SDL::get()->Scale * VIDEO_WIDTH, SDL::get()->Scale * VIDEO_HEIGHT,
-                SDL_WINDOW_SHOWN);
-            ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_PRESENTVSYNC);
+            
+            SDL_Window* win{
+                SDL_CreateWindow("Software Renderer",
+                    SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                    SCALE * VIDEO_WIDTH, SCALE * VIDEO_HEIGHT,
+                    SDL_WINDOW_SHOWN)
+            };
+            if (win == nullptr) {
+                logger::error("SDL_CreateWindow Error: " + std::string(SDL_GetError()));
+                throw std::runtime_error("Failed to create SDL window");
+            }
+            
+            SDL_Renderer* ren{
+                SDL_CreateRenderer(win, -1, 1)//, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_SOFTWARE)
+            };
+            if (ren == nullptr) {
+                logger::error("SDL_CreateRenderer Error: " + std::string(SDL_GetError()));
+                throw std::runtime_error("Failed to create SDL renderer");
+            }
+
             SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
             SDL_RenderSetLogicalSize(ren, VIDEO_WIDTH, VIDEO_HEIGHT);
             tex = SDL_CreateTexture(ren,

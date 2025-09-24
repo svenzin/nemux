@@ -74,7 +74,7 @@ public:
 
     BankedAddress ToPrgRom(const Word address) const {
         if (address < 0xC000) return{ 0, Word(address & 0x3FFF) };
-        return{ PrgBanks.size() - 1, Word(address & 0x3FFF) };
+        return{ static_cast<unsigned int>(PrgBanks.size() - 1), Word(address & 0x3FFF) };
     }
 
     BankedAddress ToChrRom(const Word address) const {

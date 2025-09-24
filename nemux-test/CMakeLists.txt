@@ -10,8 +10,8 @@ file(GLOB SOURCES "*.cpp")
 add_executable(nemux-test ${SOURCES})
 target_link_libraries(nemux-test nemux gmock_main)
 
-add_test(NAME nemux-test COMMAND nemux-test)
+# add_test(NAME nemux-test COMMAND nemux-test)
 
-# include(GoogleTest)
-# # gtest_discover_tests(nemux-test)
+include(GoogleTest)
+gtest_discover_tests(nemux-test)
 # # gtest_add_tests(TARGET nemux-test)
