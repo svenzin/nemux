@@ -5,7 +5,7 @@
  *      Author: scorder
  */
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include "NesRom.h"
 
