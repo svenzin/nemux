@@ -25,6 +25,4 @@ add_subdirectory(nemux-cli)
 
 add_subdirectory(nemux-vis)
 
-add_subdirectory(3rd-party/googletest)
-enable_testing()
 add_subdirectory(nemux-test)
