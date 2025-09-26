@@ -23,7 +23,6 @@ add_subdirectory(nemux)
 
 add_subdirectory(nemux-cli)
 
-find_package(SDL2 CONFIG REQUIRED)
 add_subdirectory(nemux-vis)
 
 add_subdirectory(3rd-party/googletest)
