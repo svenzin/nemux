@@ -1,19 +1,10 @@
-/*
- * Types.h
- *
- *  Created on: 20 Jun 2013
- *      Author: scorder
- */
-
-#ifndef TYPES_H_
-#define TYPES_H_
+#pragma once
 
 #include <cstdint>
 
-typedef uint8_t  Byte;
-typedef uint16_t Word;
-
-typedef Byte Flag;
+using Flag = uint8_t;
+using Byte = uint8_t;
+using Word = uint16_t;
 
 #define BYTE_WIDTH      8
 #define BYTE_MASK       0xFF
@@ -22,7 +13,8 @@ typedef Byte Flag;
 #define WORD_HI_MASK    0xFF00
 #define WORD_LO_MASK    0x00FF
 
-Byte LO(const Word & w);
-Byte HI(const Word & w);
+constexpr Byte LO(Word w) { return static_cast<Byte>(w); }
+constexpr Byte HI(Word w) { return static_cast<Byte>(w >> BYTE_WIDTH); }
 
-#endif /* TYPES_H_ */
+constexpr void SetLO(Word & w, Byte lo) { w = (w & WORD_HI_MASK) | lo; }
+constexpr void SetHI(Word & w, Byte hi) { w = (hi << BYTE_WIDTH) | LO(w); }

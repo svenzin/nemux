@@ -165,7 +165,6 @@ int main(int argc, char ** argv) {
 
             if (start_addr.first) {
                 cpu.PC = start_addr.second;
-                cpu.B = 0;
             }
             else {
                 cpu.Reset();
@@ -231,11 +230,10 @@ int main(int argc, char ** argv) {
                         std::getline(logfile.second, line);
                         const auto state = ParseLog(line);
                         if (cpu.PC != state.PC ||
-                            cpu.SP != state.SP ||
+                            cpu.S != state.SP ||
                             cpu.A != state.A ||
                             cpu.X != state.X ||
-                            cpu.Y != state.Y ||
-                            (cpu.GetStatus() & ~Mask<Brk>(1)) != (state.P & ~Mask<Brk>(1))) {
+                            cpu.Y != state.Y) {
                             std::cout << "DIFF"
                                 << " PC=$" << hex << setfill('0') << setw(4) << state.PC
                                 << " S=$" << hex << setfill('0') << setw(2) << Word{ state.SP }

@@ -182,7 +182,7 @@ public:
 
         EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
         EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
-        EXPECT_EQ(expS, cpu.SP);
+        EXPECT_EQ(expS, cpu.S);
         EXPECT_EQ(expM, cpu.ReadByteAt(address));
     }
 
@@ -267,7 +267,7 @@ public:
     void Test_LAS(Word address, Opcode op, int extra) {
         auto tester = [&](Byte m, Byte s, Byte expAXS, Flag expN, Flag expZ) {
             cpu.WriteByteAt(address, m);
-            cpu.SP = s;
+            cpu.S = s;
 
             cpu.PC = BASE_PC;
             cpu.Ticks = BASE_TICKS;
@@ -277,7 +277,7 @@ public:
             EXPECT_EQ(BASE_TICKS + op.Cycles + extra, cpu.Ticks);
             EXPECT_EQ(expAXS, cpu.A);
             EXPECT_EQ(expAXS, cpu.X);
-            EXPECT_EQ(expAXS, cpu.SP);
+            EXPECT_EQ(expAXS, cpu.S);
             EXPECT_EQ(expN, cpu.N);
             EXPECT_EQ(expZ, cpu.Z);
         };

@@ -389,12 +389,12 @@ void Ricoh_RP2A03::do_DMA() {
 }
 
 Ricoh_RP2A03::Ricoh_RP2A03()
-    : PC{ 0 }, S{ 0 }, A{ 0 }, X{ 0 }, Y{ 0 },
-    N{ 0 }, V{ 0 }, D{ 0 }, I{ 0 }, Z{ 0 }, C{ 0 },
-    Ticks{ 0 },
-    IRQ{ false }, IRQLevel{ false },
-    NMI{ false }, NMIEdge{ false }, NMIFlipFlop{ false },
-    CycleActive{ false }
+    : Ticks{ 0 }
+    , IRQLevel{ false }
+    , NMIEdge{ false }
+    , NMIFlipFlop{ false }
+    , CycleActive{ false }
+    , BaseCpu{}
 {
     // Build addressing mode LUT from opcode decoding
     for (int opcode = 0; opcode < 0x100; ++opcode) {
@@ -453,9 +453,12 @@ void Ricoh_RP2A03::Phi2() {
     NMIEdge = NMI;
 }
 
+void Ricoh_RP2A03::PowerUp() {
+}
+
 void Ricoh_RP2A03::Reset() {
     //operations.clear();
-    trigger_interrupt(VECTOR_RST, false, true);
+    trigger_interrupt(VectorRST, false, true);
 }
 
 void Ricoh_RP2A03::DMA(const Byte & fromHi, Byte * to, const Byte & offset) {
@@ -471,33 +474,15 @@ void Ricoh_RP2A03::DMA(const Byte & fromHi, Byte * to, const Byte & offset) {
     }
 }
 
-void Ricoh_RP2A03::SetStatus(const Byte & status) {
-    N = Bit<Neg>(status);
-    V = Bit<Ovf>(status);
-    D = Bit<Dec>(status);
-    I = Bit<Int>(status);
-    Z = Bit<Zer>(status);
-    C = Bit<Car>(status);
-}
-
-Byte Ricoh_RP2A03::GetStatus(const Flag B) const {
-    return
-        Mask<Neg>(N) | Mask<Ovf>(V) |
-        Mask<Unu>(1) | Mask<Brk>(B) |
-        Mask<Dec>(D) | Mask<Int>(I) |
-        Mask<Zer>(Z) | Mask<Car>(C);
-}
-
 void Ricoh_RP2A03::Push(const Byte & value) {
-    SetByteAt(STACK_PAGE + S, value);
+    SetByteAt(StackPage+ S, value);
     --S;
 }
 
 Byte Ricoh_RP2A03::Pull() {
     ++S; 
-    return GetByteAt(STACK_PAGE + S);
+    return GetByteAt(StackPage + S);
 }
-
 
 void Ricoh_RP2A03::Cycle() {
     operations.push(M(end_cycle));

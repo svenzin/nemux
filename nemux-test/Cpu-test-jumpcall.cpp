@@ -97,7 +97,7 @@ TEST_F(CpuTestJumpCall, JSR) {
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.StackPage = 0x100;
-    cpu.SP = 0xF0;
+    cpu.S = 0xF0;
 
     cpu.PC = BASE_PC;
     cpu.Ticks = BASE_TICKS;
@@ -105,7 +105,7 @@ TEST_F(CpuTestJumpCall, JSR) {
 
     EXPECT_EQ(0x0120, cpu.PC);
     EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
-    EXPECT_EQ(0xEE, cpu.SP);
+    EXPECT_EQ(0xEE, cpu.S);
     EXPECT_EQ(BASE_PC + 2, cpu.PullWord());
 }
 
@@ -114,7 +114,7 @@ TEST_F(CpuTestJumpCall, RTS) {
 
     cpu.WriteByteAt(BASE_PC, 0xFF);
     cpu.StackPage = 0x100;
-    cpu.SP = 0xF0;
+    cpu.S = 0xF0;
     cpu.PushWord(0x0120);
 
     cpu.PC = BASE_PC;
@@ -123,5 +123,5 @@ TEST_F(CpuTestJumpCall, RTS) {
 
     EXPECT_EQ(0x0121, cpu.PC);
     EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
-    EXPECT_EQ(0xF0, cpu.SP);
+    EXPECT_EQ(0xF0, cpu.S);
 }

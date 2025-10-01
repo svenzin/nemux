@@ -23,11 +23,11 @@ static int nmic = 0;
 static void Write2A03State(Cpu& cpu, Ricoh_RP2A03& rp2a03) {
     rp2a03.Halted = !cpu.IsAlive;
     rp2a03.PC = cpu.PC;
-    rp2a03.S = cpu.SP;
+    rp2a03.S = cpu.S;
     rp2a03.A = cpu.A;
     rp2a03.X = cpu.X;
     rp2a03.Y = cpu.Y;
-    rp2a03.SetStatus(cpu.GetStatus());
+    rp2a03.SetStatusByte(cpu.GetStatusByte(0));
     rp2a03.Map = cpu.Map;
     rp2a03.Ticks = cpu.Ticks;
 }
@@ -35,11 +35,11 @@ static void Read2A03State(Ricoh_RP2A03& rp2a03, Cpu& cpu) {
     cpu.Ticks = rp2a03.Ticks;
     if (rp2a03.INSTR) cpu.CurrentTick = rp2a03.Ticks;
     cpu.PC = rp2a03.PC;
-    cpu.SP = rp2a03.S;
+    cpu.S = rp2a03.S;
     cpu.A = rp2a03.A;
     cpu.X = rp2a03.X;
     cpu.Y = rp2a03.Y;
-    cpu.SetStatus(rp2a03.GetStatus(0));
+    cpu.SetStatusByte(rp2a03.GetStatusByte(0));
     cpu.IsAlive = !rp2a03.Halted;
 }
 
@@ -63,10 +63,13 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
 }
 
 /* explicit */ Cpu::Cpu(std::string name, MemoryMap * map)
-    : Name{name},
-      PC {0}, SP {0}, A {0}, X {0}, Y {0},
-      C {0}, Z {0}, I {0}, D {0}, B {0}, V {0}, N {0}, Unused{1},
-      Ticks{0}, InterruptCycles{7}, Map{map} {
+    : Name{name}
+    , Ticks{0}
+    , InterruptCycles{7}
+    , Map{map}
+    , rp2a03{}
+    , BaseCpu{}
+{
     m_opcodes.resize(
         OPCODES_COUNT,
         Opcode(UNK, Unknown, 0, 0)
@@ -413,8 +416,8 @@ void Cpu::WriteByteAt(const Word address, const Byte value) {
 
     // Power up state
     IsAlive = true;
-    SP = 0xFD;
-    SetStatus(0x34);
+    S = 0xFD;
+    SetStatusByte(0x24);
     CurrentTick = 0;
     PendingInterrupt = InterruptType::None;
 }
@@ -590,12 +593,12 @@ void Cpu::Jump(const Word address) {
     PC = address;
 }
 void Cpu::Push(const Byte & value) {
-    WriteByteAt(StackPage + SP, value);
-    --SP;
+    WriteByteAt(StackPage + S, value);
+    --S;
 }
 Byte Cpu::Pull() {
-    ++SP;
-    return ReadByteAt(StackPage + SP);
+    ++S;
+    return ReadByteAt(StackPage + S);
 }
 void Cpu::PushWord(const Word & value) {
     Push((value >> BYTE_WIDTH) & BYTE_MASK);
@@ -604,38 +607,24 @@ void Cpu::PushWord(const Word & value) {
 Word Cpu::PullWord() {
     return Pull() | (Pull() << BYTE_WIDTH);
 }
-void Cpu::SetStatus(const Byte & status) {
-    N = Bit<Neg>(status);
-    V = Bit<Ovf>(status);
-    B = Bit<Brk>(status);
-    D = Bit<Dec>(status);
-    I = Bit<Int>(status);
-    Z = Bit<Zer>(status);
-    C = Bit<Car>(status);
-}
-Byte Cpu::GetStatus() const {
-    return Mask<Neg>(N)      | Mask<Ovf>(V) |
-           Mask<Unu>(Unused) | Mask<Brk>(B) |
-           Mask<Dec>(D)      | Mask<Int>(I) |
-           Mask<Zer>(Z)      | Mask<Car>(C);
-}
 void Cpu::Interrupt(const Flag & isBRK,
                     const Word & vector,
                     const bool readOnly /*= false*/) {
-    B = isBRK;
     if (readOnly) {
-        SP -= 3;
+        S -= 3;
     } else {
         PushWord(PC);
-        Push(GetStatus());
+        Push(GetStatusByte(isBRK));
     }
     I = 1;
     PC = ReadWordAt(vector);
     Ticks += InterruptCycles;
 }
+
 void Cpu::PowerUp() {
     PC = ReadWordAt(VectorRST);
 }
+
 void Cpu::Reset() {
     if (USE_RP2A03) {
         rp2a03.Reset();
@@ -646,6 +635,7 @@ void Cpu::Reset() {
         Interrupt(0, VectorRST, true);
     }
 }
+
 void Cpu::NMI() {
     std::cout << "NMI " << nmic++ << std::endl;
     PendingInterrupt = InterruptType::None;
@@ -725,14 +715,13 @@ void Cpu::Execute(const Opcode &op) {
     }
     case RTS: Jump(PullWord() + 1); break;
     case RTI: {
-        SetStatus(Pull());
+        SetStatusByte(Pull());
         Jump(PullWord());
         break;
     }
-    case PLP: SetStatus(Pull()); break;
+    case PLP: SetStatusByte(Pull()); break;
     case PHP: {
-        B = 1;
-        Push(GetStatus());
+        Push(GetStatusByte(1));
         break;
     }
     case PHA: Push(A); break;
@@ -770,12 +759,12 @@ void Cpu::Execute(const Opcode &op) {
     }
     case CPX: Compare(X, ReadByteAt(a.Address)); break;
     case CPY: Compare(Y, ReadByteAt(a.Address)); break;
-    case TAX: Transfer( A, X); break;
-    case TAY: Transfer( A, Y); break;
-    case TSX: Transfer(SP, X); break;
-    case TXA: Transfer( X, A); break;
-    case TXS: SP = X;          break; // TXS does not change the flags
-    case TYA: Transfer( Y, A); break;
+    case TAX: Transfer(A, X); break;
+    case TAY: Transfer(A, Y); break;
+    case TSX: Transfer(S, X); break;
+    case TXA: Transfer(X, A); break;
+    case TXS: S = X;          break; // TXS does not change the flags
+    case TYA: Transfer(Y, A); break;
     case STA: WriteByteAt(a.Address, A); break;
     case STX: WriteByteAt(a.Address, X); break;
     case STY: WriteByteAt(a.Address, Y); break;
@@ -972,7 +961,7 @@ void Cpu::Execute(const Opcode &op) {
         const auto address = a.Address;
         const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
         // Don't transfer because flags are not updated
-        SP = (A & X);
+        S = (A & X);
         WriteByteAt(address, A & X & H);
         break;
     }
@@ -1011,9 +1000,9 @@ void Cpu::Execute(const Opcode &op) {
     }
     case uLAS: {
         const auto M = ReadByteAt(a.Address);
-        Transfer(M & SP, SP);
-        Transfer(SP, A);
-        Transfer(SP, X);
+        Transfer(M & S, S);
+        Transfer(S, A);
+        Transfer(S, X);
         if (a.HasCrossedPage) ++Ticks;
         break;
     }
@@ -1054,15 +1043,14 @@ string Cpu::ToString() const {
     ostringstream value;
     value << "Cpu " << Name << endl
           << "- Registers PC 0x" << hex << setfill('0') << setw(4) << PC << "(" << dec << PC << ")" << endl
-          << "            SP 0x" << hex << setfill('0') << setw(2) << SP << "(" << dec << SP << ")" << endl
-          << "             A 0x" << hex << setfill('0') << setw(2) <<  A << "(" << dec <<  A << ")" << endl
-          << "             X 0x" << hex << setfill('0') << setw(2) <<  X << "(" << dec <<  X << ")" << endl
-          << "             Y 0x" << hex << setfill('0') << setw(2) <<  Y << "(" << dec <<  Y << ")" << endl
+          << "            SP 0x" << hex << setfill('0') << setw(2) << S << "(" << dec << S << ")" << endl
+          << "             A 0x" << hex << setfill('0') << setw(2) << A << "(" << dec << A << ")" << endl
+          << "             X 0x" << hex << setfill('0') << setw(2) << X << "(" << dec << X << ")" << endl
+          << "             Y 0x" << hex << setfill('0') << setw(2) << Y << "(" << dec << Y << ")" << endl
           << "- Flags C " << setw(5) << boolalpha << (C != 0) << endl
           << "        Z " << setw(5) << boolalpha << (Z != 0) << endl
           << "        I " << setw(5) << boolalpha << (I != 0) << endl
           << "        D " << setw(5) << boolalpha << (D != 0) << endl
-          << "        B " << setw(5) << boolalpha << (B != 0) << endl
           << "        V " << setw(5) << boolalpha << (V != 0) << endl
           << "        N " << setw(5) << boolalpha << (N != 0) << endl;
     return value.str();
@@ -1070,11 +1058,11 @@ string Cpu::ToString() const {
 
 std::string Cpu::ToMiniString() const {
     ostringstream value;
-    const auto P = GetStatus();
+    const auto P = GetStatusByte(0);
     value << "Cpu " << Name
           << " " << CurrentTick << "@" << Ticks
           << " PC=$" << hex << setfill('0') << setw(4) << PC
-          << " S=$" << hex << setfill('0') << setw(2) << Word{SP}
+          << " S=$" << hex << setfill('0') << setw(2) << Word{S}
           << " A=$" << hex << setfill('0') << setw(2) << Word{A}
           << " X=$" << hex << setfill('0') << setw(2) << Word{X}
           << " Y=$" << hex << setfill('0') << setw(2) << Word{Y}
@@ -1084,7 +1072,6 @@ std::string Cpu::ToMiniString() const {
           << (Z == 0 ? 'z' : 'Z')
           << (I == 0 ? 'i' : 'I')
           << (D == 0 ? 'd' : 'D')
-          << (B == 0 ? 'b' : 'B')
           << (V == 0 ? 'v' : 'V')
           << (N == 0 ? 'n' : 'N');
     return value.str();

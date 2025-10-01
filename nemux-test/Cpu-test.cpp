@@ -101,8 +101,11 @@ TEST_F(CpuTest, PowerUpState) {
     EXPECT_EQ(0, cpu.A);
     EXPECT_EQ(0, cpu.X);
     EXPECT_EQ(0, cpu.Y);
-    EXPECT_EQ(0xFD, cpu.SP);
-    EXPECT_EQ(0x34, cpu.GetStatus());
+    EXPECT_EQ(0xFD, cpu.S);
+    // On power up or reset, the CPU replaces stack writes by reads
+    // => there is no correct value for the "B flag"
+    // see https://www.pagetable.com/?p=410
+    EXPECT_EQ(0x24, cpu.GetStatusByte(0));
 
     EXPECT_EQ(0, cpu.Ticks);
     EXPECT_EQ(InterruptType::None, cpu.PendingInterrupt);

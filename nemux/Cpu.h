@@ -63,11 +63,6 @@ enum Type {
 };
 }
 
-enum Bits : size_t {
-    Car, Zer, Int, Dec, Brk, Unu, Ovf, Neg,
-    Left = 7, Right = 0,
-};
-
 enum class InterruptType {
     None, Irq, Nmi, Rst,
 };
@@ -91,8 +86,15 @@ struct address_t {
     bool HasCrossedPage;
 };
 
-class Cpu {
+class Cpu : public BaseCpu {
+    // BaseCpu overrides
+public:
+    void PowerUp() override;
+    void Reset() override;
+
+private:
     Ricoh_RP2A03 rp2a03;
+
 public:
     bool IsAlive;
 
@@ -104,26 +106,6 @@ public:
     explicit Cpu(std::string name, MemoryMap * map = nullptr);
 
     std::string Name;
-
-    Word PC; // Program Counter
-    Byte SP; // Stack Pointer
-    Byte A;  // Accumulator
-    Byte X;  // Index Register X
-    Byte Y;  // Index Register Y
-
-    Flag C; // Carry Flag
-    Flag Z; // Zero Flag
-    Flag I; // Interrupt Disable
-    Flag D; // Decimal Mode
-    Flag B; // Break Command
-    Flag V; // Overflow Flag
-    Flag N; // Negative Flag
-    const Flag Unused;
-
-    Word StackPage = 0x0100;
-    Word VectorRST = 0xFFFC;
-    Word VectorNMI = 0xFFFA;
-    Word VectorIRQ = 0xFFFE;
 
     int Ticks;
     int InterruptCycles;
@@ -156,13 +138,10 @@ public:
     void PushWord(const Word & value);
     Word PullWord();
 
-    void SetStatus(const Byte & status);
-    Byte GetStatus() const;
-
     void Interrupt(const Flag & isBRK, const Word & vector, const bool readOnly = false);
 
-    void PowerUp();
-    void Reset();
+    // void PowerUp();
+    // void Reset();
     void NMI();
     void IRQ();
 

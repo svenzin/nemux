@@ -1,39 +1,22 @@
-#ifndef RICOH_RP2A03_H_
-#define RICOH_RP2A03_H_
+#pragma once
 
 #include "Types.h"
 #include "MemoryMap.h"
 #include "CircularQueue.h"
+#include "cpu/BaseCpu.h"
 
 #include <string>
 #include <vector>
 
 #include <iostream>
 
-class Ricoh_RP2A03 {
+class Ricoh_RP2A03 : public BaseCpu {
+    // BaseCpu overrides
+public:
+    void PowerUp() override;
+    void Reset() override;
 
-
-    Byte GetLo(const Word & w) {
-        return Byte(w);
-    }
-
-    Byte GetHi(const Word & w) {
-        return Byte(w >> BYTE_WIDTH);
-    }
-
-    void SetLo(Word & w, const Byte & lo) {
-        w = (w & WORD_HI_MASK) | lo;
-    }
-
-    void SetHi(Word & w, const Byte & hi) {
-        w = (hi << BYTE_WIDTH) | Byte(w);
-    }
-
-    enum Bits : size_t {
-        Car, Zer, Int, Dec, Brk, Unu, Ovf, Neg,
-        Left = 7, Right = 0,
-    };
-
+private:
     inline Byte GetByteAt(const Word & address) const { return Map->GetByteAt(address); }
     inline void SetByteAt(const Word & address, const Byte & value) {
         //if (address == 0x2000) std::cout << "$2000 <- $" << std::hex << int(value) << std::endl;
@@ -53,22 +36,22 @@ class Ricoh_RP2A03 {
     inline void read_PC_to_operand()                  { operand = GetByteAt(PC); }
     inline void push_PCL()                            { Push(PC); }
     inline void push_PCH()                            { Push(PC >> 8); }
-    inline void push_P()                              { Push(GetStatus(Pflag)); }
-    inline void pull_PCL()                            { SetLo(PC, Pull()); }
-    inline void pull_PCH()                            { SetHi(PC, Pull()); }
-    inline void pull_P()                              { SetStatus(Pull()); }
+    inline void push_P()                              { Push(GetStatusByte(Pflag)); }
+    inline void pull_PCL()                            { SetLO(PC, Pull()); }
+    inline void pull_PCH()                            { SetHI(PC, Pull()); }
+    inline void pull_P()                              { SetStatusByte(Pull()); }
     inline void read_PC_to_address()                  { address = GetByteAt(PC); }
-    inline void read_PC_to_addressLo()                { SetLo(address, GetByteAt(PC)); }
-    inline void read_PC_to_addressHi()                { SetHi(address, GetByteAt(PC)); }
+    inline void read_PC_to_addressLo()                { SetLO(address, GetByteAt(PC)); }
+    inline void read_PC_to_addressHi()                { SetHI(address, GetByteAt(PC)); }
     inline void read_address_to_operand()             { operand = GetByteAt(address); }
-    inline void read_operand_to_addressLo()           { SetLo(address, GetByteAt(operand)); }
-    inline void read_operand_1_to_addressHi()         { SetHi(address, GetByteAt(Byte(operand + 1))); }
-    inline void index_address()                       { SetLo(address, address + index); }
+    inline void read_operand_to_addressLo()           { SetLO(address, GetByteAt(operand)); }
+    inline void read_operand_1_to_addressHi()         { SetHI(address, GetByteAt(Byte(operand + 1))); }
+    inline void index_address()                       { SetLO(address, address + index); }
     inline void fix_indexed_address()                 { AddressWasFixed = (Byte(address) < index); if (AddressWasFixed) address += 0x0100; }
     inline void write_operand_to_address()            { SetByteAt(address, operand); }
-    inline void read_vector_to_PCL()                  { SetLo(PC, GetByteAt(vector)); }
-    inline void read_vector_to_PCH()                  { SetHi(PC, GetByteAt(vector + 1)); }
-    inline void read_address_and_operand_to_address() { SetLo(address, address + 1); SetHi(address, GetByteAt(address)); SetLo(address, operand); }
+    inline void read_vector_to_PCL()                  { SetLO(PC, GetByteAt(vector)); }
+    inline void read_vector_to_PCH()                  { SetHI(PC, GetByteAt(vector + 1)); }
+    inline void read_address_and_operand_to_address() { SetLO(address, address + 1); SetHI(address, GetByteAt(address)); SetLO(address, operand); }
     inline void move_address_to_operand()             { operand = address; }
     inline void decrement_S()                         { --S; }
     
@@ -82,12 +65,12 @@ class Ricoh_RP2A03 {
             if (NMIFlipFlop) {
                 //std::cout << Id << " NMI " << nmic++ << std::endl;
                 NMIFlipFlop = false;
-                trigger_interrupt(VECTOR_NMI, false, false);
+                trigger_interrupt(VectorNMI, false, false);
                 return true;
             }
             if (IRQLevel) {
                 //std::cout << Id << " IRQ" << std::endl;
-                trigger_interrupt(VECTOR_IRQ, false, false);
+                trigger_interrupt(VectorIRQ, false, false);
                 return true;
             }
         }
@@ -118,13 +101,13 @@ class Ricoh_RP2A03 {
     
     inline void JMP() { PC = address; }
 
-    inline void BRK() { trigger_interrupt(VECTOR_IRQ, true, false); }
+    inline void BRK() { trigger_interrupt(VectorIRQ, true, false); }
     inline void JSR() { JMP(); }
     inline void RTI() {}
     inline void RTS() {}
 
-    inline void PHP() { Push(GetStatus(1)); }
-    inline void PLP() { SetStatus(Pull()); }
+    inline void PHP() { Push(GetStatusByte(1)); }
+    inline void PLP() { SetStatusByte(Pull()); }
     inline void PHA() { Push(A); }
     inline void PLA() { Transfer(Pull(), A); }
 
@@ -199,13 +182,13 @@ class Ricoh_RP2A03 {
     inline void xHLT() { Halted = true; }
 
     inline void xSHX() {
-        const auto M = (X & (GetHi(address) + 1));
-        if (AddressWasFixed) SetHi(address, M);
+        const auto M = (X & (HI(address) + 1));
+        if (AddressWasFixed) SetHI(address, M);
         SetByteAt(address, M);
     }
     inline void xSHY() {
-        const auto M = (Y & (GetHi(address) + 1));
-        if (AddressWasFixed) SetHi(address, M);
+        const auto M = (Y & (HI(address) + 1));
+        if (AddressWasFixed) SetHI(address, M);
         SetByteAt(address, M);
     }
 
@@ -220,7 +203,7 @@ class Ricoh_RP2A03 {
     inline void xALR() { AND(); LSRa(); }
     inline void xARR() { AND(); RORa(); C = Bit<6>(A); V = (C ^ Bit<5>(A)); }
     inline void xXAA() {}
-    inline void xAHX() { SetByteAt(address, A & X & GetHi(address)); }
+    inline void xAHX() { SetByteAt(address, A & X & HI(address)); }
     inline void xTAS() { S = (A & X); xAHX(); }
     inline void xLAS() { Transfer(operand & S, S); Transfer(S, A); TSX(); }
     inline void xAXS() { X = (A & X); CPX(); X = X - operand; }
@@ -286,7 +269,7 @@ public:
 
     void AddWithCarry(const Byte & value) {
         Word a = A + value + C;
-        C = Bit<Right>(GetHi(a));
+        C = Bit<Right>(HI(a));
         V = ~Bit<Neg>(A ^ value) & Bit<Neg>(A ^ a);
         Transfer(Byte(a), A);
     }
@@ -370,31 +353,15 @@ private:
 
 public:
     // CPU state
-    Byte GetStatus(const Flag B) const;
-    void SetStatus(const Byte & status);
     size_t Ticks;
-    Word PC;
-    Byte S, A, X, Y;
-    Flag N, V, D, I, Z, C;
 
     static constexpr const char * Id = "2A03";
     static constexpr const char * Name = "Ricoh RP2A03";
 
-    static constexpr Word VECTOR_NMI = 0xFFFA;
-    static constexpr Word VECTOR_RST = 0xFFFC;
-    static constexpr Word VECTOR_IRQ = 0xFFFE;
-    static constexpr Word STACK_PAGE = 0x0100;
-
-    bool IRQ;
-    bool NMI;
-
     MemoryMap * Map;
 
     explicit Ricoh_RP2A03();
-    void Reset();
     void DMA(const Byte & fromHi, Byte * to, const Byte & offset);
     void Phi1();
     void Phi2();
 };
-
-#endif /* RICOH_RP2A03_H_ */

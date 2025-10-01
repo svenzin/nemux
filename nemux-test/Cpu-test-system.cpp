@@ -46,8 +46,8 @@ TEST_F(CpuTestSystem, BRK) {
     cpu.VectorIRQ = VECTOR_IRQ;
     cpu.WriteWordAt(VECTOR_IRQ, 0x0120);
     cpu.StackPage = 0x0100;
-    cpu.SP = 0xF0;
-    cpu.SetStatus(0x00);
+    cpu.S = 0xF0;
+    cpu.SetStatusByte(0x00);
 
     cpu.PC = BASE_PC;
     cpu.Ticks = BASE_TICKS;
@@ -55,7 +55,7 @@ TEST_F(CpuTestSystem, BRK) {
 
     EXPECT_EQ(0x0120, cpu.PC);
     EXPECT_EQ(BASE_TICKS + op.Cycles + cpu.InterruptCycles, cpu.Ticks);
-    EXPECT_EQ(0xED, cpu.SP);
+    EXPECT_EQ(0xED, cpu.S);
     EXPECT_EQ(0x30, cpu.Pull()); // BRK pushes B flag set, Unused is always 1
     EXPECT_EQ(1, cpu.I); // BRK sets the I flag
     EXPECT_EQ(BASE_PC + op.Bytes, cpu.PullWord());
@@ -67,8 +67,8 @@ TEST_F(CpuTestSystem, BRK_FlagI) {
     cpu.VectorIRQ = VECTOR_IRQ;
     cpu.WriteWordAt(VECTOR_IRQ, 0x0120);
     cpu.StackPage = 0x0100;
-    cpu.SP = 0xF0;
-    cpu.SetStatus(0x00);
+    cpu.S = 0xF0;
+    cpu.SetStatusByte(0x00);
     cpu.I = 1;
 
     cpu.PC = BASE_PC;
@@ -92,7 +92,7 @@ TEST_F(CpuTestSystem, RTI) {
     auto tester = [&] (Byte status, Flag expN, Flag expV, Flag expD, Flag expI, Flag expZ, Flag expC) {
         cpu.Map->SetByteAt(BASE_PC, 0xFF);
         cpu.StackPage = 0x100;
-        cpu.SP = 0xF0;
+        cpu.S = 0xF0;
         cpu.PushWord(0x0120);
         cpu.Push(status); // All status set
 
@@ -102,7 +102,7 @@ TEST_F(CpuTestSystem, RTI) {
 
         EXPECT_EQ(0x0120, cpu.PC);
         EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
-        EXPECT_EQ(0xF0, cpu.SP);
+        EXPECT_EQ(0xF0, cpu.S);
         EXPECT_EQ(expN, cpu.N);
         EXPECT_EQ(expV, cpu.V);
         EXPECT_EQ(expD, cpu.D);
@@ -119,8 +119,8 @@ TEST_F(CpuTestSystem, Reset) {
     cpu.VectorRST = VECTOR_RST;
     cpu.WriteWordAt(VECTOR_RST, 0x0120);
     cpu.StackPage = 0x0100;
-    cpu.SP = 0xF0;
-    cpu.SetStatus(0xFF);
+    cpu.S = 0xF0;
+    cpu.SetStatusByte(0xFF);
 
     cpu.PC = BASE_PC;
     cpu.Ticks = BASE_TICKS;
@@ -128,8 +128,7 @@ TEST_F(CpuTestSystem, Reset) {
 
     EXPECT_EQ(0x0120, cpu.PC);
     EXPECT_EQ(BASE_TICKS + cpu.InterruptCycles, cpu.Ticks);
-    EXPECT_EQ(0xED, cpu.SP);
-    EXPECT_EQ(0, cpu.B);
+    EXPECT_EQ(0xED, cpu.S);
     EXPECT_EQ(1, cpu.I);
 }
 
@@ -137,8 +136,8 @@ TEST_F(CpuTestSystem, NMI) {
     cpu.VectorNMI = VECTOR_NMI;
     cpu.WriteWordAt(VECTOR_NMI, 0x0120);
     cpu.StackPage = 0x0100;
-    cpu.SP = 0xF0;
-    cpu.SetStatus(0xFF);
+    cpu.S = 0xF0;
+    cpu.SetStatusByte(0xFF);
 
     cpu.PC = BASE_PC;
     cpu.Ticks = BASE_TICKS;
@@ -146,11 +145,10 @@ TEST_F(CpuTestSystem, NMI) {
 
     EXPECT_EQ(0x0120, cpu.PC);
     EXPECT_EQ(BASE_TICKS + cpu.InterruptCycles, cpu.Ticks);
-    EXPECT_EQ(0xED, cpu.SP);
-    EXPECT_EQ(0, cpu.B);
+    EXPECT_EQ(0xED, cpu.S);
     EXPECT_EQ(1, cpu.I);
     const auto pushed_status = cpu.Pull();
-    EXPECT_TRUE(IsBitClear<Brk>(pushed_status));
+    EXPECT_TRUE(IsBitClear<BaseCpu::Brk>(pushed_status));
     EXPECT_EQ(BASE_PC, cpu.PullWord());
 }
 
@@ -158,8 +156,8 @@ TEST_F(CpuTestSystem, IRQ) {
     cpu.VectorIRQ = VECTOR_IRQ;
     cpu.WriteWordAt(VECTOR_IRQ, 0x0120);
     cpu.StackPage = 0x0100;
-    cpu.SP = 0xF0;
-    cpu.SetStatus(0xFF);
+    cpu.S = 0xF0;
+    cpu.SetStatusByte(0xFF);
 
     cpu.PC = BASE_PC;
     cpu.Ticks = BASE_TICKS;
@@ -167,10 +165,9 @@ TEST_F(CpuTestSystem, IRQ) {
 
     EXPECT_EQ(0x0120, cpu.PC);
     EXPECT_EQ(BASE_TICKS + cpu.InterruptCycles, cpu.Ticks);
-    EXPECT_EQ(0xED, cpu.SP);
-    EXPECT_EQ(0, cpu.B);
+    EXPECT_EQ(0xED, cpu.S);
     EXPECT_EQ(1, cpu.I);
     const auto pushed_status = cpu.Pull();
-    EXPECT_TRUE(IsBitClear<Brk>(pushed_status));
+    EXPECT_TRUE(IsBitClear<BaseCpu::Brk>(pushed_status));
     EXPECT_EQ(BASE_PC, cpu.PullWord());
 }
