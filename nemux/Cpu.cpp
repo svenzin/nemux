@@ -44,32 +44,25 @@ static void Read2A03State(Ricoh_RP2A03& rp2a03, Cpu& cpu) {
 }
 
 Word Cpu::ReadWordAt(const Word address) const {
-    const auto lo = ReadByteAt(address);
-    const auto hi = ReadByteAt(address + 1);
-    return (hi << BYTE_WIDTH) + lo;
+    const auto lo{ ReadByte(address) };
+    const auto hi{ ReadByte(address + 1) };
+    return MakeWord(lo, hi);
 }
 
 void Cpu::WriteWordAt(const Word address, const Word value) {
-    WriteByteAt(address, value & BYTE_MASK);
-    WriteByteAt(address + 1, (value >> BYTE_WIDTH) & BYTE_MASK);
-}
-
-Byte Cpu::ReadByteAt(const Word address) const {
-    return Map->GetByteAt(address);
-}
-
-void Cpu::WriteByteAt(const Word address, const Byte value) {
-    Map->SetByteAt(address, value);
+    WriteByte(address, LO(value));
+    WriteByte(address + 1, HI(value));
 }
 
 /* explicit */ Cpu::Cpu(std::string name, MemoryMap * map)
     : Name{name}
     , Ticks{0}
     , InterruptCycles{7}
-    , Map{map}
     , rp2a03{}
     , BaseCpu{}
 {
+    Map = map;
+
     m_opcodes.resize(
         OPCODES_COUNT,
         Opcode(UNK, Unknown, 0, 0)
@@ -459,7 +452,7 @@ void Cpu::Tick() {
                 IRQ();
             }
             else {
-                const auto instruction = ReadByteAt(PC);
+                const auto instruction = ReadByte(PC);
                 const auto opcode = Decode(instruction);
                 Execute(opcode);
             }
@@ -492,14 +485,14 @@ address_t Cpu::BuildAddress(const Addressing::Type & type) const {
             return { PC_1, false };
         }
         case ZeroPage: {
-            return { ReadByteAt(PC_1), false };
+            return { ReadByte(PC_1), false };
         }
         case ZeroPageX: {
-            const auto address = (ReadByteAt(PC_1) + X) & WORD_LO_MASK;
+            const auto address = (ReadByte(PC_1) + X) & WORD_LO_MASK;
             return { static_cast<Word>(address), false };
         }
         case ZeroPageY: {
-            const auto address = (ReadByteAt(PC_1) + Y) & WORD_LO_MASK;
+            const auto address = (ReadByte(PC_1) + Y) & WORD_LO_MASK;
             return { static_cast<Word>(address), false };
         }
         case Absolute: {
@@ -508,42 +501,42 @@ address_t Cpu::BuildAddress(const Addressing::Type & type) const {
         case AbsoluteX: {
             const Word address = ReadWordAt(PC_1) + X;
             const bool crossed = (X > (address & BYTE_MASK));
-            if (crossed) ReadByteAt(address - 0x0100); // Dummy read
+            if (crossed) ReadByte(address - 0x0100); // Dummy read
             return { address, crossed };
         }
         case AbsoluteY: {
             const Word address = ReadWordAt(PC_1) + Y;
             const bool crossed = (Y > (address & BYTE_MASK));
-            if (crossed) ReadByteAt(address - 0x0100); // Dummy read
+            if (crossed) ReadByte(address - 0x0100); // Dummy read
             return{ address, crossed };
         }
         case IndexedIndirect: {
             const Word base = ReadWordAt(PC_1) + X;
             const Word lo = base & WORD_LO_MASK;
             const Word hi = (base + 1) & WORD_LO_MASK;
-            const Word addr = ReadByteAt(hi) << BYTE_WIDTH | ReadByteAt(lo);
+            const Word addr = ReadByte(hi) << BYTE_WIDTH | ReadByte(lo);
             return { addr, false };
         }
         case IndirectIndexed: {
-            const Word base = ReadByteAt(PC_1);
-            const Word lo = ReadByteAt(base);
-            const Word hi = ReadByteAt((base + 1) & WORD_LO_MASK);
+            const Word base = ReadByte(PC_1);
+            const Word lo = ReadByte(base);
+            const Word hi = ReadByte((base + 1) & WORD_LO_MASK);
             const Word addr = (hi << BYTE_WIDTH) + lo + Y;
             const bool crossed = (Y > (addr & BYTE_MASK));
-            if (crossed) ReadByteAt(addr - 0x0100); // Dummy read
+            if (crossed) ReadByte(addr - 0x0100); // Dummy read
             return { addr, crossed };
         }
         case Indirect: {
             const Word base = ReadWordAt(PC_1);
             const Word lo = base;
             const Word hi = (base & WORD_HI_MASK) | ((base + 1) & WORD_LO_MASK);
-            const Word addr = ReadByteAt(hi) << BYTE_WIDTH | ReadByteAt(lo);
+            const Word addr = ReadByte(hi) << BYTE_WIDTH | ReadByte(lo);
             return { addr, false };
         }
         case Implicit:
         case Accumulator:
             // Dummy fetch of the next opcode
-            ReadByteAt(PC_1);
+            ReadByte(PC_1);
         default: return { Word(-1), false };
     }
 }
@@ -567,7 +560,7 @@ void Cpu::Compare(const Byte lhs, const Byte rhs) {
 }
 void Cpu::BranchIf(const bool condition, const Opcode & op) {
     const auto basePC = PC;
-    const auto M = ReadByteAt(BuildAddress(Immediate).Address - op.Bytes);
+    const auto M = ReadByte(BuildAddress(Immediate).Address - op.Bytes);
     if (condition) {
         Word offset = Bit<Neg>(M) * WORD_HI_MASK | M;
         PC = (PC + offset) & WORD_MASK;
@@ -593,12 +586,12 @@ void Cpu::Jump(const Word address) {
     PC = address;
 }
 void Cpu::Push(const Byte & value) {
-    WriteByteAt(StackPage + S, value);
+    WriteByte(StackPage + S, value);
     --S;
 }
 Byte Cpu::Pull() {
     ++S;
-    return ReadByteAt(StackPage + S);
+    return ReadByte(StackPage + S);
 }
 void Cpu::PushWord(const Word & value) {
     Push((value >> BYTE_WIDTH) & BYTE_MASK);
@@ -670,7 +663,7 @@ void Cpu::DMA(const Byte page,
     else {
         const Word base = page << BYTE_WIDTH;
         for (Word i = 0; i < 0x0100; ++i) {
-            target[(i + offset) & WORD_LO_MASK] = ReadByteAt(base + i);
+            target[(i + offset) & WORD_LO_MASK] = ReadByte(base + i);
         }
         Ticks += 513;
         if (CurrentTick % 2 == 1) {
@@ -690,7 +683,7 @@ void Cpu::Execute(const Opcode &op) {
                 && (ophexa.Cycles == op.Cycles)
                 && (ophexa.Instruction == op.Instruction)) break;
         }
-        WriteByteAt(PC, hexa);
+        WriteByte(PC, hexa);
         do {
             rp2a03.Phi1();
             rp2a03.Phi2();
@@ -727,47 +720,47 @@ void Cpu::Execute(const Opcode &op) {
     case PHA: Push(A); break;
     case PLA: Transfer(Pull(), A); break;
     case LDA: {
-        Transfer(ReadByteAt(a.Address), A);
+        Transfer(ReadByte(a.Address), A);
         if (a.HasCrossedPage) ++Ticks;
         break;
     }
     case LDX: {
-        Transfer(ReadByteAt(a.Address), X);
+        Transfer(ReadByte(a.Address), X);
         if (a.HasCrossedPage) ++Ticks;
         break;
     }
     case LDY: {
-        Transfer(ReadByteAt(a.Address), Y);
+        Transfer(ReadByte(a.Address), Y);
         if (a.HasCrossedPage) ++Ticks;
         break;
     }
     case EOR: {
-        Transfer(A ^ ReadByteAt(a.Address), A);
+        Transfer(A ^ ReadByte(a.Address), A);
         if (a.HasCrossedPage) ++Ticks;
         break;
     }
     case ORA: {
-        const auto m = ReadByteAt(a.Address);
+        const auto m = ReadByte(a.Address);
         Transfer(A | m, A);
         if (a.HasCrossedPage) ++Ticks;
         break;
     }
     case CMP: {
-        Compare(A, ReadByteAt(a.Address));
+        Compare(A, ReadByte(a.Address));
         if (a.HasCrossedPage) ++Ticks;
         break;
     }
-    case CPX: Compare(X, ReadByteAt(a.Address)); break;
-    case CPY: Compare(Y, ReadByteAt(a.Address)); break;
+    case CPX: Compare(X, ReadByte(a.Address)); break;
+    case CPY: Compare(Y, ReadByte(a.Address)); break;
     case TAX: Transfer(A, X); break;
     case TAY: Transfer(A, Y); break;
     case TSX: Transfer(S, X); break;
     case TXA: Transfer(X, A); break;
     case TXS: S = X;          break; // TXS does not change the flags
     case TYA: Transfer(Y, A); break;
-    case STA: WriteByteAt(a.Address, A); break;
-    case STX: WriteByteAt(a.Address, X); break;
-    case STY: WriteByteAt(a.Address, Y); break;
+    case STA: WriteByte(a.Address, A); break;
+    case STX: WriteByte(a.Address, X); break;
+    case STY: WriteByte(a.Address, Y); break;
     case BCC: BranchIf(C == 0, op); break;
     case BCS: BranchIf(C == 1, op); break;
     case BEQ: BranchIf(Z == 1, op); break;
@@ -777,14 +770,14 @@ void Cpu::Execute(const Opcode &op) {
     case BVC: BranchIf(V == 0, op); break;
     case BVS: BranchIf(V == 1, op); break;
     case ADC: {
-        const auto M = ReadByteAt(a.Address);
+        const auto M = ReadByte(a.Address);
         AddWithCarry(M);
         if (a.HasCrossedPage) ++Ticks;
         break;
     }
     case uSBC:
     case SBC: {
-        const auto M = ReadByteAt(a.Address);
+        const auto M = ReadByte(a.Address);
         SubstractWithCarry(M);
         if (a.HasCrossedPage) ++Ticks;
         break;
@@ -796,10 +789,10 @@ void Cpu::Execute(const Opcode &op) {
             Transfer(A << 1, A);
         }
         else {
-            auto M = ReadByteAt(address);
+            auto M = ReadByte(address);
             C = Bit<Left>(M);
             Transfer(M << 1, M);
-            WriteByteAt(address, M);
+            WriteByte(address, M);
         }
         break;
     }
@@ -810,10 +803,10 @@ void Cpu::Execute(const Opcode &op) {
             Transfer(A >> 1, A);
         }
         else {
-            auto M = ReadByteAt(address);
+            auto M = ReadByte(address);
             C = Bit<Right>(M);
             Transfer(M >> 1, M);
-            WriteByteAt(address, M);
+            WriteByte(address, M);
         }
         break;
     }
@@ -825,11 +818,11 @@ void Cpu::Execute(const Opcode &op) {
             C = c;
         }
         else {
-            auto M = ReadByteAt(address);
+            auto M = ReadByte(address);
             const auto c = Bit<Left>(M);
             Transfer((M << 1) | Mask<Right>(C), M);
             C = c;
-            WriteByteAt(address, M);
+            WriteByte(address, M);
         }
         break;
     }
@@ -841,22 +834,22 @@ void Cpu::Execute(const Opcode &op) {
             C = c;
         }
         else {
-            auto M = ReadByteAt(address);
+            auto M = ReadByte(address);
             const auto c = Bit<Right>(M);
             Transfer((M >> 1) | Mask<Left>(C), M);
             C = c;
-            WriteByteAt(address, M);
+            WriteByte(address, M);
         }
         break;
     }
     case AND: {
-        const auto M = ReadByteAt(a.Address);
+        const auto M = ReadByte(a.Address);
         Transfer(A & M, A);
         if (a.HasCrossedPage) ++Ticks;
         break;
     }
     case BIT: {
-        const auto mask = ReadByteAt(a.Address);
+        const auto mask = ReadByte(a.Address);
         Z = (mask & A) == 0 ? 1 : 0;
         V = Bit<Ovf>(mask);
         N = Bit<Neg>(mask);
@@ -870,17 +863,17 @@ void Cpu::Execute(const Opcode &op) {
     case SED: D = 1; break;
     case SEI: I = 1; break;
     case DEC: {
-        auto M = ReadByteAt(a.Address);
+        auto M = ReadByte(a.Address);
         Decrement(M);
-        WriteByteAt(a.Address, M);
+        WriteByte(a.Address, M);
         break;
     }
     case DEX: Decrement(X); break;
     case DEY: Decrement(Y); break;
     case INC: {
-        auto M = ReadByteAt(a.Address);
+        auto M = ReadByte(a.Address);
         Increment(M);
-        WriteByteAt(a.Address, M);
+        WriteByte(a.Address, M);
         break;
     }
     case INX: Increment(X); break;
@@ -888,40 +881,40 @@ void Cpu::Execute(const Opcode &op) {
     case uSTP: IsAlive = false; break;
     case uSLO: {
         const auto address = a.Address;
-        auto M = ReadByteAt(address);
+        auto M = ReadByte(address);
         C = Bit<Left>(M);
         Transfer(M << 1, M);
-        WriteByteAt(address, M);
+        WriteByte(address, M);
         Transfer(A | M, A);
         break;
     }
     case uANC: {
-        const auto M = ReadByteAt(a.Address);
+        const auto M = ReadByte(a.Address);
         Transfer(A & M, A);
         C = Bit<Left>(A);
         break;
     }
     case uRLA: {
         const auto address = a.Address;
-        auto M = ReadByteAt(address);
+        auto M = ReadByte(address);
         const auto c = Bit<Left>(M);
         Transfer((M << 1) | Mask<Right>(C), M);
         C = c;
-        WriteByteAt(address, M);
+        WriteByte(address, M);
         Transfer(A & M, A);
         break;
     }
     case uSRE: {
         const auto address = a.Address;
-        auto M = ReadByteAt(address);
+        auto M = ReadByte(address);
         C = Bit<Right>(M);
         Transfer(M >> 1, M);
-        WriteByteAt(address, M);
+        WriteByte(address, M);
         Transfer(A ^ M, A);
         break;
     }
     case uALR: {
-        const auto M = ReadByteAt(a.Address);
+        const auto M = ReadByte(a.Address);
         Transfer(A & M, A);
         C = Bit<Right>(A);
         Transfer(A >> 1, A);
@@ -929,17 +922,17 @@ void Cpu::Execute(const Opcode &op) {
     }
     case uRRA: {
         const auto address = a.Address;
-        auto M = ReadByteAt(address);
+        auto M = ReadByte(address);
         const auto c = Bit<Right>(M);
         Transfer((M >> 1) | Mask<Left>(C), M);
         C = c;
-        WriteByteAt(address, M);
+        WriteByte(address, M);
         AddWithCarry(M);
         break;
     }
     case uARR: {
         const auto address = a.Address;
-        const auto M = ReadByteAt(address);
+        const auto M = ReadByte(address);
         Transfer(A & M, A);
         Transfer((A >> 1) | Mask<Left>(C), A);
         switch ((A >> 5) & 0x03) {
@@ -950,11 +943,11 @@ void Cpu::Execute(const Opcode &op) {
         }
         break;
     }
-    case uSAX: WriteByteAt(a.Address, A & X); break;
+    case uSAX: WriteByte(a.Address, A & X); break;
     case uAHX: {
         const auto address = a.Address;
         const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
-        WriteByteAt(address, A & X & H);
+        WriteByte(address, A & X & H);
         break;
     }
     case uTAS: {
@@ -962,7 +955,7 @@ void Cpu::Execute(const Opcode &op) {
         const auto H = ((address & WORD_HI_MASK) >> BYTE_WIDTH);
         // Don't transfer because flags are not updated
         S = (A & X);
-        WriteByteAt(address, A & X & H);
+        WriteByte(address, A & X & H);
         break;
     }
     case uSHY: {
@@ -973,9 +966,9 @@ void Cpu::Execute(const Opcode &op) {
             // The bahviour is corrupted
             // See http://forums.nesdev.com/viewtopic.php?f=3&t=3831&start=30
             const auto address = (M << BYTE_WIDTH) | (a.Address & WORD_LO_MASK);
-            WriteByteAt(address, M);
+            WriteByte(address, M);
         }
-        else WriteByteAt(a.Address, M);
+        else WriteByte(a.Address, M);
         break;
     }
     case uSHX: {
@@ -986,20 +979,20 @@ void Cpu::Execute(const Opcode &op) {
             // The bahviour is corrupted
             // See http://forums.nesdev.com/viewtopic.php?f=3&t=3831&start=30
             const auto address = (M << BYTE_WIDTH) | (a.Address & WORD_LO_MASK);
-            WriteByteAt(address, M);
+            WriteByte(address, M);
         }
-        else WriteByteAt(a.Address, M);
+        else WriteByte(a.Address, M);
         break;
     }
     case uLAX: {
-        const auto M = ReadByteAt(a.Address);
+        const auto M = ReadByte(a.Address);
         Transfer(M, A);
         Transfer(M, X);
         if (a.HasCrossedPage) ++Ticks;
         break;
     }
     case uLAS: {
-        const auto M = ReadByteAt(a.Address);
+        const auto M = ReadByte(a.Address);
         Transfer(M & S, S);
         Transfer(S, A);
         Transfer(S, X);
@@ -1007,14 +1000,14 @@ void Cpu::Execute(const Opcode &op) {
         break;
     }
     case uDCP: {
-        auto M = ReadByteAt(a.Address);
+        auto M = ReadByte(a.Address);
         Decrement(M);
-        WriteByteAt(a.Address, M);
+        WriteByte(a.Address, M);
         Compare(A, M);
         break;
     }
     case uAXS: {
-        auto M = ReadByteAt(a.Address);
+        auto M = ReadByte(a.Address);
         X = (A & X);
         Compare(X, M); // Flags are set like CMP
         X = X - M;
@@ -1022,9 +1015,9 @@ void Cpu::Execute(const Opcode &op) {
     }
     case uISC: {
         const auto address = a.Address;
-        auto M = ReadByteAt(address);
+        auto M = ReadByte(address);
         Increment(M);
-        WriteByteAt(address, M);
+        WriteByte(address, M);
         SubstractWithCarry(M);
         break;
     }

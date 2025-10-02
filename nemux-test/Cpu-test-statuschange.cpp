@@ -53,13 +53,13 @@ public:
         return [&] (Byte value) { a = value; };
     }
     function<void (Byte)> Setter(Word a) {
-        return [=] (Byte value) { cpu.WriteByteAt(a, value); };
+        return [=] (Byte value) { cpu.WriteByte(a, value); };
     }
     function<Byte ()> Getter(Byte & b) {
         return [&] () { return b; };
     }
     function<Byte ()> Getter(Word a) {
-        return [=] () { return cpu.ReadByteAt(a); };
+        return [=] () { return cpu.ReadByte(a); };
     }
 };
 

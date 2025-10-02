@@ -24,6 +24,6 @@ TEST_F(CpuTestEndianness, SetGetWord) {
 
 TEST_F(CpuTestEndianness, LittleEndianWord) {
     cpu.WriteWordAt(3, Word{ 0xBEEF });
-    EXPECT_EQ(Byte{ 0xEF }, cpu.ReadByteAt(3));
-    EXPECT_EQ(Byte{ 0xBE }, cpu.ReadByteAt(4));
+    EXPECT_EQ(Byte{ 0xEF }, cpu.ReadByte(3));
+    EXPECT_EQ(Byte{ 0xBE }, cpu.ReadByte(4));
 }

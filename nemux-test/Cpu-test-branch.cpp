@@ -35,8 +35,8 @@ public:
     template<typename Setter>
     void Test_Branch(Setter set, Flag success, Flag failure, Opcode op) {
         auto tester = [&] (Word pc, Byte offset, Flag c, Word expPC, int extra) {
-            cpu.WriteByteAt(pc, 0xFF);
-            cpu.WriteByteAt(pc + 1, offset);
+            cpu.WriteByte(pc, 0xFF);
+            cpu.WriteByte(pc + 1, offset);
             set(c);
 
             cpu.PC = pc;
@@ -60,13 +60,13 @@ public:
         return [&] (Byte value) { a = value; };
     }
     function<void (Byte)> Setter(Word a) {
-        return [=] (Byte value) { cpu.WriteByteAt(a, value); };
+        return [=] (Byte value) { cpu.WriteByte(a, value); };
     }
     function<Byte ()> Getter(Byte & b) {
         return [&] () { return b; };
     }
     function<Byte ()> Getter(Word a) {
-        return [=] () { return cpu.ReadByteAt(a); };
+        return [=] () { return cpu.ReadByte(a); };
     }
 };
 

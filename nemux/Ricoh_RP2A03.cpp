@@ -470,18 +470,18 @@ void Ricoh_RP2A03::DMA(const Byte & fromHi, Byte * to, const Byte & offset) {
 
     const Word base = dmaSource;
     for (Word i = 0; i < 0x0100; ++i) {
-        to[Byte(i + offset)] = GetByteAt(base + i);
+        to[Byte(i + offset)] = ReadByte(base + i);
     }
 }
 
 void Ricoh_RP2A03::Push(const Byte & value) {
-    SetByteAt(StackPage+ S, value);
+    WriteByte(StackPage+ S, value);
     --S;
 }
 
 Byte Ricoh_RP2A03::Pull() {
     ++S; 
-    return GetByteAt(StackPage + S);
+    return ReadByte(StackPage + S);
 }
 
 void Ricoh_RP2A03::Cycle() {

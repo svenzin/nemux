@@ -100,8 +100,6 @@ public:
 
     Word ReadWordAt(const Word address) const;
     void WriteWordAt(const Word address, const Word value);
-    Byte ReadByteAt(const Word address) const;
-    void WriteByteAt(const Word address, const Byte value);
 
     explicit Cpu(std::string name, MemoryMap * map = nullptr);
 
@@ -116,8 +114,6 @@ public:
     Opcode Decode(const Byte &byte) const;
     address_t BuildAddress(const Addressing::Type & type) const;
     void Execute(const Opcode &op);//, const std::vector<Byte> &data);
-
-    MemoryMap * Map;
 
     std::string ToString() const;
     std::string ToMiniString() const;

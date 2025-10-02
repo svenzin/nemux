@@ -9,6 +9,8 @@
 
 #include <iostream>
 
+class MemoryMap;
+
 namespace Address {
     constexpr Word VECTOR_NMI = 0xFFFA;
     constexpr Word VECTOR_RST = 0xFFFC;
@@ -26,7 +28,9 @@ struct BaseCpu {
     Word VectorNMI{ Address::VECTOR_NMI };
     Word VectorIRQ{ Address::VECTOR_IRQ };
     Word StackPage{ Address::STACK_PAGE };
-    
+
+    MemoryMap* Map{};
+
     Word PC;
     Byte S, A, X, Y;
     Flag N, V, D, I, Z, C;
@@ -51,4 +55,14 @@ struct BaseCpu {
 
     virtual void PowerUp() = 0;
     virtual void Reset() = 0;
+
+    Byte ReadByte(Word address) const {
+        return Map->GetByteAt(address);
+    }
+    
+    void WriteByte(Word address, Byte value) const {
+        //if (address == 0x2000) std::cout << "$2000 <- $" << std::hex << int(value) << std::endl;
+        Map->SetByteAt(address, value);
+    }
+
 };

@@ -465,7 +465,7 @@ struct DMAReader {
     SampleBuffer GetSample() {
         if (Length == 0) return{ true, 0 }; 
         
-        const auto sample = CPU->ReadByteAt(Address);
+        const auto sample = CPU->ReadByte(Address);
         CPU->Ticks += 4;
 
         if (Address == 0xFFFF) Address = 0x8000;

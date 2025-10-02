@@ -135,9 +135,9 @@ namespace debug {
         };
 
         std::stringstream oss;
-        const auto instruction = cpu.ReadByteAt(cpu.PC);
+        const auto instruction = cpu.ReadByte(cpu.PC);
         const auto opcode = cpu.Decode(instruction);
-        const auto operandB = Word{ cpu.ReadByteAt(cpu.PC + 1) };
+        const auto operandB = Word{ cpu.ReadByte(cpu.PC + 1) };
         const auto operandW = cpu.ReadWordAt(cpu.PC + 1);
         const auto address = cpu.BuildAddress(opcode.Addressing);
         oss << hex << setfill('0');

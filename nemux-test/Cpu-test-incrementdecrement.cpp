@@ -78,28 +78,28 @@ public:
         return [&] (Byte value) { a = value; };
     }
     function<void (Byte)> Setter(Word a) {
-        return [=] (Byte value) { cpu.WriteByteAt(a, value); };
+        return [=] (Byte value) { cpu.WriteByte(a, value); };
     }
     function<Byte ()> Getter(Byte & b) {
         return [&] () { return b; };
     }
     function<Byte ()> Getter(Word a) {
-        return [=] () { return cpu.ReadByteAt(a); };
+        return [=] () { return cpu.ReadByte(a); };
     }
 };
 //}
 
 TEST_F(CpuTestIncrementDecrement, DEC_ZeroPage) {
-    cpu.WriteByteAt(BASE_PC, 0xFF);
-    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteByte(BASE_PC, 0xFF);
+    cpu.WriteByte(BASE_PC + 1, 0x20);
 
     Test_DEC(Getter(0x0020), Setter(0x0020),
              Opcode(DEC, ZeroPage, 2, 5));
 }
 
 TEST_F(CpuTestIncrementDecrement, DEC_ZeroPageX) {
-    cpu.WriteByteAt(BASE_PC, 0xFF);
-    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteByte(BASE_PC, 0xFF);
+    cpu.WriteByte(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
 
     Test_DEC(Getter(0x0028), Setter(0x0028),
@@ -107,8 +107,8 @@ TEST_F(CpuTestIncrementDecrement, DEC_ZeroPageX) {
 }
 
 TEST_F(CpuTestIncrementDecrement, DEC_ZeroPageX_Wraparound) {
-    cpu.WriteByteAt(BASE_PC, 0xFF);
-    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.WriteByte(BASE_PC, 0xFF);
+    cpu.WriteByte(BASE_PC + 1, 0xF0);
     cpu.X = 0x10;
 
     Test_DEC(Getter(0x0000), Setter(0x0000),
@@ -116,7 +116,7 @@ TEST_F(CpuTestIncrementDecrement, DEC_ZeroPageX_Wraparound) {
 }
 
 TEST_F(CpuTestIncrementDecrement, DEC_Absolute) {
-    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByte(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
 
     Test_DEC(Getter(0x0120), Setter(0x0120),
@@ -124,7 +124,7 @@ TEST_F(CpuTestIncrementDecrement, DEC_Absolute) {
 }
 
 TEST_F(CpuTestIncrementDecrement, DEC_AbsoluteX) {
-    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByte(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
 
@@ -144,16 +144,16 @@ TEST_F(CpuTestIncrementDecrement, DEY) {
 
 
 TEST_F(CpuTestIncrementDecrement, INC_ZeroPage) {
-    cpu.WriteByteAt(BASE_PC, 0xFF);
-    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteByte(BASE_PC, 0xFF);
+    cpu.WriteByte(BASE_PC + 1, 0x20);
 
     Test_INC(Getter(0x0020), Setter(0x0020),
              Opcode(INC, ZeroPage, 2, 5));
 }
 
 TEST_F(CpuTestIncrementDecrement, INC_ZeroPageX) {
-    cpu.WriteByteAt(BASE_PC, 0xFF);
-    cpu.WriteByteAt(BASE_PC + 1, 0x20);
+    cpu.WriteByte(BASE_PC, 0xFF);
+    cpu.WriteByte(BASE_PC + 1, 0x20);
     cpu.X = 0x08;
 
     Test_INC(Getter(0x0028), Setter(0x0028),
@@ -161,8 +161,8 @@ TEST_F(CpuTestIncrementDecrement, INC_ZeroPageX) {
 }
 
 TEST_F(CpuTestIncrementDecrement, INC_ZeroPageX_Wraparound) {
-    cpu.WriteByteAt(BASE_PC, 0xFF);
-    cpu.WriteByteAt(BASE_PC + 1, 0xF0);
+    cpu.WriteByte(BASE_PC, 0xFF);
+    cpu.WriteByte(BASE_PC + 1, 0xF0);
     cpu.X = 0x10;
 
     Test_INC(Getter(0x0000), Setter(0x0000),
@@ -170,7 +170,7 @@ TEST_F(CpuTestIncrementDecrement, INC_ZeroPageX_Wraparound) {
 }
 
 TEST_F(CpuTestIncrementDecrement, INC_Absolute) {
-    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByte(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
 
     Test_INC(Getter(0x0120), Setter(0x0120),
@@ -178,7 +178,7 @@ TEST_F(CpuTestIncrementDecrement, INC_Absolute) {
 }
 
 TEST_F(CpuTestIncrementDecrement, INC_AbsoluteX) {
-    cpu.WriteByteAt(BASE_PC, 0xFF);
+    cpu.WriteByte(BASE_PC, 0xFF);
     cpu.WriteWordAt(BASE_PC + 1, 0x0120);
     cpu.X = 0x08;
 

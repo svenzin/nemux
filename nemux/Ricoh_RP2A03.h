@@ -17,12 +17,6 @@ public:
     void Reset() override;
 
 private:
-    inline Byte GetByteAt(const Word & address) const { return Map->GetByteAt(address); }
-    inline void SetByteAt(const Word & address, const Byte & value) {
-        //if (address == 0x2000) std::cout << "$2000 <- $" << std::hex << int(value) << std::endl;
-        Map->SetByteAt(address, value);
-    }
-
     // �ops state
     Word vector;
     Word address;
@@ -33,25 +27,25 @@ private:
     bool CheckInterrupts = true;
 
     inline void increment_PC()                        { ++PC; }
-    inline void read_PC_to_operand()                  { operand = GetByteAt(PC); }
+    inline void read_PC_to_operand()                  { operand = ReadByte(PC); }
     inline void push_PCL()                            { Push(PC); }
     inline void push_PCH()                            { Push(PC >> 8); }
     inline void push_P()                              { Push(GetStatusByte(Pflag)); }
     inline void pull_PCL()                            { SetLO(PC, Pull()); }
     inline void pull_PCH()                            { SetHI(PC, Pull()); }
     inline void pull_P()                              { SetStatusByte(Pull()); }
-    inline void read_PC_to_address()                  { address = GetByteAt(PC); }
-    inline void read_PC_to_addressLo()                { SetLO(address, GetByteAt(PC)); }
-    inline void read_PC_to_addressHi()                { SetHI(address, GetByteAt(PC)); }
-    inline void read_address_to_operand()             { operand = GetByteAt(address); }
-    inline void read_operand_to_addressLo()           { SetLO(address, GetByteAt(operand)); }
-    inline void read_operand_1_to_addressHi()         { SetHI(address, GetByteAt(Byte(operand + 1))); }
+    inline void read_PC_to_address()                  { address = ReadByte(PC); }
+    inline void read_PC_to_addressLo()                { SetLO(address, ReadByte(PC)); }
+    inline void read_PC_to_addressHi()                { SetHI(address, ReadByte(PC)); }
+    inline void read_address_to_operand()             { operand = ReadByte(address); }
+    inline void read_operand_to_addressLo()           { SetLO(address, ReadByte(operand)); }
+    inline void read_operand_1_to_addressHi()         { SetHI(address, ReadByte(Byte(operand + 1))); }
     inline void index_address()                       { SetLO(address, address + index); }
     inline void fix_indexed_address()                 { AddressWasFixed = (Byte(address) < index); if (AddressWasFixed) address += 0x0100; }
-    inline void write_operand_to_address()            { SetByteAt(address, operand); }
-    inline void read_vector_to_PCL()                  { SetLO(PC, GetByteAt(vector)); }
-    inline void read_vector_to_PCH()                  { SetHI(PC, GetByteAt(vector + 1)); }
-    inline void read_address_and_operand_to_address() { SetLO(address, address + 1); SetHI(address, GetByteAt(address)); SetLO(address, operand); }
+    inline void write_operand_to_address()            { WriteByte(address, operand); }
+    inline void read_vector_to_PCL()                  { SetLO(PC, ReadByte(vector)); }
+    inline void read_vector_to_PCH()                  { SetHI(PC, ReadByte(vector + 1)); }
+    inline void read_address_and_operand_to_address() { SetLO(address, address + 1); SetHI(address, ReadByte(address)); SetLO(address, operand); }
     inline void move_address_to_operand()             { operand = address; }
     inline void decrement_S()                         { --S; }
     
@@ -81,7 +75,7 @@ private:
     inline void fetch_opcode() {
         if (interrupted()) return;
         
-        opcode = GetByteAt(PC);
+        opcode = ReadByte(PC);
         increment_PC();
         ProcessOpcode();
     }
@@ -137,9 +131,9 @@ private:
     inline void LDX() { Transfer(operand, X); }
     inline void LDY() { Transfer(operand, Y); }
 
-    inline void STA() { SetByteAt(address, A); }
-    inline void STX() { SetByteAt(address, X); }
-    inline void STY() { SetByteAt(address, Y); }
+    inline void STA() { WriteByte(address, A); }
+    inline void STX() { WriteByte(address, X); }
+    inline void STY() { WriteByte(address, Y); }
     
     inline void TAX() { Transfer(A, X); }
     inline void TAY() { Transfer(A, Y); }
@@ -184,12 +178,12 @@ private:
     inline void xSHX() {
         const auto M = (X & (HI(address) + 1));
         if (AddressWasFixed) SetHI(address, M);
-        SetByteAt(address, M);
+        WriteByte(address, M);
     }
     inline void xSHY() {
         const auto M = (Y & (HI(address) + 1));
         if (AddressWasFixed) SetHI(address, M);
-        SetByteAt(address, M);
+        WriteByte(address, M);
     }
 
     inline void xSLO() { ASL(); ORA(); }
@@ -203,12 +197,12 @@ private:
     inline void xALR() { AND(); LSRa(); }
     inline void xARR() { AND(); RORa(); C = Bit<6>(A); V = (C ^ Bit<5>(A)); }
     inline void xXAA() {}
-    inline void xAHX() { SetByteAt(address, A & X & HI(address)); }
+    inline void xAHX() { WriteByte(address, A & X & HI(address)); }
     inline void xTAS() { S = (A & X); xAHX(); }
     inline void xLAS() { Transfer(operand & S, S); Transfer(S, A); TSX(); }
     inline void xAXS() { X = (A & X); CPX(); X = X - operand; }
     inline void xSBC() { SBC(); }
-    inline void xSAX() { SetByteAt(address, A & X); }
+    inline void xSAX() { WriteByte(address, A & X); }
     inline void xLAX() { LDA(); TAX(); }
 
 public:
@@ -357,8 +351,6 @@ public:
 
     static constexpr const char * Id = "2A03";
     static constexpr const char * Name = "Ricoh RP2A03";
-
-    MemoryMap * Map;
 
     explicit Ricoh_RP2A03();
     void DMA(const Byte & fromHi, Byte * to, const Byte & offset);
