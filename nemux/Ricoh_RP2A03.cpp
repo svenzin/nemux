@@ -454,10 +454,10 @@ void Ricoh_RP2A03::Phi2() {
 }
 
 void Ricoh_RP2A03::PowerUp() {
+    Reset();
 }
 
 void Ricoh_RP2A03::Reset() {
-    //operations.clear();
     trigger_interrupt(VectorRST, false, true);
 }
 
