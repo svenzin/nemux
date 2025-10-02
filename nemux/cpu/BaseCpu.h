@@ -1,21 +1,15 @@
 #pragma once
 
-#include "Types.h"
 #include "MemoryMap.h"
-#include "CircularQueue.h"
-
-#include <string>
-#include <vector>
-
-#include <iostream>
+#include "Types.h"
 
 class MemoryMap;
 
-namespace Address {
-    constexpr Word VECTOR_NMI = 0xFFFA;
-    constexpr Word VECTOR_RST = 0xFFFC;
-    constexpr Word VECTOR_IRQ = 0xFFFE;
-    constexpr Word STACK_PAGE = 0x0100;
+namespace Addresses {
+    constexpr Word VECTOR_NMI{ 0xFFFA };
+    constexpr Word VECTOR_RST{ 0xFFFC };
+    constexpr Word VECTOR_IRQ{ 0xFFFE };
+    constexpr Word STACK_PAGE{ 0x0100 };
 }
 
 struct BaseCpu {
@@ -24,17 +18,29 @@ struct BaseCpu {
         Left = 7, Right = 0,
     };
 
-    Word VectorRST{ Address::VECTOR_RST };
-    Word VectorNMI{ Address::VECTOR_NMI };
-    Word VectorIRQ{ Address::VECTOR_IRQ };
-    Word StackPage{ Address::STACK_PAGE };
+    Word VectorRST{ Addresses::VECTOR_RST };
+    Word VectorNMI{ Addresses::VECTOR_NMI };
+    Word VectorIRQ{ Addresses::VECTOR_IRQ };
+    Word StackPage{ Addresses::STACK_PAGE };
 
     MemoryMap* Map{};
 
-    Word PC;
-    Byte S, A, X, Y;
-    Flag N, V, D, I, Z, C;
-    bool IRQ, NMI;
+    Word PC; // Program Counter
+    Byte S;  // Stack Pointer
+
+    Byte A;  // Accumulator
+    Byte X;  // Index Register X
+    Byte Y;  // Index Register Y
+
+    Flag N;  // Negative Flag
+    Flag V;  // Overflow Flag
+    Flag D;  // Decimal Mode
+    Flag I;  // Interrupt Disable
+    Flag Z;  // Zero Flag
+    Flag C;  // Carry Flag
+
+    bool IRQ; // Interrupt ReQuest line
+    bool NMI; // Non-Maskable Interrupt line
 
     constexpr void SetStatusByte(Byte status) {
         N = Bit<Neg>(status);
@@ -61,7 +67,6 @@ struct BaseCpu {
     }
     
     void WriteByte(Word address, Byte value) const {
-        //if (address == 0x2000) std::cout << "$2000 <- $" << std::hex << int(value) << std::endl;
         Map->SetByteAt(address, value);
     }
 
