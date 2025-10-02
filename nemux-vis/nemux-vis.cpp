@@ -89,7 +89,7 @@ namespace replay {
     enum Commands : char {
         FrameStart = 0x0F,
         Player_1 = 0x01,
-        CheckFrame = 0x81,
+        CheckFrame = static_cast<char>(0x81),
         FrameEnd = 0x00,
         Reset = 0x40,
     };
