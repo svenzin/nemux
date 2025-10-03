@@ -1,13 +1,4 @@
-/*
- * Cpu-test-shift.cpp
- *
- *  Created on: 10 Jul 2013
- *      Author: scorder
- */
-
-#include <gtest/gtest.h>
-
-#include "Cpu.h"
+#include "CpuBaseTest.h"
 
 #include <vector>
 #include <map>
@@ -18,19 +9,7 @@ using namespace std;
 using namespace Instructions;
 using namespace Addressing;
 
-class CpuTestShift : public ::testing::Test {
-public:
-    static const Word BASE_PC = 10;
-    static const int BASE_TICKS = 10;
-
-    CpuTestShift() : cpu("6502", &memory) {
-        cpu.PC = BASE_PC;
-        cpu.Ticks = BASE_TICKS;
-    }
-
-    MemoryBlock<0x10000> memory;
-    Cpu cpu;
-
+struct CpuTestShift : public CpuBaseTest {
     template<typename Getter, typename Setter>
     void Test_ASL(Getter get, Setter set, Opcode op) {
         auto Tester = [&] (Byte m, Byte expM, Flag expC, Flag expZ, Flag expN) {
@@ -131,19 +110,6 @@ public:
         tester(0x01, 0, 0x00, 1, 1, 0); // Carry
         tester(0x11, 1, 0x88, 1, 0, 1); // Carry
         tester(0x00, 1, 0x80, 0, 0, 1); // Negative
-    }
-
-    function<void (Byte)> Setter(Byte & a) {
-        return [&] (Byte value) { a = value; };
-    }
-    function<void (Byte)> Setter(Word a) {
-        return [=] (Byte value) { cpu.WriteByte(a, value); };
-    }
-    function<Byte ()> Getter(Byte & b) {
-        return [&] () { return b; };
-    }
-    function<Byte ()> Getter(Word a) {
-        return [=] () { return cpu.ReadByte(a); };
     }
 };
 

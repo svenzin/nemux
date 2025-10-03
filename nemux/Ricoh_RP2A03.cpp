@@ -90,6 +90,7 @@ Ricoh_RP2A03::AddressingMode_f GetAddressingMode(Byte opcode) {
         }
         break;
     }
+    throw std::runtime_error("unexpected addressing mode");
 }
 
 void Ricoh_RP2A03::ModeImplied() {

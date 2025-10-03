@@ -1,13 +1,4 @@
-/*
- * Cpu-test-statuschange.cpp
- *
- *  Created on: 10 Jul 2013
- *      Author: scorder
- */
-
-#include <gtest/gtest.h>
-
-#include "Cpu.h"
+#include "CpuBaseTest.h"
 
 #include <vector>
 #include <map>
@@ -18,19 +9,7 @@ using namespace std;
 using namespace Instructions;
 using namespace Addressing;
 
-class CpuTestStatusChange : public ::testing::Test {
-public:
-    static const Word BASE_PC = 10;
-    static const int BASE_TICKS = 10;
-
-    CpuTestStatusChange() : cpu("6502", &memory) {
-        cpu.PC = BASE_PC;
-        cpu.Ticks = BASE_TICKS;
-    }
-
-    MemoryBlock<0x10000> memory;
-    Cpu cpu;
-
+struct CpuTestStatusChange : public CpuBaseTest {
     void Test_ClearFlag(Instructions::Name inst, Flag &f) {
         f = 1;
         cpu.Execute(Opcode(inst, Implicit, 1, 2));//, {});
@@ -47,19 +26,6 @@ public:
         EXPECT_EQ(BASE_PC + 1, cpu.PC);
         EXPECT_EQ(BASE_TICKS + 2, cpu.Ticks);
         EXPECT_EQ(Flag{1}, f);
-    }
-
-    function<void (Byte)> Setter(Byte & a) {
-        return [&] (Byte value) { a = value; };
-    }
-    function<void (Byte)> Setter(Word a) {
-        return [=] (Byte value) { cpu.WriteByte(a, value); };
-    }
-    function<Byte ()> Getter(Byte & b) {
-        return [&] () { return b; };
-    }
-    function<Byte ()> Getter(Word a) {
-        return [=] () { return cpu.ReadByte(a); };
     }
 };
 

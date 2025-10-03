@@ -1,13 +1,4 @@
-/*
- * Cpu-test.cpp
- *
- *  Created on: 19 Jun 2013
- *      Author: scorder
- */
-
-#include <gtest/gtest.h>
-
-#include "Cpu.h"
+#include "CpuBaseTest.h"
 
 #include <vector>
 #include <map>
@@ -16,12 +7,7 @@
 
 using namespace std;
 
-class CpuTest : public ::testing::Test {
-public:
-    CpuTest() : cpu("6502") {
-    }
-
-    Cpu cpu;
+struct CpuTest : public CpuBaseTest {
 };
 
 

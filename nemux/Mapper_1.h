@@ -138,6 +138,7 @@ public:
             if (address < 0xC000) return{ evenBank, Word(address & 0x3FFF) };
             return{ evenBank + 1, Word(address & 0x3FFF) };
         }
+        throw std::runtime_error{ "unexpected PRG ROM address" };
     }
 
     Word ToPrgRam(const Word address) const {
@@ -153,6 +154,7 @@ public:
             if (address < 0x1000) return{ ChrBank0, address };
             return{ ChrBank1, Word(address & 0x0FFF) };
         }
+        throw std::runtime_error{ "unexpected CHR ROM address" };
     }
 
     Word ToChrRam(const Word address) const {
@@ -164,6 +166,7 @@ public:
         if (ScreenMode == Mirroring::Screen1) return (0x0400 | (address & 0x03FF));
         if (ScreenMode == Mirroring::Vertical) return (address & 0x7FF);
         if (ScreenMode == Mirroring::Horizontal) return (((address & 0x0800) >> 1) | (address & 0x03FF));
+        throw std::runtime_error{ "unexpected Nametable address" };
     }
 
     MMCWrite ResetMMC1() {

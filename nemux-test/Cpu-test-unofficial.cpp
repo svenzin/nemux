@@ -1,6 +1,5 @@
-#include <gtest/gtest.h>
+#include "CpuBaseTest.h"
 
-#include "Cpu.h"
 #include "BitUtil.h"
 
 //#include <sstream>
@@ -13,19 +12,7 @@ using namespace std;
 using namespace Instructions;
 using namespace Addressing;
 
-class CpuTestUnofficial : public ::testing::Test {
-public:
-    static const Word BASE_PC = 10;
-    static const int BASE_TICKS = 10;
-
-    CpuTestUnofficial() : memory(), cpu("6502", &memory) {
-        cpu.PC = BASE_PC;
-        cpu.Ticks = BASE_TICKS;
-    }
-
-    MemoryBlock<0x10000> memory;
-    Cpu cpu;
-
+struct CpuTestUnofficial : public CpuBaseTest {
     void Test_SLO(Word address, Opcode op) {
         auto tester = [&](Byte a, Byte m, Byte expA, Byte expM, Flag expN, Flag expZ, Flag expC) {
             cpu.WriteByte(address, m);
@@ -362,8 +349,6 @@ public:
         tester(0x40, 0x40, 1, 0xFF, 0x41, 0, 0, 0, 1); // Negative
     }
 };
-const Word CpuTestUnofficial::BASE_PC;
-const int CpuTestUnofficial::BASE_TICKS;
 
 ////////////////////////////////////////////////////////////////////////////////
 

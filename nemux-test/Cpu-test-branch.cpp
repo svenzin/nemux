@@ -1,13 +1,4 @@
-/*
- * Cpu-test-branch.cpp
- *
- *  Created on: 10 Jul 2013
- *      Author: scorder
- */
-
-#include <gtest/gtest.h>
-
-#include "Cpu.h"
+#include "CpuBaseTest.h"
 
 #include <vector>
 #include <map>
@@ -18,20 +9,7 @@ using namespace std;
 using namespace Instructions;
 using namespace Addressing;
 
-class CpuTestBranch : public ::testing::Test {
-public:
-    static const Word BASE_PC = 10;
-    static const int BASE_TICKS = 10;
-    static const int OFFSET_FROM_PREFETCH_NEXT = 0;
-
-    CpuTestBranch() : cpu("6502", &memory) {
-        cpu.PC = BASE_PC;
-        cpu.Ticks = BASE_TICKS;
-    }
-
-    MemoryBlock<0x10000> memory;
-    Cpu cpu;
-
+struct CpuTestBranch : public CpuBaseTest {
     template<typename Setter>
     void Test_Branch(Setter set, Flag success, Flag failure, Opcode op) {
         auto tester = [&] (Word pc, Byte offset, Flag c, Word expPC, int extra) {
@@ -54,19 +32,6 @@ public:
         tester(0x00F0, 0x0F, success, 0x00FF + 2, 2); // Success, positive offset, crossing page on PC+2
         tester(0x0110, 0xE0, success, 0x00F0 + 2, 2); // Success, negative offset, crossing page
         tester(0x0110, 0xEF, success, 0x00FF + 2, 1); // Success, negative offset, not crossing page on PC+2
-    }
-
-    function<void (Byte)> Setter(Byte & a) {
-        return [&] (Byte value) { a = value; };
-    }
-    function<void (Byte)> Setter(Word a) {
-        return [=] (Byte value) { cpu.WriteByte(a, value); };
-    }
-    function<Byte ()> Getter(Byte & b) {
-        return [&] () { return b; };
-    }
-    function<Byte ()> Getter(Word a) {
-        return [=] () { return cpu.ReadByte(a); };
     }
 };
 

@@ -49,7 +49,7 @@ private:
     inline void move_address_to_operand()             { operand = address; }
     inline void decrement_S()                         { --S; }
     
-    inline void r_m_w(); // Read-Modify-Write
+    void r_m_w(); // Read-Modify-Write
 
     inline bool interrupted() {
         // If an interrupt sequence was running (CheckInterrupts == false)
@@ -319,9 +319,9 @@ public:
         return true;
     }
 
-    inline void trigger_interrupt(const Word & interruptVector,
-                                  const bool & isBRK,
-                                  const bool & isRST);
+    void trigger_interrupt(const Word & interruptVector,
+                           const bool & isBRK,
+                           const bool & isRST);
 
     inline void do_DMA();
     bool INSTR = false;

@@ -1,13 +1,4 @@
-/*
- * Cpu-test-loadstore.cpp
- *
- *  Created on: 07 Jul 2013
- *      Author: scorder
- */
-
-#include <gtest/gtest.h>
-
-#include "Cpu.h"
+#include "CpuBaseTest.h"
 
 #include <vector>
 #include <map>
@@ -18,19 +9,7 @@ using namespace std;
 using namespace Instructions;
 using namespace Addressing;
 
-class CpuTestLoadStore : public ::testing::Test {
-public:
-    static const Word BASE_PC = 10;
-    static const int BASE_TICKS = 10;
-
-    CpuTestLoadStore() : cpu("6502", &memory) {
-        cpu.PC = BASE_PC;
-        cpu.Ticks = BASE_TICKS;
-    }
-
-    MemoryBlock<0x10000> memory;
-    Cpu cpu;
-
+struct CpuTestLoadStore : public CpuBaseTest {
     template<typename Getter, typename Setter>
     void Test_Set(Getter get, Setter set, Opcode op) {
         set(0x80);
@@ -60,19 +39,6 @@ public:
         tester(0x20, 0, 0);
         tester(0x00, 1, 0);
         tester(0x80, 0, 1);
-    }
-
-    function<void (Byte)> Setter(Byte & a) {
-        return [&] (Byte value) { a = value; };
-    }
-    function<void (Byte)> Setter(Word a) {
-        return [=] (Byte value) { cpu.WriteByte(a, value); };
-    }
-    function<Byte ()> Getter(Byte & b) {
-        return [&] () { return b; };
-    }
-    function<Byte ()> Getter(Word a) {
-        return [=] () { return cpu.ReadByte(a); };
     }
 };
 

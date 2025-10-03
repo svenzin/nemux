@@ -1,13 +1,4 @@
-/*
- * Cpu-test-arithmetic.cpp
- *
- *  Created on: 10 Jul 2013
- *      Author: scorder
- */
-
-#include <gtest/gtest.h>
-
-#include "Cpu.h"
+#include "CpuBaseTest.h"
 
 #include <vector>
 #include <map>
@@ -18,19 +9,7 @@ using namespace std;
 using namespace Instructions;
 using namespace Addressing;
 
-class CpuTestArithmetic : public ::testing::Test {
-public:
-    static const Word BASE_PC = 10;
-    static const int BASE_TICKS = 10;
-
-    CpuTestArithmetic() : cpu("6502", &memory) {
-        cpu.PC = BASE_PC;
-        cpu.Ticks = BASE_TICKS;
-    }
-
-    MemoryBlock<0x10000> memory;
-    Cpu cpu;
-
+struct CpuTestArithmetic : public CpuBaseTest {
     template<typename Setter>
     void Test_ADC(Setter set, Opcode op, bool extra) {
         const auto expectedCycles = extra ? op.Cycles + 1 : op.Cycles;
@@ -138,19 +117,6 @@ public:
         tester(0xF0, 0xF8, 0, 0, 1); // MSB set
 
         tester(0x80, 0x00, 1, 0, 1); // MSB set
-    }
-
-    function<void (Byte)> Setter(Byte & a) {
-        return [&] (Byte value) { a = value; };
-    }
-    function<void (Byte)> Setter(Word a) {
-        return [=] (Byte value) { cpu.WriteByte(a, value); };
-    }
-    function<Byte ()> Getter(Byte & b) {
-        return [&] () { return b; };
-    }
-    function<Byte ()> Getter(Word a) {
-        return [=] () { return cpu.ReadByte(a); };
     }
 };
 

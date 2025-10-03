@@ -1,18 +1,6 @@
-#include <gtest/gtest.h>
+#include "CpuBaseTest.h"
 
-#include "Cpu.h"
-
-struct CpuTestEndianness : public ::testing::Test {
-    static const Word BASE_PC = 10;
-    static const int BASE_TICKS = 10;
-
-    CpuTestEndianness() : cpu("6502", &memory) {
-        cpu.PC = BASE_PC;
-        cpu.Ticks = BASE_TICKS;
-    }
-
-    MemoryBlock<0x10000> memory;
-    Cpu cpu;
+struct CpuTestEndianness : public CpuBaseTest {
 };
 
 TEST_F(CpuTestEndianness, SetGetWord) {

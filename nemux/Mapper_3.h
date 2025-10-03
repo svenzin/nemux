@@ -88,6 +88,7 @@ public:
     Word NametableAddress(const Word address) const override {
         if (ScreenMode == Mirroring::Vertical) return (address & 0x7FF);
         if (ScreenMode == Mirroring::Horizontal) return (((address & 0x0800) >> 1) | (address & 0x03FF));
+        throw std::runtime_error{ "unexpected Nametable address" };
     }
 
     void WriteToCNROM(const Word address, const Byte value) {

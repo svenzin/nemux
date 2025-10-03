@@ -1,13 +1,5 @@
-/*
- * Cpu-test-system.cpp
- *
- *  Created on: 09 Jul 2013
- *      Author: scorder
- */
+#include "CpuBaseTest.h"
 
-#include <gtest/gtest.h>
-
-#include "Cpu.h"
 #include "BitUtil.h"
 
 //#include <sstream>
@@ -20,25 +12,11 @@ using namespace std;
 using namespace Instructions;
 using namespace Addressing;
 
-class CpuTestSystem : public ::testing::Test {
-public:
-    static const Word BASE_PC = 10;
-    static const int BASE_TICKS = 10;
-
+struct CpuTestSystem : public CpuBaseTest {
     static const Word VECTOR_RST = 0xFFFC;
     static const Word VECTOR_IRQ = 0xFFFE;
     static const Word VECTOR_NMI = 0xFFFA;
-
-    CpuTestSystem() : memory(), cpu("6502", &memory) {
-        cpu.PC = BASE_PC;
-        cpu.Ticks = BASE_TICKS;
-    }
-
-    MemoryBlock<0x10000> memory;
-    Cpu cpu;
 };
-const Word CpuTestSystem::BASE_PC;
-const int CpuTestSystem::BASE_TICKS;
 
 TEST_F(CpuTestSystem, BRK) {
     auto op = Opcode(BRK, Implicit, 2, 0);

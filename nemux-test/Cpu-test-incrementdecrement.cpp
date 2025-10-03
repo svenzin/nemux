@@ -1,13 +1,4 @@
-/*
- * Cpu-test-incrementdecrement.cpp
- *
- *  Created on: 19 Jun 2013
- *      Author: scorder
- */
-
-#include <gtest/gtest.h>
-
-#include "Cpu.h"
+#include "CpuBaseTest.h"
 
 #include <vector>
 #include <map>
@@ -18,19 +9,7 @@ using namespace std;
 using namespace Instructions;
 using namespace Addressing;
 
-class CpuTestIncrementDecrement : public ::testing::Test {
-public:
-    static const Word BASE_PC = 10;
-    static const int BASE_TICKS = 10;
-
-    CpuTestIncrementDecrement() : cpu("6502", &memory) {
-        cpu.PC = BASE_PC;
-        cpu.Ticks = BASE_TICKS;
-    }
-
-    MemoryBlock<0x10000> memory;
-    Cpu cpu;
-
+struct CpuTestIncrementDecrement : public CpuBaseTest {
     template<typename Getter, typename Setter>
     void Test_DEC(Getter get, Setter set, Opcode op) {
         auto tester = [&] (Byte m, Byte expM, Flag expZ, Flag expN) {
@@ -73,21 +52,7 @@ public:
         tester(0xFF, 0x00, 1, 0);
         tester(0x7F, 0x80, 0, 1);
     }
-
-    function<void (Byte)> Setter(Byte & a) {
-        return [&] (Byte value) { a = value; };
-    }
-    function<void (Byte)> Setter(Word a) {
-        return [=] (Byte value) { cpu.WriteByte(a, value); };
-    }
-    function<Byte ()> Getter(Byte & b) {
-        return [&] () { return b; };
-    }
-    function<Byte ()> Getter(Word a) {
-        return [=] () { return cpu.ReadByte(a); };
-    }
 };
-//}
 
 TEST_F(CpuTestIncrementDecrement, DEC_ZeroPage) {
     cpu.WriteByte(BASE_PC, 0xFF);
