@@ -91,6 +91,7 @@ class Cpu : public BaseCpu {
 public:
     void PowerUp() override;
     void Reset() override;
+    [[nodiscard]] bool Tick() override;
 
 private:
     Ricoh_RP2A03 rp2a03;
@@ -105,11 +106,11 @@ public:
 
     std::string Name;
 
-    int Ticks;
+    // TODO remove when tests have been migrated to using BaseCpu and CpuBaseTest
+    using BaseCpu::Ticks;
     int InterruptCycles;
 
     int CurrentTick;
-    void Tick();
 
     Opcode Decode(const Byte &byte) const;
     address_t BuildAddress(const Addressing::Type & type) const;

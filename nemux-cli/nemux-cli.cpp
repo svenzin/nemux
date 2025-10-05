@@ -219,9 +219,9 @@ int main(int argc, char ** argv) {
                     --step;
                     ++counter;
 
-                    cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick();
+                    (void)cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick();
                     while (cpu.CurrentTick < cpu.Ticks) {
-                        cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick();
+                        (void)cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick();
                     }
                     //}
 

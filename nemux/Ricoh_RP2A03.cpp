@@ -439,7 +439,9 @@ void Ricoh_RP2A03::Phi1() {
 
     ++Ticks;
     CycleActive = true;
-    while (CycleActive) ConsumeOne();
+    while (CycleActive) {
+        ConsumeOne();
+    }
     INSTR = (operations.empty() | (operations.first() == M(fetch_opcode)));
 }
 
@@ -460,6 +462,10 @@ void Ricoh_RP2A03::PowerUp() {
 
 void Ricoh_RP2A03::Reset() {
     trigger_interrupt(VectorRST, false, true);
+}
+
+bool Ricoh_RP2A03::Tick() {
+    return false;
 }
 
 void Ricoh_RP2A03::DMA(const Byte & fromHi, Byte * to, const Byte & offset) {

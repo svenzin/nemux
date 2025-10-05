@@ -12,7 +12,13 @@ namespace Addresses {
     constexpr Word STACK_PAGE{ 0x0100 };
 }
 
-struct BaseCpu {
+class BaseCpu {
+protected:
+    size_t Ticks{};
+
+public:
+    size_t GetTicks() const { return Ticks; }
+
     enum Bits : size_t {
         Car, Zer, Int, Dec, Brk, Unu, Ovf, Neg,
         Left = 7, Right = 0,
@@ -58,10 +64,7 @@ struct BaseCpu {
             Mask<Dec>(D) | Mask<Int>(I) |
             Mask<Zer>(Z) | Mask<Car>(C);
     }
-
-    virtual void PowerUp() = 0;
-    virtual void Reset() = 0;
-
+    
     Byte ReadByte(Word address) const {
         return Map->GetByteAt(address);
     }
@@ -69,5 +72,8 @@ struct BaseCpu {
     void WriteByte(Word address, Byte value) const {
         Map->SetByteAt(address, value);
     }
-
+    
+    virtual void PowerUp() = 0;
+    virtual void Reset() = 0;
+    [[nodiscard]] virtual bool Tick() = 0;
 };

@@ -56,7 +56,6 @@ void Cpu::WriteWordAt(const Word address, const Word value) {
 
 /* explicit */ Cpu::Cpu(std::string name, MemoryMap * map)
     : Name{name}
-    , Ticks{0}
     , InterruptCycles{7}
     , rp2a03{}
     , BaseCpu{}
@@ -411,11 +410,11 @@ void Cpu::WriteWordAt(const Word address, const Word value) {
     IsAlive = true;
     S = 0xFD;
     SetStatusByte(0x24);
-    CurrentTick = 0;
+    CurrentTick = GetTicks();
     PendingInterrupt = InterruptType::None;
 }
 
-void Cpu::Tick() {
+bool Cpu::Tick() {
     if (!USE_RP2A03) {
         ++CurrentTick;
         static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> *>(Map);
@@ -457,6 +456,7 @@ void Cpu::Tick() {
                 Execute(opcode);
             }
         }
+        return CurrentTick == Ticks;
     }
     else {
         Write2A03State(*this, rp2a03);
@@ -469,6 +469,7 @@ void Cpu::Tick() {
         }
         rp2a03.Phi2();
         Read2A03State(rp2a03, *this);
+        return rp2a03.INSTR;
     }
 }
 

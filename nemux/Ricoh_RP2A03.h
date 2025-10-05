@@ -15,6 +15,7 @@ class Ricoh_RP2A03 : public BaseCpu {
 public:
     void PowerUp() override;
     void Reset() override;
+    [[nodiscard]] bool Tick() override;
 
 private:
     // �ops state

@@ -65,7 +65,7 @@ public:
 
     std::pair<bool, float> Step() {
         const auto frame = ppu.FrameCount;
-        cpu.Tick();
+        (void)cpu.Tick();
         ppu.Tick();
         ppu.Tick();
         ppu.Tick();
@@ -76,7 +76,7 @@ public:
 
     void StepOneCpuInstruction() {
         do {
-            cpu.Tick();
+            (void)cpu.Tick();
             ppu.Tick();
             ppu.Tick();
             ppu.Tick();
