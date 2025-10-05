@@ -119,7 +119,7 @@ struct CpuTestArithmetic : public CpuBaseTest {
 
 TEST_F(CpuTestArithmetic, CPX_Immediate) {
     bench.encode(CPX, IMM);
-    Test_Compare(Setter(cpu.X), Setter(BASE_PC + 1), 0);
+    Test_Compare(Setter(cpu.X), bench.mem_setter(), 0);
 }
 
 TEST_F(CpuTestArithmetic, CPX_ZeroPage) {
@@ -138,7 +138,7 @@ TEST_F(CpuTestArithmetic, CPX_Absolute) {
 
 TEST_F(CpuTestArithmetic, CPY_Immediate) {
     bench.encode(CPY, IMM);
-    Test_Compare(Setter(cpu.Y), Setter(BASE_PC + 1), 0);
+    Test_Compare(Setter(cpu.Y), bench.mem_setter(), 0);
 }
 
 TEST_F(CpuTestArithmetic, CPY_ZeroPage) {
@@ -157,7 +157,7 @@ TEST_F(CpuTestArithmetic, CPY_Absolute) {
 
 TEST_F(CpuTestArithmetic, CMP_Immediate) {
     bench.encode(CMP, IMM);
-    Test_Compare(Setter(cpu.A), Setter(BASE_PC + 1), 0);
+    Test_Compare(Setter(cpu.A), bench.mem_setter(), 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_ZeroPage) {
@@ -272,7 +272,7 @@ TEST_F(CpuTestArithmetic, CMP_IndirectIndexed_BaseFromZeroPage) {
 
 TEST_F(CpuTestArithmetic, ADC_Immediate) {
     bench.encode(ADC, IMM);
-    Test_ADC(Setter(BASE_PC + 1), 0);
+    Test_ADC(bench.mem_setter(), 0);
 }
 
 TEST_F(CpuTestArithmetic, ADC_ZeroPage) {
@@ -387,7 +387,7 @@ TEST_F(CpuTestArithmetic, ADC_IndirectIndexed_BaseFromZeroPage) {
 
 TEST_F(CpuTestArithmetic, SBC_Immediate) {
     bench.encode(SBC, IMM);
-    Test_SBC(Setter(BASE_PC + 1), 0);
+    Test_SBC(bench.mem_setter(), 0);
 }
 
 TEST_F(CpuTestArithmetic, SBC_ZeroPage) {

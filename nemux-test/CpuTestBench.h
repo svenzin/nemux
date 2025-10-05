@@ -57,4 +57,8 @@ public:
         // Get CPU ticks at the beginning of the test
         Ticks = cpu->GetTicks();
     }
+
+    auto mem_setter() const {
+        return [this, address=current](Byte value) { memory->SetByteAt(address, value); };
+    }
 };
