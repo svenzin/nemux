@@ -18,10 +18,10 @@ using namespace std;
 using namespace Instructions;
 using namespace Addressing;
 
-static const bool USE_RP2A03 = true;
+static const bool USE_RP2A03 = false;
 static int nmic = 0;
 static void Write2A03State(Cpu& cpu, Ricoh_RP2A03& rp2a03) {
-    rp2a03.Halted = !cpu.IsAlive;
+    rp2a03.SetStopped(cpu.IsStopped());
     rp2a03.PC = cpu.PC;
     rp2a03.S = cpu.S;
     rp2a03.A = cpu.A;
@@ -32,6 +32,7 @@ static void Write2A03State(Cpu& cpu, Ricoh_RP2A03& rp2a03) {
     rp2a03.Ticks = cpu.Ticks;
 }
 static void Read2A03State(Ricoh_RP2A03& rp2a03, Cpu& cpu) {
+    cpu.SetStopped(rp2a03.IsStopped());
     cpu.Ticks = rp2a03.Ticks;
     if (rp2a03.INSTR) cpu.CurrentTick = rp2a03.Ticks;
     cpu.PC = rp2a03.PC;
@@ -40,7 +41,6 @@ static void Read2A03State(Ricoh_RP2A03& rp2a03, Cpu& cpu) {
     cpu.X = rp2a03.X;
     cpu.Y = rp2a03.Y;
     cpu.SetStatusByte(rp2a03.GetStatusByte(0));
-    cpu.IsAlive = !rp2a03.Halted;
 }
 
 Word Cpu::ReadWordAt(const Word address) const {
@@ -407,7 +407,6 @@ void Cpu::WriteWordAt(const Word address, const Word value) {
     m_opcodes[0xEB] = Opcode(uSBC, Immediate, 2, 2);
 
     // Power up state
-    IsAlive = true;
     S = 0xFD;
     SetStatusByte(0x24);
     CurrentTick = GetTicks();
@@ -456,15 +455,15 @@ bool Cpu::Tick() {
                 Execute(opcode);
             }
         }
-        return CurrentTick == Ticks;
+        return CurrentTick >= Ticks;
     }
     else {
         Write2A03State(*this, rp2a03);
         rp2a03.Phi1();
         static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> *>(Map);
         if (m != nullptr) {
-            rp2a03.NMI = m->PPU->NMIActive;
-            rp2a03.IRQ = (I == 0)
+            rp2a03.LineNMI = m->PPU->NMIActive;
+            rp2a03.LineIRQ = (I == 0)
                 && (m->APU->Frame.Interrupt || m->APU->DMC1.Output.DMA.Interrupt);
         }
         rp2a03.Phi2();
@@ -512,10 +511,13 @@ address_t Cpu::BuildAddress(const Addressing::Type & type) const {
             return{ address, crossed };
         }
         case IndexedIndirect: {
-            const Word base = ReadWordAt(PC_1) + X;
-            const Word lo = base & WORD_LO_MASK;
-            const Word hi = (base + 1) & WORD_LO_MASK;
-            const Word addr = ReadByte(hi) << BYTE_WIDTH | ReadByte(lo);
+            const Byte base = ReadByte(PC_1) + X;
+            const Byte lo = base;
+            const Byte hi = (base + Byte(1));
+            // const Word base = ReadByte(PC_1) + X;
+            // const Word lo = base & WORD_LO_MASK;
+            // const Word hi = (base + 1) & WORD_LO_MASK;
+            const Word addr = MakeWord(ReadByte(lo), ReadByte(hi));
             return { addr, false };
         }
         case IndirectIndexed: {
@@ -693,7 +695,7 @@ void Cpu::Execute(const Opcode &op) {
         Read2A03State(rp2a03, *this);
         return;
     }
-    if (!IsAlive) return;
+    if (IsStopped()) return;
 
     const auto a = BuildAddress(op.Addressing);
     Ticks += op.Cycles;
@@ -879,7 +881,7 @@ void Cpu::Execute(const Opcode &op) {
     }
     case INX: Increment(X); break;
     case INY: Increment(Y); break;
-    case uSTP: IsAlive = false; break;
+    case uSTP: _isStopped = true; break;
     case uSLO: {
         const auto address = a.Address;
         auto M = ReadByte(address);

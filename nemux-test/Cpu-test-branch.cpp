@@ -1,28 +1,27 @@
 #include "CpuBaseTest.h"
 
-#include <vector>
-#include <map>
-#include <array>
-#include <functional>
+using OpName = InstructionSet_6502::OpName;
+using enum InstructionSet_6502::OpName;
+using enum InstructionSet_6502::AddressingMode;
 
-using namespace std;
-using namespace Instructions;
-using namespace Addressing;
+static constexpr size_t OFFSET_FROM_PREFETCH_NEXT{ 0 };
 
 struct CpuTestBranch : public CpuBaseTest {
-    template<typename Setter>
-    void Test_Branch(Setter set, Flag success, Flag failure, Opcode op) {
+    void Test_Branch(Byte& flag, Flag success, Flag failure, OpName opname) {
         auto tester = [&] (Word pc, Byte offset, Flag c, Word expPC, int extra) {
-            cpu.WriteByte(pc, 0xFF);
-            cpu.WriteByte(pc + 1, offset);
-            set(c);
-
-            cpu.PC = pc;
-            cpu.Ticks = BASE_TICKS;
-            cpu.Execute(op);
+            bench.origin(pc)
+                .encode(opname, REL)
+                .db(offset)
+                .start();
+            
+            flag = c;
+            ExecuteOne();
 
             EXPECT_EQ(expPC, cpu.PC);
-            EXPECT_EQ(BASE_TICKS + op.Cycles + extra + OFFSET_FROM_PREFETCH_NEXT, cpu.Ticks);
+            EXPECT_EQ(
+                bench.Ticks + bench.op.Cycles + extra + OFFSET_FROM_PREFETCH_NEXT,
+                cpu.GetTicks()
+            );
         };
 
         tester(0x0080, 0x20, failure, 0x0080 + 2, 0); // Fail
@@ -36,41 +35,33 @@ struct CpuTestBranch : public CpuBaseTest {
 };
 
 TEST_F(CpuTestBranch, BCC) {
-    Test_Branch(Setter(cpu.C), 0, 1,
-        Opcode(BCC, Relative, 2, 2));
+    Test_Branch(cpu.C, 0, 1, BCC);
 }
 
 TEST_F(CpuTestBranch, BCS) {
-    Test_Branch(Setter(cpu.C), 1, 0,
-        Opcode(BCS, Relative, 2, 2));
+    Test_Branch(cpu.C, 1, 0, BCS);
 }
 
 TEST_F(CpuTestBranch, BEQ) {
-    Test_Branch(Setter(cpu.Z), 1, 0,
-        Opcode(BEQ, Relative, 2, 2));
+    Test_Branch(cpu.Z, 1, 0, BEQ);
 }
 
 TEST_F(CpuTestBranch, BMI) {
-    Test_Branch(Setter(cpu.N), 1, 0,
-        Opcode(BMI, Relative, 2, 2));
+    Test_Branch(cpu.N, 1, 0, BMI);
 }
 
 TEST_F(CpuTestBranch, BNE) {
-    Test_Branch(Setter(cpu.Z), 0, 1,
-        Opcode(BNE, Relative, 2, 2));
+    Test_Branch(cpu.Z, 0, 1, BNE);
 }
 
 TEST_F(CpuTestBranch, BPL) {
-    Test_Branch(Setter(cpu.N), 0, 1,
-        Opcode(BPL, Relative, 2, 2));
+    Test_Branch(cpu.N, 0, 1, BPL);
 }
 
 TEST_F(CpuTestBranch, BVC) {
-    Test_Branch(Setter(cpu.V), 0, 1,
-        Opcode(BVC, Relative, 2, 2));
+    Test_Branch(cpu.V, 0, 1, BVC);
 }
 
 TEST_F(CpuTestBranch, BVS) {
-    Test_Branch(Setter(cpu.V), 1, 0,
-        Opcode(BVS, Relative, 2, 2));
+    Test_Branch(cpu.V, 1, 0, BVS);
 }

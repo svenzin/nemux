@@ -1,303 +1,190 @@
 #include "CpuBaseTest.h"
 
-#include <vector>
-#include <map>
-#include <array>
-#include <functional>
-
-using namespace std;
-using namespace Instructions;
-using namespace Addressing;
+using enum InstructionSet_6502::OpName;
+using enum InstructionSet_6502::AddressingMode;
 
 struct CpuTestShift : public CpuBaseTest {
-    template<typename Getter, typename Setter>
-    void Test_ASL(Getter get, Setter set, Opcode op) {
-        auto Tester = [&] (Byte m, Byte expM, Flag expC, Flag expZ, Flag expN) {
-            set(m);
+    void Test_ASL(CpuTestBench::addressing_mode_setup addressingMode) {
+        auto tester = [&] (Byte m, Byte expM, Flag expC, Flag expZ, Flag expN) {
+            bench.start();
+            
+            bench.set_target(m);
+            ExecuteOne();
 
-            cpu.PC = BASE_PC;
-            cpu.Ticks = BASE_TICKS;
-            cpu.Execute(op);
-
-            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
-            EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
-            EXPECT_EQ(expM, get());
+            EXPECT_EQ(bench.expected_PC(), cpu.PC);
+            EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+            EXPECT_EQ(expM, bench.get_target());
             EXPECT_EQ(expC, cpu.C);
             EXPECT_EQ(expZ, cpu.Z);
             EXPECT_EQ(expN, cpu.N);
         };
 
-        Tester(0x24, 0x48, 0, 0, 0); // Shift
-
-        Tester(0x00, 0x00, 0, 1, 0); // Zero flag
-        Tester(0x80, 0x00, 1, 1, 0); // Zero flag
-
-        Tester(0x01, 0x02, 0, 0, 0); // Carry flag
-        Tester(0x81, 0x02, 1, 0, 0); // Carry flag
-
-        Tester(0xA0, 0x40, 1, 0, 0); // Negative flag
-        Tester(0xF0, 0xE0, 1, 0, 1); // Negative flag
+        (bench.*addressingMode)(ASL);
+        tester(0x24, 0x48, 0, 0, 0); // Shift
+        tester(0x00, 0x00, 0, 1, 0); // Zero flag
+        tester(0x80, 0x00, 1, 1, 0); // Zero flag
+        tester(0x01, 0x02, 0, 0, 0); // Carry flag
+        tester(0x81, 0x02, 1, 0, 0); // Carry flag
+        tester(0xA0, 0x40, 1, 0, 0); // Negative flag
+        tester(0xF0, 0xE0, 1, 0, 1); // Negative flag
     }
 
-    template<typename Getter, typename Setter>
-    void Test_LSR(Getter get, Setter set, Opcode op) {
+    void Test_LSR(CpuTestBench::addressing_mode_setup addressingMode) {
         auto tester = [&] (Byte m, Byte expM, Flag expC, Flag expZ) {
-            set(m);
+            bench.start();
+            
+            bench.set_target(m);
+            ExecuteOne();
 
-            cpu.PC = BASE_PC;
-            cpu.Ticks = BASE_TICKS;
-            cpu.Execute(op);
-
-            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
-            EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
-            EXPECT_EQ(expM, get());
+            EXPECT_EQ(bench.expected_PC(), cpu.PC);
+            EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+            EXPECT_EQ(expM, bench.get_target());
             EXPECT_EQ(expC, cpu.C);
             EXPECT_EQ(expZ, cpu.Z);
         };
 
+        (bench.*addressingMode)(LSR);
         tester(0x24, 0x12, 0, 0); // Shift
         tester(0x00, 0x00, 0, 1); // Zero flag
         tester(0x01, 0x00, 1, 1); // Carry flag
     }
 
-    template<typename Getter, typename Setter>
-    void Test_ROL(Getter get, Setter set, Opcode op) {
-        auto tester = [&] (Byte m, Byte c, Byte expM, Flag expC, Flag expZ, Flag expN) {
-            set(m);
-            cpu.C = c;
+    void TesterRotate(Byte m, Byte c, Byte expM, Flag expC, Flag expZ, Flag expN) {
+        bench.start();
+        
+        bench.set_target(m);
+        cpu.C = c;
+        ExecuteOne();
 
-            cpu.PC = BASE_PC;
-            cpu.Ticks = BASE_TICKS;
-            cpu.Execute(op);
+        EXPECT_EQ(bench.expected_PC(), cpu.PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+        EXPECT_EQ(expM, bench.get_target());
+        EXPECT_EQ(expC, cpu.C);
+        EXPECT_EQ(expZ, cpu.Z);
+        EXPECT_EQ(expN, cpu.N);
+    };
 
-            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
-            EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
-            EXPECT_EQ(expM, get());
-            EXPECT_EQ(expC, cpu.C);
-            EXPECT_EQ(expZ, cpu.Z);
-            EXPECT_EQ(expN, cpu.N);
-        };
-
-        tester(0x21, 0, 0x42, 0, 0, 0); // Shift
-        tester(0x21, 1, 0x43, 0, 0, 0); // Shift w/ Carry
-        tester(0x00, 0, 0x00, 0, 1, 0); // Zero
-        tester(0x80, 0, 0x00, 1, 1, 0); // Carry
-        tester(0x88, 1, 0x11, 1, 0, 0); // Carry
-        tester(0x40, 0, 0x80, 0, 0, 1); // Negative
+    void Test_ROL(CpuTestBench::addressing_mode_setup addressingMode) {
+        (bench.*addressingMode)(ROL);
+        TesterRotate(0x21, 0, 0x42, 0, 0, 0); // Shift
+        TesterRotate(0x21, 1, 0x43, 0, 0, 0); // Shift w/ Carry
+        TesterRotate(0x00, 0, 0x00, 0, 1, 0); // Zero
+        TesterRotate(0x80, 0, 0x00, 1, 1, 0); // Carry
+        TesterRotate(0x88, 1, 0x11, 1, 0, 0); // Carry
+        TesterRotate(0x40, 0, 0x80, 0, 0, 1); // Negative
     }
 
-    template<typename Getter, typename Setter>
-    void Test_ROR(Getter get, Setter set, Opcode op) {
-        auto tester = [&] (Byte m, Byte c, Byte expM, Flag expC, Flag expZ, Flag expN) {
-            set(m);
-            cpu.C = c;
-
-            cpu.PC = BASE_PC;
-            cpu.Ticks = BASE_TICKS;
-            cpu.Execute(op);
-
-            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
-            EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
-            EXPECT_EQ(expM, get());
-            EXPECT_EQ(expC, cpu.C);
-            EXPECT_EQ(expZ, cpu.Z);
-            EXPECT_EQ(expN, cpu.N);
-        };
-
-        tester(0x42, 0, 0x21, 0, 0, 0); // Shift
-        tester(0x02, 1, 0x81, 0, 0, 1); // Shift w/ Carry
-        tester(0x00, 0, 0x00, 0, 1, 0); // Zero
-        tester(0x01, 0, 0x00, 1, 1, 0); // Carry
-        tester(0x11, 1, 0x88, 1, 0, 1); // Carry
-        tester(0x00, 1, 0x80, 0, 0, 1); // Negative
+    void Test_ROR(CpuTestBench::addressing_mode_setup addressingMode) {
+        (bench.*addressingMode)(ROR);
+        TesterRotate(0x42, 0, 0x21, 0, 0, 0); // Shift
+        TesterRotate(0x02, 1, 0x81, 0, 0, 1); // Shift w/ Carry
+        TesterRotate(0x00, 0, 0x00, 0, 1, 0); // Zero
+        TesterRotate(0x01, 0, 0x00, 1, 1, 0); // Carry
+        TesterRotate(0x11, 1, 0x88, 1, 0, 1); // Carry
+        TesterRotate(0x00, 1, 0x80, 0, 0, 1); // Negative
     }
 };
 
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(CpuTestShift, ASL_Accumulator) {
-    Test_ASL(
-        [&]              { return cpu.A; },
-        [&] (Byte value) { cpu.A = value; },
-        Opcode(ASL, Accumulator, 1, 2));
+    Test_ASL(&CpuTestBench::accumulator);
 }
 
 TEST_F(CpuTestShift, ASL_ZeroPage) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteByte(BASE_PC + 1, 0x20);
-
-    Test_ASL(
-        [&]              { return cpu.ReadByte(0x20); },
-        [&] (Byte value) { cpu.WriteByte(0x20, value); },
-        Opcode(ASL, ZeroPage, 2, 5));
+    Test_ASL(&CpuTestBench::zeropage);
 }
 
 TEST_F(CpuTestShift, ASL_ZeroPageX) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteByte(BASE_PC + 1, 0x20);
-    cpu.X = 0x08;
-
-    Test_ASL(
-        [&]             { return cpu.ReadByte(0x28); },
-        [&](Byte value) { cpu.WriteByte(0x28, value); },
-        Opcode(ASL, ZeroPageX, 2, 6));
+    Test_ASL(&CpuTestBench::zeropage_x);
 }
 
 TEST_F(CpuTestShift, ASL_ZeroPageX_Wraparound) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteByte(BASE_PC + 1, 0xF0);
-    cpu.X = 0x10;
-
-    Test_ASL(
-        [&]             { return cpu.ReadByte(0x0000); },
-        [&](Byte value) { cpu.WriteByte(0x0000, value); },
-        Opcode(ASL, ZeroPageX, 2, 6));
+    Test_ASL(&CpuTestBench::zeropage_x_wraparound);
 }
 
 TEST_F(CpuTestShift, ASL_Absolute) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
-
-    Test_ASL(
-        [&]              { return cpu.ReadByte(0x0120); },
-        [&] (Byte value) { cpu.WriteByte(0x0120, value); },
-        Opcode(ASL, Absolute, 3, 6));
+    Test_ASL(&CpuTestBench::absolute);
 }
 
 TEST_F(CpuTestShift, ASL_AbsoluteX) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
-    cpu.X = 0x08;
-
-    Test_ASL(
-        [&]              { return cpu.ReadByte(0x0128); },
-        [&] (Byte value) { cpu.WriteByte(0x0128, value); },
-        Opcode(ASL, AbsoluteX, 3, 7));
+    Test_ASL(&CpuTestBench::absolute_x);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(CpuTestShift, LSR_Accumulator) {
-    Test_LSR(Getter(cpu.A), Setter(cpu.A),
-             Opcode(LSR, Accumulator, 1, 2));
+    Test_LSR(&CpuTestBench::accumulator);
 }
 
 TEST_F(CpuTestShift, LSR_ZeroPage) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteByte(BASE_PC + 1, 0x20);
-    Test_LSR(Getter(0x0020), Setter(0x0020),
-             Opcode(LSR, ZeroPage, 2, 5));
+    Test_LSR(&CpuTestBench::zeropage);
 }
 
 TEST_F(CpuTestShift, LSR_ZeroPageX) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteByte(BASE_PC + 1, 0x20);
-    cpu.X = 0x08;
-    Test_LSR(Getter(0x0028), Setter(0x0028),
-             Opcode(LSR, ZeroPageX, 2, 6));
+    Test_LSR(&CpuTestBench::zeropage_x);
 }
 
 TEST_F(CpuTestShift, LSR_ZeroPageX_Wraparound) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteByte(BASE_PC + 1, 0xF0);
-    cpu.X = 0x10;
-    Test_LSR(Getter(0x0000), Setter(0x0000),
-             Opcode(LSR, ZeroPageX, 2, 6));
+    Test_LSR(&CpuTestBench::zeropage_x_wraparound);
 }
 
 TEST_F(CpuTestShift, LSR_Absolute) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
-    Test_LSR(Getter(0x0120), Setter(0x0120),
-             Opcode(LSR, Absolute, 3, 6));
+    Test_LSR(&CpuTestBench::absolute);
 }
 
 TEST_F(CpuTestShift, LSR_AbsoluteX) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
-    cpu.X = 0x08;
-    Test_LSR(Getter(0x0128), Setter(0x0128),
-             Opcode(LSR, AbsoluteX, 3, 7));
+    Test_LSR(&CpuTestBench::absolute_x);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(CpuTestShift, ROL_Accumulator) {
-    Test_ROL(Getter(cpu.A), Setter(cpu.A),
-             Opcode(ROL, Accumulator, 1, 2));
+    Test_ROL(&CpuTestBench::accumulator);
 }
 
 TEST_F(CpuTestShift, ROL_ZeroPage) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteByte(BASE_PC + 1, 0x20);
-    Test_ROL(Getter(0x0020), Setter(0x0020),
-             Opcode(ROL, ZeroPage, 2, 5));
+    Test_ROL(&CpuTestBench::zeropage);
 }
 
 TEST_F(CpuTestShift, ROL_ZeroPageX) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteByte(BASE_PC + 1, 0x20);
-    cpu.X = 0x08;
-    Test_ROL(Getter(0x0028), Setter(0x0028),
-             Opcode(ROL, ZeroPageX, 2, 6));
+    Test_ROL(&CpuTestBench::zeropage_x);
 }
 
 TEST_F(CpuTestShift, ROL_ZeroPageX_Wraparound) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteByte(BASE_PC + 1, 0xF0);
-    cpu.X = 0x10;
-    Test_ROL(Getter(0x0000), Setter(0x0000),
-             Opcode(ROL, ZeroPageX, 2, 6));
+    Test_ROL(&CpuTestBench::zeropage_x_wraparound);
 }
 
 TEST_F(CpuTestShift, ROL_Absolute) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
-    Test_ROL(Getter(0x0120), Setter(0x0120),
-             Opcode(ROL, Absolute, 3, 6));
+    Test_ROL(&CpuTestBench::absolute);
 }
 
 TEST_F(CpuTestShift, ROL_AbsoluteX) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
-    cpu.X = 0x08;
-    Test_ROL(Getter(0x0128), Setter(0x0128),
-             Opcode(ROL, AbsoluteX, 3, 7));
+    Test_ROL(&CpuTestBench::absolute_x);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(CpuTestShift, ROR_Accumulator) {
-    Test_ROR(Getter(cpu.A), Setter(cpu.A),
-             Opcode(ROR, Accumulator, 1, 2));
+    Test_ROR(&CpuTestBench::accumulator);
 }
 
 TEST_F(CpuTestShift, ROR_ZeroPage) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteByte(BASE_PC + 1, 0x20);
-    Test_ROR(Getter(0x0020), Setter(0x0020),
-             Opcode(ROR, ZeroPage, 2, 5));
+    Test_ROR(&CpuTestBench::zeropage);
 }
 
 TEST_F(CpuTestShift, ROR_ZeroPageX) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteByte(BASE_PC + 1, 0x20);
-    cpu.X = 0x08;
-    Test_ROR(Getter(0x0028), Setter(0x0028),
-             Opcode(ROR, ZeroPageX, 2, 6));
+    Test_ROR(&CpuTestBench::zeropage_x);
 }
 
 TEST_F(CpuTestShift, ROR_ZeroPageX_Wraparound) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteByte(BASE_PC + 1, 0xF0);
-    cpu.X = 0x10;
-    Test_ROR(Getter(0x0000), Setter(0x0000),
-             Opcode(ROR, ZeroPageX, 2, 6));
+    Test_ROR(&CpuTestBench::zeropage_x_wraparound);
 }
 
 TEST_F(CpuTestShift, ROR_Absolute) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
-    Test_ROR(Getter(0x0120), Setter(0x0120),
-             Opcode(ROR, Absolute, 3, 6));
+    Test_ROR(&CpuTestBench::absolute);
 }
 
 TEST_F(CpuTestShift, ROR_AbsoluteX) {
-    cpu.WriteByte(BASE_PC, 0xFF);
-    cpu.WriteWordAt(BASE_PC + 1, 0x0120);
-    cpu.X = 0x08;
-    Test_ROR(Getter(0x0128), Setter(0x0128),
-             Opcode(ROR, AbsoluteX, 3, 7));
+    Test_ROR(&CpuTestBench::absolute_x);
 }

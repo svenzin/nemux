@@ -8,7 +8,6 @@
 struct CpuBaseTest : public ::testing::Test {
     static constexpr Word BASE_PC{ 10 };
     static constexpr int BASE_TICKS{ 0 };
-    static constexpr int OFFSET_FROM_PREFETCH_NEXT{ 0 };
 
     CpuBaseTest()
     : cpu{ "6502", &memory }
@@ -16,12 +15,16 @@ struct CpuBaseTest : public ::testing::Test {
     {
         cpu.PC = BASE_PC;
         cpu.Ticks = BASE_TICKS;
+
+        for (size_t i{ 0 }; i < 0x10000; ++i)
+            memory.SetByteAt(i, 0x55);
     }
 
     MemoryBlock<0x10000> memory;
     Cpu cpu;
     CpuTestBench bench;
 
+    // TODO remove
     static auto Getter(Byte & b) {
         return [&b] () { return b; };
     }
@@ -44,4 +47,6 @@ struct CpuBaseTest : public ::testing::Test {
             done = cpu.Tick();
         };
     }
+
+    
 };

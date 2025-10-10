@@ -435,7 +435,7 @@ Ricoh_RP2A03::Ricoh_RP2A03()
 }
 
 void Ricoh_RP2A03::Phi1() {
-    if (Halted) return;
+    if (IsStopped()) return;
 
     ++Ticks;
     CycleActive = true;
@@ -446,14 +446,14 @@ void Ricoh_RP2A03::Phi1() {
 }
 
 void Ricoh_RP2A03::Phi2() {
-    if (Halted) return;
+    if (IsStopped()) return;
 
     IRQLevel = false;
     if (CheckInterrupts) {
-        NMIFlipFlop |= (!NMIEdge && NMI);
-        IRQLevel = IRQ;
+        NMIFlipFlop |= (!NMIEdge && LineNMI);
+        IRQLevel = LineIRQ;
     }
-    NMIEdge = NMI;
+    NMIEdge = LineNMI;
 }
 
 void Ricoh_RP2A03::PowerUp() {

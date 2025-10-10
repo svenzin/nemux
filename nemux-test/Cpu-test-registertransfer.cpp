@@ -1,31 +1,25 @@
 #include "CpuBaseTest.h"
 
-#include <vector>
-#include <map>
-#include <array>
-#include <functional>
-
-using namespace std;
-using namespace Instructions;
-using namespace Addressing;
+using enum InstructionSet_6502::OpName;
+using enum InstructionSet_6502::AddressingMode;
 
 struct CpuTestRegisterTransfer : public CpuBaseTest {
-    template<typename Getter, typename Setter>
-    void Test_Transfer(Getter get, Setter set, Opcode op) {
+    template<InstructionSet_6502::OpName OP>
+    void Test_Transfer(Byte& from, Byte& to, CpuTestBench::addressing_mode_setup addressingMode) {
         auto tester = [&] (Byte value, Flag expZ, Flag expN) {
-            set(value);
+            bench.start();
 
-            cpu.PC = BASE_PC;
-            cpu.Ticks = BASE_TICKS;
-            cpu.Execute(op);
+            from = value;
+            ExecuteOne();
 
-            EXPECT_EQ(BASE_PC + op.Bytes, cpu.PC);
-            EXPECT_EQ(BASE_TICKS + op.Cycles, cpu.Ticks);
-            EXPECT_EQ(value, get());
+            EXPECT_EQ(bench.expected_PC(), cpu.PC);
+            EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+            EXPECT_EQ(value, to);
             EXPECT_EQ(expZ, cpu.Z);
             EXPECT_EQ(expN, cpu.N);
         };
 
+        (bench.*addressingMode)(OP);
         tester(0x20, 0, 0);
         tester(0xA0, 0, 1);
         tester(0x00, 1, 0);
@@ -33,21 +27,17 @@ struct CpuTestRegisterTransfer : public CpuBaseTest {
 };
 
 TEST_F(CpuTestRegisterTransfer, TAX) {
-    Test_Transfer(Getter(cpu.X), Setter(cpu.A),
-                  Opcode(TAX, Implicit, 1, 2));
+    Test_Transfer<TAX>(cpu.A, cpu.X, &CpuTestBench::implicit);
 }
 
 TEST_F(CpuTestRegisterTransfer, TAY) {
-    Test_Transfer(Getter(cpu.Y), Setter(cpu.A),
-                  Opcode(TAY, Implicit, 1, 2));
+    Test_Transfer<TAY>(cpu.A, cpu.Y, &CpuTestBench::implicit);
 }
 
 TEST_F(CpuTestRegisterTransfer, TXA) {
-    Test_Transfer(Getter(cpu.A), Setter(cpu.X),
-                  Opcode(TXA, Implicit, 1, 2));
+    Test_Transfer<TXA>(cpu.X, cpu.A, &CpuTestBench::implicit);
 }
 
 TEST_F(CpuTestRegisterTransfer, TYA) {
-    Test_Transfer(Getter(cpu.A), Setter(cpu.Y),
-                  Opcode(TYA, Implicit, 1, 2));
+    Test_Transfer<TYA>(cpu.Y, cpu.A, &CpuTestBench::implicit);
 }

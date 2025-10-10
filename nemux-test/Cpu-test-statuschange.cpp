@@ -1,58 +1,45 @@
 #include "CpuBaseTest.h"
 
-#include <vector>
-#include <map>
-#include <array>
-#include <functional>
-
-using namespace std;
-using namespace Instructions;
-using namespace Addressing;
+using enum InstructionSet_6502::OpName;
+using enum InstructionSet_6502::AddressingMode;
 
 struct CpuTestStatusChange : public CpuBaseTest {
-    void Test_ClearFlag(Instructions::Name inst, Flag &f) {
-        f = 1;
-        cpu.Execute(Opcode(inst, Implicit, 1, 2));//, {});
+    template <InstructionSet_6502::OpName OP>
+    void TesterFlag(Flag &f, Flag initial, Flag expected) {
+        f = initial;
+        bench.encode(OP, IMP).start();
+        ExecuteOne();
 
-        EXPECT_EQ(BASE_PC + 1, cpu.PC);
-        EXPECT_EQ(BASE_TICKS + 2, cpu.Ticks);
-        EXPECT_EQ(Flag{0}, f);
-    }
-
-    void Test_SetFlag(Instructions::Name inst, Flag &f) {
-        f = 0;
-        cpu.Execute(Opcode(inst, Implicit, 1, 2));//, {});
-
-        EXPECT_EQ(BASE_PC + 1, cpu.PC);
-        EXPECT_EQ(BASE_TICKS + 2, cpu.Ticks);
-        EXPECT_EQ(Flag{1}, f);
+        EXPECT_EQ(bench.expected_PC(), cpu.PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+        EXPECT_EQ(expected, f);
     }
 };
 
 TEST_F(CpuTestStatusChange, CLC) {
-    Test_ClearFlag(CLC, cpu.C);
+    TesterFlag<CLC>(cpu.C, 1, 0);
 }
 
 TEST_F(CpuTestStatusChange, CLD) {
-    Test_ClearFlag(CLD, cpu.D);
+    TesterFlag<CLD>(cpu.D, 1, 0);
 }
 
 TEST_F(CpuTestStatusChange, CLI) {
-    Test_ClearFlag(CLI, cpu.I);
+    TesterFlag<CLI>(cpu.I, 1, 0);
 }
 
 TEST_F(CpuTestStatusChange, CLV) {
-    Test_ClearFlag(CLV, cpu.V);
+    TesterFlag<CLV>(cpu.V, 1, 0);
 }
 
 TEST_F(CpuTestStatusChange, SEC) {
-    Test_SetFlag(SEC, cpu.C);
+    TesterFlag<SEC>(cpu.C, 0, 1);
 }
 
 TEST_F(CpuTestStatusChange, SED) {
-    Test_SetFlag(SED, cpu.D);
+    TesterFlag<SED>(cpu.D, 0, 1);
 }
 
 TEST_F(CpuTestStatusChange, SEI) {
-    Test_SetFlag(SEI, cpu.I);
+    TesterFlag<SEI>(cpu.I, 0, 1);
 }

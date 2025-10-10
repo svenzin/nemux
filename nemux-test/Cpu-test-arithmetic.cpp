@@ -1,33 +1,28 @@
 #include "CpuBaseTest.h"
 
-#include <vector>
-#include <map>
-#include <array>
-#include <functional>
-
 using enum InstructionSet_6502::OpName;
 using enum InstructionSet_6502::AddressingMode;
 
 struct CpuTestArithmetic : public CpuBaseTest {
-    template<typename Setter>
-    void Test_ADC(Setter set, int extra) {
+    void Test_ADC(CpuTestBench::addressing_mode_setup addressingMode, int extra) {
         auto tester = [&] (Byte a, Byte m, Flag c, Byte expA, Flag expC, Flag expZ, Flag expV, Flag expN) {
             bench.start();
-
-            set(m);
+            
+            bench.set_target(m);
             cpu.A = a;
             cpu.C = c;
             ExecuteOne();
-
-            EXPECT_EQ(bench.PC + bench.op.Bytes, cpu.PC);
-            EXPECT_EQ(bench.Ticks + bench.op.Cycles + extra, cpu.GetTicks());
+            
+            EXPECT_EQ(bench.expected_PC(), cpu.PC);
+            EXPECT_EQ(bench.expected_ticks(extra), cpu.Ticks);
             EXPECT_EQ(expA, cpu.A);
             EXPECT_EQ(expC, cpu.C);
             EXPECT_EQ(expZ, cpu.Z);
             EXPECT_EQ(expV, cpu.V);
             EXPECT_EQ(expN, cpu.N);
         };
-
+        
+        (bench.*addressingMode)(ADC);
         tester(0x10, 0x20, 0, 0x30, 0, 0, 0, 0); // pos pos > pos
         tester(0x10, 0x20, 1, 0x31, 0, 0, 0, 0); // pos pos C > pos
         tester(0x00, 0x00, 0, 0x00, 0, 1, 0, 0); // Zero
@@ -41,18 +36,17 @@ struct CpuTestArithmetic : public CpuBaseTest {
         tester(0x00, 0xF0, 0, 0xF0, 0, 0, 0, 1); // Negative
     }
 
-    template<typename Setter>
-    void Test_SBC(Setter set, int extra) {
+    void Test_SBC(CpuTestBench::addressing_mode_setup addressingMode, int extra) {
         auto tester = [&] (Byte a, Byte m, Flag c, Byte expA, Flag expC, Flag expZ, Flag expV, Flag expN) {
             bench.start();
 
-            set(m);
+            bench.set_target(m);
             cpu.A = a;
             cpu.C = c;
             ExecuteOne();
 
-            EXPECT_EQ(bench.PC + bench.op.Bytes, cpu.PC);
-            EXPECT_EQ(bench.Ticks + bench.op.Cycles + extra, cpu.GetTicks());
+            EXPECT_EQ(bench.expected_PC(), cpu.PC);
+            EXPECT_EQ(bench.expected_ticks(extra), cpu.Ticks);
             EXPECT_EQ(expA, cpu.A);
             EXPECT_EQ(expC, cpu.C);
             EXPECT_EQ(expZ, cpu.Z);
@@ -60,6 +54,7 @@ struct CpuTestArithmetic : public CpuBaseTest {
             EXPECT_EQ(expN, cpu.N);
         };
 
+        (bench.*addressingMode)(SBC);
         // 0x40 + 0xDF + 1 = 0x120
         tester(0x40, 0x20, 1, 0x20, 1, 0, 0, 0); // pos pos C > pos
         // 0x40 + 0xDF + 0 = 0x11F
@@ -87,22 +82,23 @@ struct CpuTestArithmetic : public CpuBaseTest {
         tester(0x40, 0x41, 1, 0xFF, 0, 0, 0, 1); // Negative
     }
 
-    template<typename SetterReg, typename SetterMem>
-    void Test_Compare(SetterReg setR, SetterMem setM, int extra) {
+    template<InstructionSet_6502::OpName OP>
+    void Test_Compare(Byte& reg, CpuTestBench::addressing_mode_setup addressingMode, int extra) {
         auto tester = [&] (Byte r, Byte m, Flag expC, Flag expZ, Flag expN) {
             bench.start();
 
-            setR(r);
-            setM(m);
+            reg = r;
+            bench.set_target(m);
             ExecuteOne();
 
-            EXPECT_EQ(bench.PC + bench.op.Bytes, cpu.PC);
-            EXPECT_EQ(bench.Ticks + bench.op.Cycles + extra, cpu.GetTicks());
+            EXPECT_EQ(bench.expected_PC(), cpu.PC);
+            EXPECT_EQ(bench.expected_ticks(extra), cpu.Ticks);
             EXPECT_EQ(expC, cpu.C);
             EXPECT_EQ(expZ, cpu.Z);
             EXPECT_EQ(expN, cpu.N);
         };
 
+        (bench.*addressingMode)(OP);
         tester(0x20, 0x10, 1, 0, 0); // Greater
         tester(0x20, 0x20, 1, 1, 0); // Equal
         tester(0x20, 0x40, 0, 0, 1); // MSB set
@@ -118,382 +114,213 @@ struct CpuTestArithmetic : public CpuBaseTest {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(CpuTestArithmetic, CPX_Immediate) {
-    bench.encode(CPX, IMM);
-    Test_Compare(Setter(cpu.X), bench.mem_setter(), 0);
+    Test_Compare<CPX>(cpu.X, &CpuTestBench::immediate, 0);
 }
 
 TEST_F(CpuTestArithmetic, CPX_ZeroPage) {
-    bench.encode(CPX, ZPG)
-         .db(0x20);
-    Test_Compare(Setter(cpu.X), Setter(0x0020), 0);
+    Test_Compare<CPX>(cpu.X, &CpuTestBench::zeropage, 0);
 }
 
 TEST_F(CpuTestArithmetic, CPX_Absolute) {
-    bench.encode(CPX, ABS)
-         .dw(0x0120);
-    Test_Compare(Setter(cpu.X), Setter(0x0120), 0);
+    Test_Compare<CPX>(cpu.X, &CpuTestBench::absolute, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(CpuTestArithmetic, CPY_Immediate) {
-    bench.encode(CPY, IMM);
-    Test_Compare(Setter(cpu.Y), bench.mem_setter(), 0);
+    Test_Compare<CPY>(cpu.Y, &CpuTestBench::immediate, 0);
 }
 
 TEST_F(CpuTestArithmetic, CPY_ZeroPage) {
-    bench.encode(CPY, ZPG)
-         .db(0x20);
-    Test_Compare(Setter(cpu.Y), Setter(0x0020), 0);
+    Test_Compare<CPY>(cpu.Y, &CpuTestBench::zeropage, 0);
 }
 
 TEST_F(CpuTestArithmetic, CPY_Absolute) {
-    bench.encode(CPY, ABS)
-         .dw(0x0120);
-    Test_Compare(Setter(cpu.Y), Setter(0x0120), 0);
+    Test_Compare<CPY>(cpu.Y, &CpuTestBench::absolute, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(CpuTestArithmetic, CMP_Immediate) {
-    bench.encode(CMP, IMM);
-    Test_Compare(Setter(cpu.A), bench.mem_setter(), 0);
+    Test_Compare<CMP>(cpu.A, &CpuTestBench::immediate, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_ZeroPage) {
-    bench.encode(CMP, ZPG)
-         .db(0x20);
-    Test_Compare(Setter(cpu.A), Setter(0x0020), 0);
+    Test_Compare<CMP>(cpu.A, &CpuTestBench::zeropage, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_ZeroPageX) {
-    cpu.X = 0x08;
-    bench.encode(CMP, ZPX)
-         .db(0x20);
-    Test_Compare(Setter(cpu.A), Setter(0x0028), 0);
+    Test_Compare<CMP>(cpu.A, &CpuTestBench::zeropage_x, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_ZeroPageX_Wraparound) {
-    cpu.X = 0x10;
-    bench.encode(CMP, ZPX)
-         .db(0xF0);
-    Test_Compare(Setter(cpu.A), Setter(0x0000), 0);
+    Test_Compare<CMP>(cpu.A, &CpuTestBench::zeropage_x_wraparound, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_Absolute) {
-    bench.encode(CMP, ABS)
-         .dw(0x0120);
-    Test_Compare(Setter(cpu.A), Setter(0x0120), 0);
+    Test_Compare<CMP>(cpu.A, &CpuTestBench::absolute, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_AbsoluteX) {
-    cpu.X = 0x08;
-    bench.encode(CMP, ABX)
-         .dw(0x0120);
-    Test_Compare(Setter(cpu.A), Setter(0x0128), 0);
+    Test_Compare<CMP>(cpu.A, &CpuTestBench::absolute_x, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_AbsoluteX_CrossingPage) {
-    cpu.X = 0xF0;
-    bench.encode(CMP, ABX)
-         .dw(0x0120);
-    Test_Compare(Setter(cpu.A), Setter(0x0210), 1);
+    Test_Compare<CMP>(cpu.A, &CpuTestBench::absolute_x_crossing_page, 1);
 }
 
 TEST_F(CpuTestArithmetic, CMP_AbsoluteY) {
-    cpu.Y = 0x08;
-    bench.encode(CMP, ABY)
-         .dw(0x0120);
-    Test_Compare(Setter(cpu.A), Setter(0x0128), 0);
+    Test_Compare<CMP>(cpu.A, &CpuTestBench::absolute_y, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_AbsoluteY_CrossingPage) {
-    cpu.Y = 0xF0;
-    bench.encode(CMP, ABY)
-         .dw(0x0120);
-    Test_Compare(Setter(cpu.A), Setter(0x0210), 1);
+    Test_Compare<CMP>(cpu.A, &CpuTestBench::absolute_y_crossing_page, 1);
 }
 
 TEST_F(CpuTestArithmetic, CMP_IndexedIndirect) {
-    cpu.X = 0x08;
-    bench.encode(CMP, IDX)
-         .db(0x20)
-         .at(0x0028).dw(0x0120);
-    Test_Compare(Setter(cpu.A), Setter(0x0120), 0);
+    Test_Compare<CMP>(cpu.A, &CpuTestBench::indirect_x, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_IndexedIndirect_Wraparound) {
-    cpu.X = 0x0F;
-    bench.encode(CMP, IDX)
-         .db(0xF0)
-         .at(0x00FF).db(0x20)
-         .at(0x0000).db(0x01);
-    Test_Compare(Setter(cpu.A), Setter(0x0120), 0);
+    Test_Compare<CMP>(cpu.A, &CpuTestBench::indirect_x_wraparound, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_IndirectIndexed) {
-    // Same page
-    cpu.Y = 0x08;
-    bench.encode(CMP, IDY)
-         .db(0x20)
-         .at(0x0020).dw(0x0120);
-    Test_Compare(Setter(cpu.A), Setter(0x0128), 0);
+    Test_Compare<CMP>(cpu.A, &CpuTestBench::indirect_y, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_IndirectIndexed_CrossingPage) {
-    // Crossing page
-    cpu.Y = 0xF0;
-    bench.encode(CMP, IDY)
-         .db(0x20)
-         .at(0x0020).dw(0x0120);
-    Test_Compare(Setter(cpu.A), Setter(0x0210), 1);
+    Test_Compare<CMP>(cpu.A, &CpuTestBench::indirect_y_crossing_page, 1);
 }
 
 TEST_F(CpuTestArithmetic, CMP_IndirectIndexed_CrossingWordsize) {
-    // Crossing page
-    cpu.Y = 0x10;
-    bench.encode(CMP, IDY)
-         .db(0x20)
-         .at(0x0020).dw(0xFFFF);
-    Test_Compare(Setter(cpu.A), Setter(0x000F), 1);
+    Test_Compare<CMP>(cpu.A, &CpuTestBench::indirect_y_crossing_word_size, 1);
 }
 
 TEST_F(CpuTestArithmetic, CMP_IndirectIndexed_BaseFromZeroPage) {
-    // Crossing page
-    cpu.Y = 0x10;
-    bench.encode(CMP, IDY)
-         .db(0xFF)
-         .at(0x00FF).db(0x20)
-         .at(0x0000).db(0x01);
-    Test_Compare(Setter(cpu.A), Setter(0x0130), 0);
+    Test_Compare<CMP>(cpu.A, &CpuTestBench::indirect_y_base_from_zeropage, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(CpuTestArithmetic, ADC_Immediate) {
-    bench.encode(ADC, IMM);
-    Test_ADC(bench.mem_setter(), 0);
+    Test_ADC(&CpuTestBench::immediate, 0);
 }
 
 TEST_F(CpuTestArithmetic, ADC_ZeroPage) {
-    bench.encode(ADC, ZPG)
-         .db(0x20);
-    Test_ADC(Setter(0x0020), 0);
+    Test_ADC(&CpuTestBench::zeropage, 0);
 }
 
 TEST_F(CpuTestArithmetic, ADC_ZeroPageX) {
-    cpu.X = 0x08;
-    bench.encode(ADC, ZPX)
-         .db(0x20);
-    Test_ADC(Setter(0x0028), 0);
+    Test_ADC(&CpuTestBench::zeropage_x, 0);
 }
 
 TEST_F(CpuTestArithmetic, ADC_ZeroPageX_Wraparound) {
-    cpu.X = 0x10;
-    bench.encode(ADC, ZPX)
-         .db(0xF0);
-    Test_ADC(Setter(0x0000), 0);
+    Test_ADC(&CpuTestBench::zeropage_x_wraparound, 0);
 }
 
 TEST_F(CpuTestArithmetic, ADC_Absolute) {
-    bench.encode(ADC, ABS)
-         .dw(0x0120);
-    Test_ADC(Setter(0x0120), 0);
+    Test_ADC(&CpuTestBench::absolute, 0);
 }
 
 TEST_F(CpuTestArithmetic, ADC_AbsoluteX) {
-    cpu.X = 0x08;
-    bench.encode(ADC, ABX)
-         .dw(0x0120);
-    Test_ADC(Setter(0x0128), 0);
+    Test_ADC(&CpuTestBench::absolute_x, 0);
 }
 
 TEST_F(CpuTestArithmetic, ADC_AbsoluteX_CrossingPage) {
-    cpu.X = 0xF0;
-    bench.encode(ADC, ABX)
-         .dw(0x0120);
-    Test_ADC(Setter(0x0210), 1);
+    Test_ADC(&CpuTestBench::absolute_x_crossing_page, 1);
 }
 
 TEST_F(CpuTestArithmetic, ADC_AbsoluteY) {
-    cpu.Y = 0x08;
-    bench.encode(ADC, ABY)
-         .dw(0x0120);
-    Test_ADC(Setter(0x0128), 0);
+    Test_ADC(&CpuTestBench::absolute_y, 0);
 }
 
 TEST_F(CpuTestArithmetic, ADC_AbsoluteY_CrossingPage) {
-    cpu.Y = 0xF0;
-    bench.encode(ADC, ABY)
-         .dw(0x0120);
-    Test_ADC(Setter(0x0210), 1);
+    Test_ADC(&CpuTestBench::absolute_y_crossing_page, 1);
 }
 
 TEST_F(CpuTestArithmetic, ADC_IndexedIndirect) {
-    cpu.X = 0x08;
-    bench.encode(ADC, IDX)
-         .db(0x20)
-         .at(0x0028).dw(0x0120);
-    Test_ADC(Setter(0x0120), 0);
+    Test_ADC(&CpuTestBench::indirect_x, 0);
 }
 
 TEST_F(CpuTestArithmetic, ADC_IndexedIndirect_Wraparound) {
-    cpu.X = 0x0F;
-    bench.encode(ADC, IDX)
-         .db(0xF0)
-         .at(0x00FF).db(0x20)
-         .at(0x0000).db(0x01);
-    Test_ADC(Setter(0x0120), 0);
+    Test_ADC(&CpuTestBench::indirect_x_wraparound, 0);
 }
 
 TEST_F(CpuTestArithmetic, ADC_IndirectIndexed) {
-    // Same page
-    cpu.Y = 0x08;
-    bench.encode(ADC, IDY)
-         .db(0x20)
-         .at(0x0020).dw(0x0120);
-    Test_ADC(Setter(0x0128), 0);
+    Test_ADC(&CpuTestBench::indirect_y, 0);
 }
 
 TEST_F(CpuTestArithmetic, ADC_IndirectIndexed_CrossingPage) {
-    // Crossing page
-    cpu.Y = 0xF0;
-    bench.encode(ADC, IDY)
-         .db(0x20)
-         .at(0x0020).dw(0x0120);
-    Test_ADC(Setter(0x0210), 1);
+    Test_ADC(&CpuTestBench::indirect_y_crossing_page, 1);
 }
 
 TEST_F(CpuTestArithmetic, ADC_IndirectIndexed_CrossingWordsize) {
-    // Crossing page
-    cpu.Y = 0x10;
-    bench.encode(ADC, IDY)
-         .db(0x20)
-         .at(0x0020).dw(0xFFFF);
-    Test_ADC(Setter(0x000F), 1);
+    Test_ADC(&CpuTestBench::indirect_y_crossing_word_size, 1);
 }
 
 TEST_F(CpuTestArithmetic, ADC_IndirectIndexed_BaseFromZeroPage) {
-    // Crossing page
-    cpu.Y = 0x10;
-    bench.encode(ADC, IDY)
-         .db(0xFF)
-         .at(0x00FF).db(0x20)
-         .at(0x0000).db(0x01);
-    Test_ADC(Setter(0x0130), 0);
+    Test_ADC(&CpuTestBench::indirect_y_base_from_zeropage, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(CpuTestArithmetic, SBC_Immediate) {
-    bench.encode(SBC, IMM);
-    Test_SBC(bench.mem_setter(), 0);
+    Test_SBC(&CpuTestBench::immediate,  0);
 }
 
 TEST_F(CpuTestArithmetic, SBC_ZeroPage) {
-    bench.encode(SBC, ZPG)
-         .db(0x20);
-    Test_SBC(Setter(0x0020), 0);
+    Test_SBC(&CpuTestBench::zeropage, 0);
 }
 
 TEST_F(CpuTestArithmetic, SBC_ZeroPageX) {
-    cpu.X = 0x08;
-    bench.encode(SBC, ZPX)
-         .db(0x20);
-    Test_SBC(Setter(0x0028), 0);
+    Test_SBC(&CpuTestBench::zeropage_x, 0);
 }
 
 TEST_F(CpuTestArithmetic, SBC_ZeroPageX_Wraparound) {
-    cpu.X = 0x10;
-    bench.encode(SBC, ZPX)
-         .db(0xF0);
-    Test_SBC(Setter(0x0000), 0);
+    Test_SBC(&CpuTestBench::zeropage_x_wraparound, 0);
 }
 
 TEST_F(CpuTestArithmetic, SBC_Absolute) {
-    bench.encode(SBC, ABS)
-         .dw(0x0120);
-    Test_SBC(Setter(0x0120), 0);
+    Test_SBC(&CpuTestBench::absolute, 0);
 }
 
 TEST_F(CpuTestArithmetic, SBC_AbsoluteX) {
-    cpu.X = 0x08;
-    bench.encode(SBC, ABX)
-         .dw(0x0120);
-    Test_SBC(Setter(0x0128), 0);
+    Test_SBC(&CpuTestBench::absolute_x, 0);
 }
 
 TEST_F(CpuTestArithmetic, SBC_AbsoluteX_CrossingPage) {
-    cpu.X = 0xF0;
-    bench.encode(SBC, ABX)
-         .dw(0x0120);
-    Test_SBC(Setter(0x0210), 1);
+    Test_SBC(&CpuTestBench::absolute_x_crossing_page, 1);
 }
 
 TEST_F(CpuTestArithmetic, SBC_AbsoluteY) {
-    cpu.Y = 0x08;
-    bench.encode(SBC, ABY)
-         .dw(0x0120);
-    Test_SBC(Setter(0x0128), 0);
+    Test_SBC(&CpuTestBench::absolute_y, 0);
 }
 
 TEST_F(CpuTestArithmetic, SBC_AbsoluteY_CrossingPage) {
-    cpu.Y = 0xF0;
-    bench.encode(SBC, ABY)
-         .dw(0x0120);
-    Test_SBC(Setter(0x0210), 1);
+    Test_SBC(&CpuTestBench::absolute_y_crossing_page, 1);
 }
 
 TEST_F(CpuTestArithmetic, SBC_IndexedIndirect) {
-    cpu.X = 0x08;
-    bench.encode(SBC, IDX)
-         .db(0x20)
-         .at(0x0028).dw(0x0120);
-    Test_SBC(Setter(0x0120), 0);
+    Test_SBC(&CpuTestBench::indirect_x, 0);
 }
 
 TEST_F(CpuTestArithmetic, SBC_IndexedIndirect_Wraparound) {
-    cpu.X = 0x0F;
-    bench.encode(SBC, IDX)
-         .db(0xF0)
-         .at(0x00FF).db(0x20)
-         .at(0x0000).db(0x01);
-    Test_SBC(Setter(0x0120), 0);
+    Test_SBC(&CpuTestBench::indirect_x_wraparound, 0);
 }
 
 TEST_F(CpuTestArithmetic, SBC_IndirectIndexed) {
-    // Same page
-    cpu.Y = 0x08;
-    bench.encode(SBC, IDY)
-         .db(0x20)
-         .at(0x0020).dw(0x0120);
-    Test_SBC(Setter(0x0128), 0);
+    Test_SBC(&CpuTestBench::indirect_y, 0);
 }
 
 TEST_F(CpuTestArithmetic, SBC_IndirectIndexed_CrossingPage) {
-    // Crossing page
-    cpu.Y = 0xF0;
-    bench.encode(SBC, IDY)
-         .db(0x20)
-         .at(0x0020).dw(0x0120);
-    Test_SBC(Setter(0x0210), 1);
+    Test_SBC(&CpuTestBench::indirect_y_crossing_page, 1);
 }
 
 TEST_F(CpuTestArithmetic, SBC_IndirectIndexed_CrossingWordsize) {
-    // Crossing page
-    cpu.Y = 0x10;
-    bench.encode(SBC, IDY)
-         .db(0x20)
-         .at(0x0020).dw(0xFFFF);
-    Test_SBC(Setter(0x000F), 1);
+    Test_SBC(&CpuTestBench::indirect_y_crossing_word_size, 1);
 }
 
 TEST_F(CpuTestArithmetic, SBC_IndirectIndexed_BaseFromZeroPage) {
-    // Crossing page
-    cpu.Y = 0x10;
-    bench.encode(SBC, IDY)
-         .db(0xFF)
-         .at(0x00FF).db(0x20)
-         .at(0x0000).db(0x01);
-    Test_SBC(Setter(0x0130), 0);
+    Test_SBC(&CpuTestBench::indirect_y_base_from_zeropage, 0);
 }

@@ -174,7 +174,7 @@ private:
     ////////////////////////////////////////////////////////////////
 
     inline void xNOP() {}
-    inline void xHLT() { Halted = true; }
+    inline void xHLT() { _isStopped = true; }
 
     inline void xSHX() {
         const auto M = (X & (HI(address) + 1));
@@ -270,7 +270,6 @@ public:
     }
 
     Byte opcode;
-    bool Halted = false;
 
     inline void ModeImplied();
     inline void ModeImmediate();

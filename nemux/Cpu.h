@@ -97,8 +97,6 @@ private:
     Ricoh_RP2A03 rp2a03;
 
 public:
-    bool IsAlive;
-
     Word ReadWordAt(const Word address) const;
     void WriteWordAt(const Word address, const Word value);
 

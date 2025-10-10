@@ -14,10 +14,13 @@ namespace Addresses {
 
 class BaseCpu {
 protected:
-    size_t Ticks{};
+    size_t Ticks{}; // TODO rename
+    bool _isStopped{ false };
 
 public:
     size_t GetTicks() const { return Ticks; }
+    bool IsStopped() const { return _isStopped; }
+    void SetStopped(bool stopped) { _isStopped = stopped; }// TODO remove when CPUs have been separated
 
     enum Bits : size_t {
         Car, Zer, Int, Dec, Brk, Unu, Ovf, Neg,
@@ -45,8 +48,9 @@ public:
     Flag Z;  // Zero Flag
     Flag C;  // Carry Flag
 
-    bool IRQ; // Interrupt ReQuest line
-    bool NMI; // Non-Maskable Interrupt line
+    // TODO rename
+    bool LineIRQ; // Interrupt ReQuest line
+    bool LineNMI; // Non-Maskable Interrupt line
 
     constexpr void SetStatusByte(Byte status) {
         N = Bit<Neg>(status);
