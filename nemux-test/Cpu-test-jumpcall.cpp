@@ -13,7 +13,7 @@ TEST_F(CpuTestJumpCall, JMP_Absolute) {
     ExecuteOne();
 
     EXPECT_EQ(0x0120, cpu.PC);
-    EXPECT_EQ(bench.Ticks + bench.op.Cycles, cpu.GetTicks());
+    EXPECT_EQ(bench.expected_ticks(0), cpu.GetTicks());
 }
 
 TEST_F(CpuTestJumpCall, JMP_Indirect) {
@@ -24,7 +24,7 @@ TEST_F(CpuTestJumpCall, JMP_Indirect) {
     ExecuteOne();
 
     EXPECT_EQ(0x0200, cpu.PC);
-    EXPECT_EQ(bench.Ticks + bench.op.Cycles, cpu.GetTicks());
+    EXPECT_EQ(bench.expected_ticks(0), cpu.GetTicks());
 }
 
 TEST_F(CpuTestJumpCall, JMP_Indirect_Bug) {
@@ -36,7 +36,7 @@ TEST_F(CpuTestJumpCall, JMP_Indirect_Bug) {
     ExecuteOne();
 
     EXPECT_EQ(0x01F0, cpu.PC);
-    EXPECT_EQ(bench.Ticks + bench.op.Cycles, cpu.GetTicks());
+    EXPECT_EQ(bench.expected_ticks(0), cpu.GetTicks());
 }
 
 TEST_F(CpuTestJumpCall, JSR) {
@@ -47,21 +47,21 @@ TEST_F(CpuTestJumpCall, JSR) {
     ExecuteOne();
 
     EXPECT_EQ(0x0120, cpu.PC);
-    EXPECT_EQ(bench.Ticks + bench.op.Cycles, cpu.GetTicks());
-    EXPECT_EQ(bench.S - 2, cpu.S);
-    EXPECT_EQ(LO(bench.PC + 2), memory.GetByteAt(cpu.StackPage + bench.S - 1));
-    EXPECT_EQ(HI(bench.PC + 2), memory.GetByteAt(cpu.StackPage + bench.S));
+    EXPECT_EQ(bench.expected_ticks(0), cpu.GetTicks());
+    EXPECT_EQ(0xEE, cpu.S);
+    EXPECT_EQ(LO(bench.PC + 2), memory.GetByteAt(0x01EF));
+    EXPECT_EQ(HI(bench.PC + 2), memory.GetByteAt(0x01F0));
 }
 
 TEST_F(CpuTestJumpCall, RTS) {
     cpu.S = 0xF0;
     bench.encode(RTS, IMP)
-        .at(cpu.StackPage + cpu.S + 1).db(0x20)
-        .at(cpu.StackPage + cpu.S + 2).db(0x01)
+        .at(0x01F1).db(0x20)
+        .at(0x01F2).db(0x01)
         .start();
     ExecuteOne();
 
     EXPECT_EQ(0x0121, cpu.PC);
-    EXPECT_EQ(bench.Ticks + bench.op.Cycles, cpu.GetTicks());
-    EXPECT_EQ(bench.S + 2, cpu.S);
+    EXPECT_EQ(bench.expected_ticks(0), cpu.GetTicks());
+    EXPECT_EQ(0xF2, cpu.S);
 }

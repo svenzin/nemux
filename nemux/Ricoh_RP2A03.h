@@ -16,6 +16,7 @@ public:
     void PowerUp() override;
     void Reset() override;
     [[nodiscard]] bool Tick() override;
+    void DMA(Byte page, Byte* target, Byte offset) override;
 
 private:
     // �ops state
@@ -353,7 +354,6 @@ public:
     static constexpr const char * Name = "Ricoh RP2A03";
 
     explicit Ricoh_RP2A03();
-    void DMA(const Byte & fromHi, Byte * to, const Byte & offset);
     void Phi1();
     void Phi2();
 };

@@ -81,7 +81,7 @@ public:
             if (addr == 0x2006) PPU->WriteAddress(value);
             if (addr == 0x2007) PPU->WriteData(value);
         } else if (address < 0x4020) {
-            if (address == 0x4014) CPU->DMA(value, PPU->SprRam, PPU->OAMAddress);
+            if (address == 0x4014) CPU->DMA(value, PPU->SprRam.data(), PPU->OAMAddress);
             if (address == 0x4016) Controllers->Write(value);
             if (address == 0x4000) APU->WritePulse1Control(value);
             if (address == 0x4001) APU->WritePulse1Sweep(value);

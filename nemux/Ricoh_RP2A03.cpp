@@ -468,16 +468,16 @@ bool Ricoh_RP2A03::Tick() {
     return false;
 }
 
-void Ricoh_RP2A03::DMA(const Byte & fromHi, Byte * to, const Byte & offset) {
+void Ricoh_RP2A03::DMA(Byte page, Byte* target, Byte offset) {
     operations.push_front(M(do_DMA));
-    dmaSource = (fromHi << BYTE_WIDTH);
-    dmaTarget = to;
+    dmaSource = MakeWord(0x00, page);
+    dmaTarget = target;
     dmaOffset = offset;
     dmaTicks = 513;
 
     const Word base = dmaSource;
     for (Word i = 0; i < 0x0100; ++i) {
-        to[Byte(i + offset)] = ReadByte(base + i);
+        target[Byte(i + offset)] = ReadByte(base + i);
     }
 }
 

@@ -48,5 +48,7 @@ struct CpuBaseTest : public ::testing::Test {
         };
     }
 
-    
+    Byte GetStackValueAt(int offset) const {
+        return memory.GetByteAt(static_cast<Word>(cpu.StackPage + cpu.S + offset));
+    }
 };

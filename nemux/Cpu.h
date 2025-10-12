@@ -92,6 +92,7 @@ public:
     void PowerUp() override;
     void Reset() override;
     [[nodiscard]] bool Tick() override;
+    void DMA(Byte page, Byte* target, Byte offset) override;
 
 private:
     Ricoh_RP2A03 rp2a03;
@@ -144,8 +145,6 @@ public:
     void TriggerReset();
     void TriggerNMI();
     void TriggerIRQ();
-
-    void DMA(const Byte page, std::array<Byte, 0x0100> & target, const Byte offset);
 
 private:
 //    std::vector<Instruction> m_opcodes;

@@ -5,7 +5,7 @@ using enum InstructionSet_6502::AddressingMode;
 
 struct CpuTestRegisterTransfer : public CpuBaseTest {
     template<InstructionSet_6502::OpName OP>
-    void Test_Transfer(Byte& from, Byte& to, CpuTestBench::addressing_mode_setup addressingMode) {
+    void Test_Transfer(Byte& from, Byte& to) {
         auto tester = [&] (Byte value, Flag expZ, Flag expN) {
             bench.start();
 
@@ -19,7 +19,7 @@ struct CpuTestRegisterTransfer : public CpuBaseTest {
             EXPECT_EQ(expN, cpu.N);
         };
 
-        (bench.*addressingMode)(OP);
+        bench.implicit(OP);
         tester(0x20, 0, 0);
         tester(0xA0, 0, 1);
         tester(0x00, 1, 0);
@@ -27,17 +27,17 @@ struct CpuTestRegisterTransfer : public CpuBaseTest {
 };
 
 TEST_F(CpuTestRegisterTransfer, TAX) {
-    Test_Transfer<TAX>(cpu.A, cpu.X, &CpuTestBench::implicit);
+    Test_Transfer<TAX>(cpu.A, cpu.X);
 }
 
 TEST_F(CpuTestRegisterTransfer, TAY) {
-    Test_Transfer<TAY>(cpu.A, cpu.Y, &CpuTestBench::implicit);
+    Test_Transfer<TAY>(cpu.A, cpu.Y);
 }
 
 TEST_F(CpuTestRegisterTransfer, TXA) {
-    Test_Transfer<TXA>(cpu.X, cpu.A, &CpuTestBench::implicit);
+    Test_Transfer<TXA>(cpu.X, cpu.A);
 }
 
 TEST_F(CpuTestRegisterTransfer, TYA) {
-    Test_Transfer<TYA>(cpu.Y, cpu.A, &CpuTestBench::implicit);
+    Test_Transfer<TYA>(cpu.Y, cpu.A);
 }

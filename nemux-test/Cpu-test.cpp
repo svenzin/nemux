@@ -16,7 +16,7 @@ TEST_F(CpuTest, OpcodeDecoding) {
         ++counter;
     };
     
-    Check(0x00, { BRK, IMP, 1, 7 }); // 1 byte is read, but return from interrupt skips the next byte, so maybe 2 bytes long
+    Check(0x00, { BRK, IMP, 2, 7 }); // BRK is encoded on 1 byte increments PC by 2
     Check(0x01, { ORA, IDX, 2, 6 });
     Check(0x02, { uSTP, IMP, 1, 2 }); // unsure
     Check(0x03, { uSLO, IDX, 2, 8 });
@@ -306,82 +306,6 @@ TEST_F(CpuTest, OpcodeEncoding) {
     }
 }
 
-TEST_F(CpuTest, Opcode_Instruction) {
-    // TODO check if it's actually useless now
-    FAIL();
-
-    // using namespace Instructions;
-    // std::array<Instructions::Name, 0x100> opcodes{
-    //     /*           x0   x1   x2   x3   x4   x5   x6   x7   x8   x9   xA   xB   xC   xD   xE   xF */
-    //     /* 0x */    BRK, ORA,uSTP,uSLO,uNOP, ORA, ASL,uSLO, PHP, ORA, ASL,uANC,uNOP, ORA, ASL,uSLO,
-    //     /* 1x */    BPL, ORA,uSTP,uSLO,uNOP, ORA, ASL,uSLO, CLC, ORA,uNOP,uSLO,uNOP, ORA, ASL,uSLO,
-    //     /* 2x */    JSR, AND,uSTP,uRLA, BIT, AND, ROL,uRLA, PLP, AND, ROL,uANC, BIT, AND, ROL,uRLA,
-    //     /* 3x */    BMI, AND,uSTP,uRLA,uNOP, AND, ROL,uRLA, SEC, AND,uNOP,uRLA,uNOP, AND, ROL,uRLA,
-    //     /* 4x */    RTI, EOR,uSTP,uSRE,uNOP, EOR, LSR,uSRE, PHA, EOR, LSR,uALR, JMP, EOR, LSR,uSRE,
-    //     /* 5x */    BVC, EOR,uSTP,uSRE,uNOP, EOR, LSR,uSRE, CLI, EOR,uNOP,uSRE,uNOP, EOR, LSR,uSRE,
-    //     /* 6x */    RTS, ADC,uSTP,uRRA,uNOP, ADC, ROR,uRRA, PLA, ADC, ROR,uARR, JMP, ADC, ROR,uRRA,
-    //     /* 7x */    BVS, ADC,uSTP,uRRA,uNOP, ADC, ROR,uRRA, SEI, ADC,uNOP,uRRA,uNOP, ADC, ROR,uRRA,
-    //     /* 8x */   uNOP, STA,uNOP,uSAX, STY, STA, STX,uSAX, DEY,uNOP, TXA,uXAA, STY, STA, STX,uSAX,
-    //     /* 9x */    BCC, STA,uSTP,uAHX, STY, STA, STX,uSAX, TYA, STA, TXS,uTAS,uSHY, STA,uSHX,uAHX,
-    //     /* Ax */    LDY, LDA, LDX,uLAX, LDY, LDA, LDX,uLAX, TAY, LDA, TAX,uLAX, LDY, LDA, LDX,uLAX,
-    //     /* Bx */    BCS, LDA,uSTP,uLAX, LDY, LDA, LDX,uLAX, CLV, LDA, TSX,uLAS, LDY, LDA, LDX,uLAX,
-    //     /* Cx */    CPY, CMP,uNOP,uDCP, CPY, CMP, DEC,uDCP, INY, CMP, DEX,uAXS, CPY, CMP, DEC,uDCP,
-    //     /* Dx */    BNE, CMP,uSTP,uDCP,uNOP, CMP, DEC,uDCP, CLD, CMP,uNOP,uDCP,uNOP, CMP, DEC,uDCP,
-    //     /* Ex */    CPX, SBC,uNOP,uISC, CPX, SBC, INC,uISC, INX, SBC, NOP,uSBC, CPX, SBC, INC,uISC,
-    //     /* Fx */    BEQ, SBC,uSTP,uISC,uNOP, SBC, INC,uISC, SED, SBC,uNOP,uISC,uNOP, SBC, INC,uISC,
-    // };
-
-    // for (int i = 0; i < opcodes.size(); ++i) {
-    //     const auto op = cpu.Decode(i);
-    //     EXPECT_EQ(opcodes[i], op.Instruction) << "Instruction 0x" << std::hex << i;
-    // }
-}
-
-TEST_F(CpuTest, Opcode_Addressing) {
-    // TODO check if it's actually useless now
-    FAIL();
-    
-    // const auto IMP = Addressing::Implicit;
-    // const auto ACC = Addressing::Accumulator;
-    // const auto IMM = Addressing::Immediate;
-    // const auto ZPG = Addressing::ZeroPage;
-    // const auto ZPX = Addressing::ZeroPageX;
-    // const auto ZPY = Addressing::ZeroPageY;
-    // const auto REL = Addressing::Relative;
-    // const auto ABS = Addressing::Absolute;
-    // const auto ABX = Addressing::AbsoluteX;
-    // const auto ABY = Addressing::AbsoluteY;
-    // const auto IND = Addressing::Indirect;
-    // const auto IDX = Addressing::IndexedIndirect;
-    // const auto IDY = Addressing::IndirectIndexed;
-    // const auto UNK = Addressing::Unknown;
-
-    // std::array<Addressing::Type, 0x100> opcodes {
-	// 	/*           x0   x1   x2   x3   x4   x5   x6   x7   x8   x9   xA   xB   xC   xD   xE   xF */
-	// 	/* 0x */    IMP, IDX, IMP, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS,
-	// 	/* 1x */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
-	// 	/* 2x */    ABS, IDX, IMP, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS,
-	// 	/* 3x */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
-	// 	/* 4x */    IMP, IDX, IMP, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS,
-	// 	/* 5x */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
-	// 	/* 6x */    IMP, IDX, IMP, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, IND, ABS, ABS, ABS,
-	// 	/* 7x */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
-	// 	/* 8x */    IMM, IDX, IMM, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, IMP, IMM, ABS, ABS, ABS, ABS,
-	// 	/* 9x */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPY, ZPY, IMP, ABY, IMP, ABY, ABX, ABX, ABY, ABY,
-	// 	/* Ax */    IMM, IDX, IMM, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, IMP, IMM, ABS, ABS, ABS, ABS,
-	// 	/* Bx */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPY, ZPY, IMP, ABY, IMP, ABY, ABX, ABX, ABY, ABY,
-	// 	/* Cx */    IMM, IDX, IMM, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, IMP, IMM, ABS, ABS, ABS, ABS,
-	// 	/* Dx */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
-	// 	/* Ex */    IMM, IDX, IMM, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, IMP, IMM, ABS, ABS, ABS, ABS,
-	// 	/* Fx */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
-    // };
-
-	// for (int i = 0; i < opcodes.size(); ++i) {
-	// 	const auto op = cpu.Decode(i);
-	// 	EXPECT_EQ(opcodes[i], op.Addressing) << "Instruction 0x" << std::hex << i;
-	// }
-}
-
 TEST_F(CpuTest, PowerUpState) {
     EXPECT_FALSE(cpu.IsStopped());
 
@@ -528,73 +452,57 @@ TEST_F(CpuTest, TickingWithInhibitedInterrupt) {
 }
 
 TEST_F(CpuTest, OAMDMA) {
-    MemoryBlock<0x0400> mem;
-    for (Word i = 0; i < 0x0400; i += 4) {
-        mem.SetByteAt(i + 0, 0xDE);
-        mem.SetByteAt(i + 1, 0xAD);
-        mem.SetByteAt(i + 2, 0xBE);
-        mem.SetByteAt(i + 3, 0xEF);
-    }
     for (Word i = 0; i < 0x0100; ++i) {
-        mem.SetByteAt(0x0100 + i, i & WORD_LO_MASK);
+        bench.at(0x0100 + i).db(i);
     }
 
-    std::array<Byte, 0x0100> page;
-    cpu.Map = &mem;
-    cpu.DMA(1, page, 0x00);
+    EXPECT_EQ(0, cpu.GetTicks());
+    
+    std::array<Byte, 0x0100> target;
+    cpu.DMA(0x01, target.data(), 0x00);
 
     EXPECT_EQ(513, cpu.GetTicks());
     for (Word i = 0; i < 0x0100; ++i) {
-        EXPECT_EQ(i, page[i]);
+        EXPECT_EQ(i, target[i]);
     }
 }
 
 TEST_F(CpuTest, OAMDMA_OnOddCycle) {
-    FAIL();
-    // MemoryBlock<0x0400> mem;
-    // for (Word i = 0; i < 0x0400; i += 4) {
-    //     mem.SetByteAt(i + 0, 0xDE);
-    //     mem.SetByteAt(i + 1, 0xAD);
-    //     mem.SetByteAt(i + 2, 0xBE);
-    //     mem.SetByteAt(i + 3, 0xEF);
-    // }
-    // for (Word i = 0; i < 0x0100; ++i) {
-    //     mem.SetByteAt(0x0100 + i, i & WORD_LO_MASK);
-    // }
+    bench.start();
+    
+    for (Word i = 0; i < 0x0100; ++i) {
+        bench.at(0x0100 + i).db(i);
+    }
 
-    // std::array<Byte, 0x0100> page;
-    // cpu.Map = &mem;
-    // cpu.GetTicks() = cpu.CurrentTick = 1;
-    // cpu.DMA(1, page, 0x00);
+    EXPECT_EQ(0, cpu.GetTicks());
+    bench.implicit(NOP);
+    EXPECT_FALSE(cpu.Tick());
+    EXPECT_EQ(1, cpu.GetTicks());
+    
+    std::array<Byte, 0x0100> target;
+    cpu.DMA(0x01, target.data(), 0x00);
 
-    // EXPECT_EQ(1 + 514, cpu.GetTicks());
-    // for (Word i = 0; i < 0x0100; ++i) {
-    //     EXPECT_EQ(i, page[i]);
-    // }
+    EXPECT_EQ(1 + 514, cpu.GetTicks());
+    for (Word i = 0; i < 0x0100; ++i) {
+        EXPECT_EQ(i, target[i]);
+    }
 }
 
 TEST_F(CpuTest, OAMDMA_NonZeroOffset) {
-    MemoryBlock<0x0400> mem;
-    for (Word i = 0; i < 0x0400; i += 4) {
-        mem.SetByteAt(i + 0, 0xDE);
-        mem.SetByteAt(i + 1, 0xAD);
-        mem.SetByteAt(i + 2, 0xBE);
-        mem.SetByteAt(i + 3, 0xEF);
-    }
     for (Word i = 0; i < 0x0100; ++i) {
-        mem.SetByteAt(0x0100 + i, i & WORD_LO_MASK);
+        bench.at(0x0100 + i).db(i);
     }
 
-    std::array<Byte, 0x0100> page;
-    cpu.Map = &mem;
-    cpu.DMA(1, page, 0x20);
+    std::array<Byte, 0x0100> target;
+    cpu.DMA(0x01, target.data(), 0x20);
 
     EXPECT_EQ(513, cpu.GetTicks());
     for (Word i = 0; i < 0xE0; ++i) {
-        EXPECT_EQ(i, page[i + 0x20]);
+        EXPECT_EQ(i, target[i + 0x20]);
     }
     for (Word i = 0xE0; i < 0x0100; ++i) {
-        EXPECT_EQ(i, page[i - 0xE0]);
+        EXPECT_EQ(i, target[i - 0xE0]);
     }
+
 }
 

@@ -80,4 +80,5 @@ public:
     virtual void PowerUp() = 0;
     virtual void Reset() = 0;
     [[nodiscard]] virtual bool Tick() = 0;
+    virtual void DMA(Byte page, Byte* target, Byte offset) = 0;
 };

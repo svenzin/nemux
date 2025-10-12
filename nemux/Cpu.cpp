@@ -22,6 +22,9 @@ static const bool USE_RP2A03 = false;
 static int nmic = 0;
 static void Write2A03State(Cpu& cpu, Ricoh_RP2A03& rp2a03) {
     rp2a03.SetStopped(cpu.IsStopped());
+    rp2a03.VectorIRQ = cpu.VectorIRQ;
+    rp2a03.VectorNMI = cpu.VectorNMI;
+    rp2a03.VectorRST = cpu.VectorRST;
     rp2a03.PC = cpu.PC;
     rp2a03.S = cpu.S;
     rp2a03.A = cpu.A;
@@ -30,11 +33,20 @@ static void Write2A03State(Cpu& cpu, Ricoh_RP2A03& rp2a03) {
     rp2a03.SetStatusByte(cpu.GetStatusByte(0));
     rp2a03.Map = cpu.Map;
     rp2a03.Ticks = cpu.Ticks;
+    rp2a03.LineIRQ = (cpu.PendingInterrupt == InterruptType::Irq) ? 1 : 0;
+    rp2a03.LineNMI = (cpu.PendingInterrupt == InterruptType::Nmi) ? 1 : 0;
+    // rp2a03.LineRST = (cpu.PendingInterrupt == InterruptType::Rst) ? 1 : 0;
+    if (cpu.PendingInterrupt == InterruptType::Rst) {
+        rp2a03.Reset();
+    }
 }
 static void Read2A03State(Ricoh_RP2A03& rp2a03, Cpu& cpu) {
     cpu.SetStopped(rp2a03.IsStopped());
     cpu.Ticks = rp2a03.Ticks;
     if (rp2a03.INSTR) cpu.CurrentTick = rp2a03.Ticks;
+    cpu.VectorIRQ = rp2a03.VectorIRQ;
+    cpu.VectorNMI = rp2a03.VectorNMI;
+    cpu.VectorRST = rp2a03.VectorRST;
     cpu.PC = rp2a03.PC;
     cpu.S = rp2a03.S;
     cpu.A = rp2a03.A;
@@ -655,18 +667,17 @@ void Cpu::TriggerIRQ() {
         PendingInterrupt = InterruptType::Irq;
     }
 }
-void Cpu::DMA(const Byte page,
-    std::array<Byte, 0x0100> & target,
-    const Byte offset) {
+
+void Cpu::DMA(Byte page, Byte* target, Byte offset) {
     if (USE_RP2A03) {
         Write2A03State(*this, rp2a03);
-        rp2a03.DMA(page, target.data(), offset);
+        rp2a03.DMA(page, target, offset);
         Read2A03State(rp2a03, *this);
     }
     else {
         const Word base = page << BYTE_WIDTH;
         for (Word i = 0; i < 0x0100; ++i) {
-            target[(i + offset) & WORD_LO_MASK] = ReadByte(base + i);
+            target[LO(i + offset)] = ReadByte(base + i);
         }
         Ticks += 513;
         if (CurrentTick % 2 == 1) {
@@ -674,6 +685,7 @@ void Cpu::DMA(const Byte page,
         }
     }
 }
+
 void Cpu::Execute(const Opcode &op) {
     if (USE_RP2A03) {
         Write2A03State(*this, rp2a03);

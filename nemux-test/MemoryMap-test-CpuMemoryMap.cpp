@@ -11,10 +11,7 @@
 #include <typeinfo>
 
 struct MonitoredCpu {
-    MOCK_METHOD3(DMA, void(const Byte page,
-                           std::array<Byte, 0x0100> & target,
-                           const Byte offset)
-    );
+    MOCK_METHOD3(DMA, void(Byte page, Byte* target, Byte offset));
 };
 
 struct MonitoredApu : public Apu<nullptr_t> {
@@ -222,7 +219,7 @@ TEST_F(CpuMemoryMapTest, Mapper_Set) {
 
 TEST_F(CpuMemoryMapTest, CPU_OAMDMA) {
     ppu.OAMAddress = 0x04;
-    EXPECT_CALL(cpu, DMA(0x02, ppu.SprRam, 0x04));
+    EXPECT_CALL(cpu, DMA(0x02, ppu.SprRam.data(), 0x04));
     cpumap.SetByteAt(0x4014, 0x02);
 }
 
