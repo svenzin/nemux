@@ -1,10 +1,3 @@
-/*
- * NesRom-test.cpp
- *
- *  Created on: 16 Jun 2013
- *      Author: scorder
- */
-
 #include <gtest/gtest.h>
 
 #include "NesRom.h"

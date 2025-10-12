@@ -21,3 +21,10 @@ template <std::size_t bit>
 constexpr bool IsBitClear(Byte value) {
     return !IsBitSet<bit>(value);
 }
+
+constexpr Word SignExtend(Byte value) {
+    return MakeWord(
+        value,
+        IsBitSet<BYTE_SIGN_BIT>(value) ? 0xFF : 0x00
+    );
+}

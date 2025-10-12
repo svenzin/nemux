@@ -2,12 +2,15 @@
 
 #include "Types.h"
 
+#include <stdexcept>
+#include <tuple>
+
 struct InstructionSet_6502 {
+    static constexpr size_t INSTRUCTION_COUNT{ 0x100 };
+
     using OpCode = Byte;
 
     enum class OpName {
-        undefined, unknown,
-
         LDA, LDX, LDY, STA, STX, STY,           // Load, Store
         TAX, TAY, TXA, TYA,                     // Register Transfer
         TSX, TXS, PHA, PLA, PHP, PLP,           // Stack
@@ -24,6 +27,9 @@ struct InstructionSet_6502 {
         uSTP, uSLO, uNOP, uANC, uRLA, uSRE, uALR, uRRA, uARR,
         uSAX, uXAA, uAHX, uTAS, uSHY, uSHX, uLAX, uLAS,
         uDCP, uAXS, uISC, uSBC,
+
+        // Unknown (invalid)
+        UNK
     };
 
     enum class AddressingMode {

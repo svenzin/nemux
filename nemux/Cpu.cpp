@@ -1,9 +1,3 @@
-/*
- * Cpu.cpp
- *
- *  Created on: 10 Jun 2013
- *      Author: scorder
- */
 #include "Cpu.h"
 
 #include "BitUtil.h"
@@ -13,47 +7,6 @@
 #include <iomanip>
 #include <sstream>
 #include <iostream>
-
-using namespace std;
-using namespace Instructions;
-using namespace Addressing;
-
-static const bool USE_RP2A03 = false;
-static int nmic = 0;
-static void Write2A03State(Cpu& cpu, Ricoh_RP2A03& rp2a03) {
-    rp2a03.SetStopped(cpu.IsStopped());
-    rp2a03.VectorIRQ = cpu.VectorIRQ;
-    rp2a03.VectorNMI = cpu.VectorNMI;
-    rp2a03.VectorRST = cpu.VectorRST;
-    rp2a03.PC = cpu.PC;
-    rp2a03.S = cpu.S;
-    rp2a03.A = cpu.A;
-    rp2a03.X = cpu.X;
-    rp2a03.Y = cpu.Y;
-    rp2a03.SetStatusByte(cpu.GetStatusByte(0));
-    rp2a03.Map = cpu.Map;
-    rp2a03.Ticks = cpu.Ticks;
-    rp2a03.LineIRQ = (cpu.PendingInterrupt == InterruptType::Irq) ? 1 : 0;
-    rp2a03.LineNMI = (cpu.PendingInterrupt == InterruptType::Nmi) ? 1 : 0;
-    // rp2a03.LineRST = (cpu.PendingInterrupt == InterruptType::Rst) ? 1 : 0;
-    if (cpu.PendingInterrupt == InterruptType::Rst) {
-        rp2a03.Reset();
-    }
-}
-static void Read2A03State(Ricoh_RP2A03& rp2a03, Cpu& cpu) {
-    cpu.SetStopped(rp2a03.IsStopped());
-    cpu.Ticks = rp2a03.Ticks;
-    if (rp2a03.INSTR) cpu.CurrentTick = rp2a03.Ticks;
-    cpu.VectorIRQ = rp2a03.VectorIRQ;
-    cpu.VectorNMI = rp2a03.VectorNMI;
-    cpu.VectorRST = rp2a03.VectorRST;
-    cpu.PC = rp2a03.PC;
-    cpu.S = rp2a03.S;
-    cpu.A = rp2a03.A;
-    cpu.X = rp2a03.X;
-    cpu.Y = rp2a03.Y;
-    cpu.SetStatusByte(rp2a03.GetStatusByte(0));
-}
 
 Word Cpu::ReadWordAt(const Word address) const {
     const auto lo{ ReadByte(address) };
@@ -69,354 +22,18 @@ void Cpu::WriteWordAt(const Word address, const Word value) {
 /* explicit */ Cpu::Cpu(std::string name, MemoryMap * map)
     : Name{name}
     , InterruptCycles{7}
-    , rp2a03{}
     , BaseCpu{}
 {
     Map = map;
 
     m_opcodes.resize(
-        OPCODES_COUNT,
-        Opcode(UNK, Unknown, 0, 0)
+        InstructionSet_6502::INSTRUCTION_COUNT,
+        Instruction{ InstructionSet_6502::OpName::UNK }
     );
-
-    // Shift
-    m_opcodes[0x0A] = Opcode(ASL, Accumulator, 1, 2);
-    m_opcodes[0x06] = Opcode(ASL, ZeroPage,    2, 5);
-    m_opcodes[0x16] = Opcode(ASL, ZeroPageX,   2, 6);
-    m_opcodes[0x0E] = Opcode(ASL, Absolute,    3, 6);
-    m_opcodes[0x1E] = Opcode(ASL, AbsoluteX,   3, 7);
-
-    m_opcodes[0x4A] = Opcode(LSR, Accumulator, 1, 2);
-    m_opcodes[0x46] = Opcode(LSR, ZeroPage,    2, 5);
-    m_opcodes[0x56] = Opcode(LSR, ZeroPageX,   2, 6);
-    m_opcodes[0x4E] = Opcode(LSR, Absolute,    3, 6);
-    m_opcodes[0x5E] = Opcode(LSR, AbsoluteX,   3, 7);
-
-    m_opcodes[0x2A] = Opcode(ROL, Accumulator, 1, 2);
-    m_opcodes[0x26] = Opcode(ROL, ZeroPage,    2, 5);
-    m_opcodes[0x36] = Opcode(ROL, ZeroPageX,   2, 6);
-    m_opcodes[0x2E] = Opcode(ROL, Absolute,    3, 6);
-    m_opcodes[0x3E] = Opcode(ROL, AbsoluteX,   3, 7);
-
-    m_opcodes[0x6A] = Opcode(ROR, Accumulator, 1, 2);
-    m_opcodes[0x66] = Opcode(ROR, ZeroPage,    2, 5);
-    m_opcodes[0x76] = Opcode(ROR, ZeroPageX,   2, 6);
-    m_opcodes[0x6E] = Opcode(ROR, Absolute,    3, 6);
-    m_opcodes[0x7E] = Opcode(ROR, AbsoluteX,   3, 7);
-
-    // Bit operations
-    m_opcodes[0x29] = Opcode(AND, Immediate, 2, 2);
-    m_opcodes[0x25] = Opcode(AND, ZeroPage,  2, 3);
-    m_opcodes[0x35] = Opcode(AND, ZeroPageX, 2, 4);
-    m_opcodes[0x2D] = Opcode(AND, Absolute,  3, 4);
-    m_opcodes[0x3D] = Opcode(AND, AbsoluteX, 3, 4);
-    m_opcodes[0x39] = Opcode(AND, AbsoluteY, 3, 4);
-    m_opcodes[0x21] = Opcode(AND, IndexedIndirect, 2, 6);
-    m_opcodes[0x31] = Opcode(AND, IndirectIndexed, 2, 5);
-
-    m_opcodes[0x24] = Opcode(BIT, ZeroPage, 2, 3);
-    m_opcodes[0x2C] = Opcode(BIT, Absolute, 3, 4);
-
-    m_opcodes[0x49] = Opcode(EOR, Immediate, 2, 2);
-    m_opcodes[0x45] = Opcode(EOR, ZeroPage,  2, 3);
-    m_opcodes[0x55] = Opcode(EOR, ZeroPageX, 2, 4);
-    m_opcodes[0x4D] = Opcode(EOR, Absolute,  3, 4);
-    m_opcodes[0x5D] = Opcode(EOR, AbsoluteX, 3, 4);
-    m_opcodes[0x59] = Opcode(EOR, AbsoluteY, 3, 4);
-    m_opcodes[0x41] = Opcode(EOR, IndexedIndirect, 2, 6);
-    m_opcodes[0x51] = Opcode(EOR, IndirectIndexed, 2, 5);
-
-    m_opcodes[0x09] = Opcode(ORA, Immediate, 2, 2);
-    m_opcodes[0x05] = Opcode(ORA, ZeroPage,  2, 3);
-    m_opcodes[0x15] = Opcode(ORA, ZeroPageX, 2, 4);
-    m_opcodes[0x0D] = Opcode(ORA, Absolute,  3, 4);
-    m_opcodes[0x1D] = Opcode(ORA, AbsoluteX, 3, 4);
-    m_opcodes[0x19] = Opcode(ORA, AbsoluteY, 3, 4);
-    m_opcodes[0x01] = Opcode(ORA, IndexedIndirect, 2, 6);
-    m_opcodes[0x11] = Opcode(ORA, IndirectIndexed, 2, 5);
-
-    // Clear flags
-    m_opcodes[0x18] = Opcode(CLC, Implicit, 1, 2);
-
-    m_opcodes[0xD8] = Opcode(CLD, Implicit, 1, 2);
-
-    m_opcodes[0x58] = Opcode(CLI, Implicit, 1, 2);
-
-    m_opcodes[0xB8] = Opcode(CLV, Implicit, 1, 2);
-
-    m_opcodes[0x38] = Opcode(SEC, Implicit, 1, 2);
-
-    m_opcodes[0xF8] = Opcode(SED, Implicit, 1, 2);
-
-    m_opcodes[0x78] = Opcode(SEI, Implicit, 1, 2);
-
-    // Arithmetic
-    m_opcodes[0x69] = Opcode(ADC, Immediate, 2, 2);
-    m_opcodes[0x65] = Opcode(ADC, ZeroPage,  2, 3);
-    m_opcodes[0x75] = Opcode(ADC, ZeroPageX, 2, 4);
-    m_opcodes[0x6D] = Opcode(ADC, Absolute,  3, 4);
-    m_opcodes[0x7D] = Opcode(ADC, AbsoluteX, 3, 4);
-    m_opcodes[0x79] = Opcode(ADC, AbsoluteY, 3, 4);
-    m_opcodes[0x61] = Opcode(ADC, IndexedIndirect, 2, 6);
-    m_opcodes[0x71] = Opcode(ADC, IndirectIndexed, 2, 5);
-
-    m_opcodes[0xE9] = Opcode(SBC, Immediate, 2, 2);
-    m_opcodes[0xE5] = Opcode(SBC, ZeroPage,  2, 3);
-    m_opcodes[0xF5] = Opcode(SBC, ZeroPageX, 2, 4);
-    m_opcodes[0xED] = Opcode(SBC, Absolute,  3, 4);
-    m_opcodes[0xFD] = Opcode(SBC, AbsoluteX, 3, 4);
-    m_opcodes[0xF9] = Opcode(SBC, AbsoluteY, 3, 4);
-    m_opcodes[0xE1] = Opcode(SBC, IndexedIndirect, 2, 6);
-    m_opcodes[0xF1] = Opcode(SBC, IndirectIndexed, 2, 5);
-
-    m_opcodes[0xC6] = Opcode(DEC, ZeroPage,  2, 5);
-    m_opcodes[0xD6] = Opcode(DEC, ZeroPageX, 2, 6);
-    m_opcodes[0xCE] = Opcode(DEC, Absolute,  3, 6);
-    m_opcodes[0xDE] = Opcode(DEC, AbsoluteX, 3, 7);
-
-    m_opcodes[0xCA] = Opcode(DEX, Implicit, 1, 2);
-
-    m_opcodes[0x88] = Opcode(DEY, Implicit, 1, 2);
-
-    m_opcodes[0xE6] = Opcode(INC, ZeroPage,  2, 5);
-    m_opcodes[0xF6] = Opcode(INC, ZeroPageX, 2, 6);
-    m_opcodes[0xEE] = Opcode(INC, Absolute,  3, 6);
-    m_opcodes[0xFE] = Opcode(INC, AbsoluteX, 3, 7);
-
-    m_opcodes[0xE8] = Opcode(INX, Implicit, 1, 2);
-
-    m_opcodes[0xC8] = Opcode(INY, Implicit, 1, 2);
-
-    // Branch
-    m_opcodes[0x90] = Opcode(BCC, Relative, 2, 2);
-    m_opcodes[0xB0] = Opcode(BCS, Relative, 2, 2);
-    m_opcodes[0xF0] = Opcode(BEQ, Relative, 2, 2);
-    m_opcodes[0x30] = Opcode(BMI, Relative, 2, 2);
-    m_opcodes[0xD0] = Opcode(BNE, Relative, 2, 2);
-    m_opcodes[0x10] = Opcode(BPL, Relative, 2, 2);
-    m_opcodes[0x50] = Opcode(BVC, Relative, 2, 2);
-    m_opcodes[0x70] = Opcode(BVS, Relative, 2, 2);
-
-    // Comparisons
-    m_opcodes[0xC9] = Opcode(CMP, Immediate, 2, 2);
-    m_opcodes[0xC5] = Opcode(CMP, ZeroPage,  2, 3);
-    m_opcodes[0xD5] = Opcode(CMP, ZeroPageX, 2, 4);
-    m_opcodes[0xCD] = Opcode(CMP, Absolute,  3, 4);
-    m_opcodes[0xDD] = Opcode(CMP, AbsoluteX, 3, 4);
-    m_opcodes[0xD9] = Opcode(CMP, AbsoluteY, 3, 4);
-    m_opcodes[0xC1] = Opcode(CMP, IndexedIndirect, 2, 6);
-    m_opcodes[0xD1] = Opcode(CMP, IndirectIndexed, 2, 5);
-
-    m_opcodes[0xE0] = Opcode(CPX, Immediate, 2, 2);
-    m_opcodes[0xE4] = Opcode(CPX, ZeroPage,  2, 3);
-    m_opcodes[0xEC] = Opcode(CPX, Absolute,  3, 4);
-
-    m_opcodes[0xC0] = Opcode(CPY, Immediate, 2, 2);
-    m_opcodes[0xC4] = Opcode(CPY, ZeroPage,  2, 3);
-    m_opcodes[0xCC] = Opcode(CPY, Absolute,  3, 4);
-
-    // Stack
-    m_opcodes[0x48] = Opcode(PHA, Implicit, 1, 3);
-
-    m_opcodes[0x68] = Opcode(PLA, Implicit, 1, 4);
-
-    m_opcodes[0x08] = Opcode(PHP, Implicit, 1, 3);
-
-    m_opcodes[0x28] = Opcode(PLP, Implicit, 1, 4);
-
-    // Memory
-    m_opcodes[0xA2] = Opcode(LDX, Immediate, 2, 2);
-    m_opcodes[0xA6] = Opcode(LDX, ZeroPage,  2, 3);
-    m_opcodes[0xB6] = Opcode(LDX, ZeroPageY, 2, 4);
-    m_opcodes[0xAE] = Opcode(LDX, Absolute,  3, 4);
-    m_opcodes[0xBE] = Opcode(LDX, AbsoluteY, 3, 4);
-
-    m_opcodes[0xA0] = Opcode(LDY, Immediate, 2, 2);
-    m_opcodes[0xA4] = Opcode(LDY, ZeroPage,  2, 3);
-    m_opcodes[0xB4] = Opcode(LDY, ZeroPageX, 2, 4);
-    m_opcodes[0xAC] = Opcode(LDY, Absolute,  3, 4);
-    m_opcodes[0xBC] = Opcode(LDY, AbsoluteX, 3, 4);
-
-    m_opcodes[0xA9] = Opcode(LDA, Immediate, 2, 2);
-    m_opcodes[0xA5] = Opcode(LDA, ZeroPage,  2, 3);
-    m_opcodes[0xB5] = Opcode(LDA, ZeroPageX, 2, 4);
-    m_opcodes[0xAD] = Opcode(LDA, Absolute,  3, 4);
-    m_opcodes[0xBD] = Opcode(LDA, AbsoluteX, 3, 4);
-    m_opcodes[0xB9] = Opcode(LDA, AbsoluteY, 3, 4);
-    m_opcodes[0xA1] = Opcode(LDA, IndexedIndirect, 2, 6);
-    m_opcodes[0xB1] = Opcode(LDA, IndirectIndexed, 2, 5);
-
-    m_opcodes[0x85] = Opcode(STA, ZeroPage,  2, 3);
-    m_opcodes[0x95] = Opcode(STA, ZeroPageX, 2, 4);
-    m_opcodes[0x8D] = Opcode(STA, Absolute,  3, 4);
-    m_opcodes[0x9D] = Opcode(STA, AbsoluteX, 3, 5);
-    m_opcodes[0x99] = Opcode(STA, AbsoluteY, 3, 5);
-    m_opcodes[0x81] = Opcode(STA, IndexedIndirect, 2, 6);
-    m_opcodes[0x91] = Opcode(STA, IndirectIndexed, 2, 6);
-
-    m_opcodes[0x86] = Opcode(STX, ZeroPage,  2, 3);
-    m_opcodes[0x96] = Opcode(STX, ZeroPageY, 2, 4);
-    m_opcodes[0x8E] = Opcode(STX, Absolute,  3, 4);
-
-    m_opcodes[0x84] = Opcode(STY, ZeroPage,  2, 3);
-    m_opcodes[0x94] = Opcode(STY, ZeroPageX, 2, 4);
-    m_opcodes[0x8C] = Opcode(STY, Absolute,  3, 4);
-
-    m_opcodes[0xAA] = Opcode(TAX, Implicit, 1, 2);
-
-    m_opcodes[0xA8] = Opcode(TAY, Implicit, 1, 2);
-
-    m_opcodes[0xBA] = Opcode(TSX, Implicit, 1, 2);
-
-    m_opcodes[0x8A] = Opcode(TXA, Implicit, 1, 2);
-
-    m_opcodes[0x9A] = Opcode(TXS, Implicit, 1, 2);
-
-    m_opcodes[0x98] = Opcode(TYA, Implicit, 1, 2);
-
-    // Nop
-    // BRK ticks set to 0 because the Interrupt()
-    // method already handles the tick count
-    m_opcodes[0x00] = Opcode(BRK, Implicit, 2, 0);
-
-    m_opcodes[0xEA] = Opcode(NOP, Implicit, 1, 2);
-
-    m_opcodes[0x40] = Opcode(RTI, Implicit, 1, 6);
-
-    // Jump, Call
-    m_opcodes[0x4C] = Opcode(JMP, Absolute, 3, 3);
-    m_opcodes[0x6C] = Opcode(JMP, Indirect, 3, 5);
-
-    m_opcodes[0x20] = Opcode(JSR, Absolute, 3, 6);
-
-    m_opcodes[0x60] = Opcode(RTS, Implicit, 1, 6);
-
-    // Unofficial opcodes
-    m_opcodes[0x04] = Opcode(uNOP, ZeroPage,  2, 3);
-    m_opcodes[0x0C] = Opcode(uNOP, Absolute,  3, 4);
-    m_opcodes[0x14] = Opcode(uNOP, ZeroPageX, 2, 4);
-    m_opcodes[0x1A] = Opcode(uNOP, Implicit,  1, 2);
-    m_opcodes[0x1C] = Opcode(uNOP, AbsoluteX, 3, 4);    //
-    m_opcodes[0x34] = Opcode(uNOP, ZeroPageX, 2, 4);
-    m_opcodes[0x3A] = Opcode(uNOP, Implicit,  1, 2);
-    m_opcodes[0x3C] = Opcode(uNOP, AbsoluteX, 3, 4);    //
-    m_opcodes[0x44] = Opcode(uNOP, ZeroPage,  2, 3);
-    m_opcodes[0x54] = Opcode(uNOP, ZeroPageX, 2, 4);
-    m_opcodes[0x5A] = Opcode(uNOP, Implicit,  1, 2);
-    m_opcodes[0x5C] = Opcode(uNOP, AbsoluteX, 3, 4);    //
-    m_opcodes[0x64] = Opcode(uNOP, ZeroPage,  2, 3);
-    m_opcodes[0x74] = Opcode(uNOP, ZeroPageX, 2, 4);
-    m_opcodes[0x7A] = Opcode(uNOP, Implicit,  1, 2);
-    m_opcodes[0x7C] = Opcode(uNOP, AbsoluteX, 3, 4);    //
-    m_opcodes[0x80] = Opcode(uNOP, Immediate, 2, 2);
-    m_opcodes[0x82] = Opcode(uNOP, Immediate, 2, 2);
-    m_opcodes[0x89] = Opcode(uNOP, Immediate, 2, 2);
-    m_opcodes[0xC2] = Opcode(uNOP, Immediate, 2, 2);
-    m_opcodes[0xD4] = Opcode(uNOP, ZeroPageX, 2, 4);
-    m_opcodes[0xDA] = Opcode(uNOP, Implicit,  1, 2);
-    m_opcodes[0xDC] = Opcode(uNOP, AbsoluteX, 3, 4);    //
-    m_opcodes[0xE2] = Opcode(uNOP, Immediate, 2, 2);
-    m_opcodes[0xF4] = Opcode(uNOP, ZeroPageX, 2, 4);
-    m_opcodes[0xFA] = Opcode(uNOP, Implicit,  1, 2);
-    m_opcodes[0xFC] = Opcode(uNOP, AbsoluteX, 3, 4);    //
-
-    m_opcodes[0x02] = Opcode(uSTP, Implicit, 1, 2);
-    m_opcodes[0x12] = Opcode(uSTP, Implicit, 1, 2);
-    m_opcodes[0x22] = Opcode(uSTP, Implicit, 1, 2);
-    m_opcodes[0x32] = Opcode(uSTP, Implicit, 1, 2);
-    m_opcodes[0x42] = Opcode(uSTP, Implicit, 1, 2);
-    m_opcodes[0x52] = Opcode(uSTP, Implicit, 1, 2);
-    m_opcodes[0x62] = Opcode(uSTP, Implicit, 1, 2);
-    m_opcodes[0x72] = Opcode(uSTP, Implicit, 1, 2);
-    m_opcodes[0x92] = Opcode(uSTP, Implicit, 1, 2);
-    m_opcodes[0xB2] = Opcode(uSTP, Implicit, 1, 2);
-    m_opcodes[0xD2] = Opcode(uSTP, Implicit, 1, 2);
-    m_opcodes[0xF2] = Opcode(uSTP, Implicit, 1, 2);
-
-    m_opcodes[0x03] = Opcode(uSLO, IndexedIndirect, 2, 8);
-    m_opcodes[0x07] = Opcode(uSLO, ZeroPage,  2, 5);
-    m_opcodes[0x0F] = Opcode(uSLO, Absolute,  3, 6);
-    m_opcodes[0x13] = Opcode(uSLO, IndirectIndexed, 2, 8);
-    m_opcodes[0x17] = Opcode(uSLO, ZeroPageX, 2, 6);
-    m_opcodes[0x1B] = Opcode(uSLO, AbsoluteY, 3, 7);
-    m_opcodes[0x1F] = Opcode(uSLO, AbsoluteX, 3, 7);
-
-    m_opcodes[0x0B] = Opcode(uANC, Immediate, 2, 2);
-    m_opcodes[0x2B] = Opcode(uANC, Immediate, 2, 2);
-
-    m_opcodes[0x23] = Opcode(uRLA, IndexedIndirect, 2, 8);
-    m_opcodes[0x27] = Opcode(uRLA, ZeroPage,  2, 5);
-    m_opcodes[0x2F] = Opcode(uRLA, Absolute,  3, 6);
-    m_opcodes[0x33] = Opcode(uRLA, IndirectIndexed, 2, 8);
-    m_opcodes[0x37] = Opcode(uRLA, ZeroPageX, 2, 6);
-    m_opcodes[0x3B] = Opcode(uRLA, AbsoluteY, 3, 7);
-    m_opcodes[0x3F] = Opcode(uRLA, AbsoluteX, 3, 7);
-
-    m_opcodes[0x43] = Opcode(uSRE, IndexedIndirect, 2, 8);
-    m_opcodes[0x47] = Opcode(uSRE, ZeroPage,  2, 5);
-    m_opcodes[0x4F] = Opcode(uSRE, Absolute,  3, 6);
-    m_opcodes[0x53] = Opcode(uSRE, IndirectIndexed, 2, 8);
-    m_opcodes[0x57] = Opcode(uSRE, ZeroPageX, 2, 6);
-    m_opcodes[0x5B] = Opcode(uSRE, AbsoluteY, 3, 7);
-    m_opcodes[0x5F] = Opcode(uSRE, AbsoluteX, 3, 7);
-
-    m_opcodes[0x4B] = Opcode(uALR, Immediate, 2, 2);
-
-    m_opcodes[0x63] = Opcode(uRRA, IndexedIndirect, 2, 8);
-    m_opcodes[0x67] = Opcode(uRRA, ZeroPage,  2, 5);
-    m_opcodes[0x6F] = Opcode(uRRA, Absolute,  3, 6);
-    m_opcodes[0x73] = Opcode(uRRA, IndirectIndexed, 2, 8);
-    m_opcodes[0x77] = Opcode(uRRA, ZeroPageX, 2, 6);
-    m_opcodes[0x7B] = Opcode(uRRA, AbsoluteY, 3, 7);
-    m_opcodes[0x7F] = Opcode(uRRA, AbsoluteX, 3, 7);
-
-    m_opcodes[0x6B] = Opcode(uARR, Immediate, 2, 2);
-
-    m_opcodes[0x83] = Opcode(uSAX, IndexedIndirect, 2, 6);
-    m_opcodes[0x87] = Opcode(uSAX, ZeroPage, 2, 3);
-    m_opcodes[0x8F] = Opcode(uSAX, Absolute, 3, 4);
-    m_opcodes[0x97] = Opcode(uSAX, ZeroPageY, 2, 4);
-
-    m_opcodes[0x8B] = Opcode(uXAA, Immediate, 2, 2);
-
-    m_opcodes[0x93] = Opcode(uAHX, IndirectIndexed, 2, 6);
-    m_opcodes[0x9F] = Opcode(uAHX, AbsoluteY, 3, 5);
-
-    m_opcodes[0x9B] = Opcode(uTAS, AbsoluteY, 3, 5);
-
-    m_opcodes[0x9C] = Opcode(uSHY, AbsoluteX, 3, 5);
-
-    m_opcodes[0x9E] = Opcode(uSHX, AbsoluteY, 3, 5);
-
-    m_opcodes[0xA3] = Opcode(uLAX, IndexedIndirect, 2, 6);
-    m_opcodes[0xA7] = Opcode(uLAX, ZeroPage,  2, 3);
-    m_opcodes[0xAB] = Opcode(uLAX, Immediate, 2, 2);
-    m_opcodes[0xAF] = Opcode(uLAX, Absolute,  3, 4);
-    m_opcodes[0xB3] = Opcode(uLAX, IndirectIndexed, 2, 5);
-    m_opcodes[0xB7] = Opcode(uLAX, ZeroPageY, 2, 4);
-    m_opcodes[0xBF] = Opcode(uLAX, AbsoluteY, 3, 4);
-
-    m_opcodes[0xBB] = Opcode(uLAS, AbsoluteY, 3, 4);
-
-    m_opcodes[0xC3] = Opcode(uDCP, IndexedIndirect, 2, 8);
-    m_opcodes[0xC7] = Opcode(uDCP, ZeroPage,  2, 5);
-    m_opcodes[0xCF] = Opcode(uDCP, Absolute,  3, 6);
-    m_opcodes[0xD3] = Opcode(uDCP, IndirectIndexed, 2, 8);
-    m_opcodes[0xD7] = Opcode(uDCP, ZeroPageX, 2, 6);
-    m_opcodes[0xDB] = Opcode(uDCP, AbsoluteY, 3, 7);
-    m_opcodes[0xDF] = Opcode(uDCP, AbsoluteX, 3, 7);
-
-    m_opcodes[0xCB] = Opcode(uAXS, Immediate, 2, 2);
-
-    m_opcodes[0xE3] = Opcode(uISC, IndexedIndirect, 2, 8);
-    m_opcodes[0xE7] = Opcode(uISC, ZeroPage,  2, 5);
-    m_opcodes[0xEF] = Opcode(uISC, Absolute,  3, 6);
-    m_opcodes[0xF3] = Opcode(uISC, IndirectIndexed, 2, 8);
-    m_opcodes[0xF7] = Opcode(uISC, ZeroPageX, 2, 6);
-    m_opcodes[0xFB] = Opcode(uISC, AbsoluteY, 3, 7);
-    m_opcodes[0xFF] = Opcode(uISC, AbsoluteX, 3, 7);
-
-    m_opcodes[0xEB] = Opcode(uSBC, Immediate, 2, 2);
+    
+    for (size_t i{ 0 }; i < InstructionSet_6502::INSTRUCTION_COUNT; ++i) {
+        m_opcodes[i] = InstructionSet_6502::Decode(i);
+    }
 
     // Power up state
     S = 0xFD;
@@ -426,103 +43,84 @@ void Cpu::WriteWordAt(const Word address, const Word value) {
 }
 
 bool Cpu::Tick() {
-    if (!USE_RP2A03) {
-        ++CurrentTick;
-        static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> *>(Map);
-        static bool nmi = false;
-        static bool nmiDelayed1 = false;
-        static bool nmiDelayed2 = false;
-        static bool nmiDelayed3 = false;
-        static bool nmiDelayed4 = false;
-        if (m != nullptr) {
-            if (!nmiDelayed4 && nmiDelayed3) {
-                TriggerNMI();
-            }
-            nmiDelayed4 = nmiDelayed3;
-            nmiDelayed3 = nmiDelayed2;
-            nmiDelayed2 = nmiDelayed1;
-            nmiDelayed1 = nmi;
-            nmi = m->PPU->NMIActive;
+    ++CurrentTick;
+    static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> *>(Map);
+    static bool nmi = false;
+    static bool nmiDelayed1 = false;
+    static bool nmiDelayed2 = false;
+    static bool nmiDelayed3 = false;
+    static bool nmiDelayed4 = false;
+    if (m != nullptr) {
+        if (!nmiDelayed4 && nmiDelayed3) {
+            TriggerNMI();
+        }
+        nmiDelayed4 = nmiDelayed3;
+        nmiDelayed3 = nmiDelayed2;
+        nmiDelayed2 = nmiDelayed1;
+        nmiDelayed1 = nmi;
+        nmi = m->PPU->NMIActive;
 
-            if (I == 0 && (
-                m->APU->Frame.Interrupt ||
-                m->APU->DMC1.Output.DMA.Interrupt)) {
-                TriggerIRQ();
-            }
+        if (I == 0 && (
+            m->APU->Frame.Interrupt ||
+            m->APU->DMC1.Output.DMA.Interrupt)) {
+            TriggerIRQ();
+        }
 
-        }
-        if (CurrentTick > Ticks) {
-            if (PendingInterrupt == InterruptType::Rst) {
-                Reset();
-            }
-            else if (PendingInterrupt == InterruptType::Nmi) {
-                NMI();
-            }
-            else if (PendingInterrupt == InterruptType::Irq) {
-                IRQ();
-            }
-            else {
-                const auto instruction = ReadByte(PC);
-                const auto opcode = Decode(instruction);
-                Execute(opcode);
-            }
-        }
-        return CurrentTick >= Ticks;
     }
-    else {
-        Write2A03State(*this, rp2a03);
-        rp2a03.Phi1();
-        static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> *>(Map);
-        if (m != nullptr) {
-            rp2a03.LineNMI = m->PPU->NMIActive;
-            rp2a03.LineIRQ = (I == 0)
-                && (m->APU->Frame.Interrupt || m->APU->DMC1.Output.DMA.Interrupt);
+    if (CurrentTick > Ticks) {
+        if (PendingInterrupt == InterruptType::Rst) {
+            Reset();
         }
-        rp2a03.Phi2();
-        Read2A03State(rp2a03, *this);
-        return rp2a03.INSTR;
+        else if (PendingInterrupt == InterruptType::Nmi) {
+            NMI();
+        }
+        else if (PendingInterrupt == InterruptType::Irq) {
+            IRQ();
+        }
+        else {
+            const auto instruction = ReadByte(PC);
+            const auto opcode = InstructionSet_6502::Decode(instruction);
+            Execute(opcode);
+        }
     }
+    return CurrentTick >= Ticks;
 }
 
-Opcode Cpu::Decode(const Byte &byte) const {
-    if (0 <= byte && byte < OPCODES_COUNT)
-        return m_opcodes[byte];
-    return Opcode(UNK, Unknown, 0, 0);
-}
-
-address_t Cpu::BuildAddress(const Addressing::Type & type) const {
+address_t Cpu::BuildAddress(InstructionSet_6502::AddressingMode mode) const {
+    using enum InstructionSet_6502::AddressingMode;
     const Word PC_1 = PC + 1;
-    switch (type) {
-        case Immediate: {
+    switch (mode) {
+        case IMM:
+        case REL: {
             return { PC_1, false };
         }
-        case ZeroPage: {
+        case ZPG: {
             return { ReadByte(PC_1), false };
         }
-        case ZeroPageX: {
+        case ZPX: {
             const auto address = (ReadByte(PC_1) + X) & WORD_LO_MASK;
             return { static_cast<Word>(address), false };
         }
-        case ZeroPageY: {
+        case ZPY: {
             const auto address = (ReadByte(PC_1) + Y) & WORD_LO_MASK;
             return { static_cast<Word>(address), false };
         }
-        case Absolute: {
+        case ABS: {
             return { ReadWordAt(PC_1), false };
         }
-        case AbsoluteX: {
+        case ABX: {
             const Word address = ReadWordAt(PC_1) + X;
             const bool crossed = (X > (address & BYTE_MASK));
             if (crossed) ReadByte(address - 0x0100); // Dummy read
             return { address, crossed };
         }
-        case AbsoluteY: {
+        case ABY: {
             const Word address = ReadWordAt(PC_1) + Y;
             const bool crossed = (Y > (address & BYTE_MASK));
             if (crossed) ReadByte(address - 0x0100); // Dummy read
             return{ address, crossed };
         }
-        case IndexedIndirect: {
+        case IDX: {
             const Byte base = ReadByte(PC_1) + X;
             const Byte lo = base;
             const Byte hi = (base + Byte(1));
@@ -532,7 +130,7 @@ address_t Cpu::BuildAddress(const Addressing::Type & type) const {
             const Word addr = MakeWord(ReadByte(lo), ReadByte(hi));
             return { addr, false };
         }
-        case IndirectIndexed: {
+        case IDY: {
             const Word base = ReadByte(PC_1);
             const Word lo = ReadByte(base);
             const Word hi = ReadByte((base + 1) & WORD_LO_MASK);
@@ -541,18 +139,20 @@ address_t Cpu::BuildAddress(const Addressing::Type & type) const {
             if (crossed) ReadByte(addr - 0x0100); // Dummy read
             return { addr, crossed };
         }
-        case Indirect: {
+        case IND: {
             const Word base = ReadWordAt(PC_1);
             const Word lo = base;
             const Word hi = (base & WORD_HI_MASK) | ((base + 1) & WORD_LO_MASK);
             const Word addr = ReadByte(hi) << BYTE_WIDTH | ReadByte(lo);
             return { addr, false };
         }
-        case Implicit:
-        case Accumulator:
+        case IMP:
+        case ACC: {
             // Dummy fetch of the next opcode
             ReadByte(PC_1);
-        default: return { Word(-1), false };
+            return { static_cast<Word>(-1), false };
+        }
+        default: throw std::runtime_error("Unknown addressing mode");
     }
 }
 
@@ -573,18 +173,19 @@ void Cpu::Compare(const Byte lhs, const Byte rhs) {
     Z = (r == 0) ? 1 : 0;
     N = (IsBitSet<BYTE_SIGN_BIT>(r)) ? 1 : 0;
 }
-void Cpu::BranchIf(const bool condition, const Opcode & op) {
+
+void Cpu::BranchIf(bool condition, Byte offset) {
     const auto basePC = PC;
-    const auto M = ReadByte(BuildAddress(Immediate).Address - op.Bytes);
     if (condition) {
-        Word offset = Bit<Neg>(M) * WORD_HI_MASK | M;
-        PC = (PC + offset) & WORD_MASK;
+        Word wOffset = SignExtend(offset);
+        PC = (PC + wOffset) & WORD_MASK;
         Ticks += 1;
         if ((PC & WORD_HI_MASK) != (basePC & WORD_HI_MASK)) {
             Ticks += 1;
         }
     }
 }
+
 void Cpu::AddWithCarry(const Byte value) {
     Word a = A + value + C;
     C = (a > BYTE_MASK) ? 1 : 0;
@@ -634,17 +235,13 @@ void Cpu::PowerUp() {
 }
 
 void Cpu::Reset() {
-    if (USE_RP2A03) {
-        rp2a03.Reset();
-    }
-    else {
-        std::cout << "RST" << std::endl;
-        PendingInterrupt = InterruptType::None;
-        Interrupt(0, VectorRST, true);
-    }
+    std::cout << "RST" << std::endl;
+    PendingInterrupt = InterruptType::None;
+    Interrupt(0, VectorRST, true);
 }
 
 void Cpu::NMI() {
+    static int nmic{ 0 };
     std::cout << "NMI " << nmic++ << std::endl;
     PendingInterrupt = InterruptType::None;
     Interrupt(0, VectorNMI);
@@ -669,51 +266,26 @@ void Cpu::TriggerIRQ() {
 }
 
 void Cpu::DMA(Byte page, Byte* target, Byte offset) {
-    if (USE_RP2A03) {
-        Write2A03State(*this, rp2a03);
-        rp2a03.DMA(page, target, offset);
-        Read2A03State(rp2a03, *this);
+    const Word base = page << BYTE_WIDTH;
+    for (Word i = 0; i < 0x0100; ++i) {
+        target[LO(i + offset)] = ReadByte(base + i);
     }
-    else {
-        const Word base = page << BYTE_WIDTH;
-        for (Word i = 0; i < 0x0100; ++i) {
-            target[LO(i + offset)] = ReadByte(base + i);
-        }
-        Ticks += 513;
-        if (CurrentTick % 2 == 1) {
-            ++Ticks;
-        }
+    Ticks += 513;
+    if (CurrentTick % 2 == 1) {
+        ++Ticks;
     }
 }
 
-void Cpu::Execute(const Opcode &op) {
-    if (USE_RP2A03) {
-        Write2A03State(*this, rp2a03);
-
-        int hexa;
-        for (hexa = 0; hexa < 0x100; ++hexa) {
-            const auto ophexa = Decode(hexa);
-            if ((ophexa.Addressing == op.Addressing)
-                && (ophexa.Bytes == op.Bytes)
-                && (ophexa.Cycles == op.Cycles)
-                && (ophexa.Instruction == op.Instruction)) break;
-        }
-        WriteByte(PC, hexa);
-        do {
-            rp2a03.Phi1();
-            rp2a03.Phi2();
-        } while (!rp2a03.INSTR);
-        
-        Read2A03State(rp2a03, *this);
-        return;
-    }
+void Cpu::Execute(const Instruction &op) {
     if (IsStopped()) return;
 
-    const auto a = BuildAddress(op.Addressing);
+    const auto a = BuildAddress(op.Mode);
     Ticks += op.Cycles;
     PC += op.Bytes;
 
-    switch (op.Instruction) {
+    switch (op.Name) {
+    using enum InstructionSet_6502::OpName;
+    using enum InstructionSet_6502::AddressingMode;
     case BRK: Interrupt(1, VectorIRQ); break;
     case JMP: Jump(a.Address); break;
     case JSR: {
@@ -776,14 +348,14 @@ void Cpu::Execute(const Opcode &op) {
     case STA: WriteByte(a.Address, A); break;
     case STX: WriteByte(a.Address, X); break;
     case STY: WriteByte(a.Address, Y); break;
-    case BCC: BranchIf(C == 0, op); break;
-    case BCS: BranchIf(C == 1, op); break;
-    case BEQ: BranchIf(Z == 1, op); break;
-    case BMI: BranchIf(N == 1, op); break;
-    case BNE: BranchIf(Z == 0, op); break;
-    case BPL: BranchIf(N == 0, op); break;
-    case BVC: BranchIf(V == 0, op); break;
-    case BVS: BranchIf(V == 1, op); break;
+    case BCC: BranchIf(C == 0, ReadByte(a.Address)); break;
+    case BCS: BranchIf(C == 1, ReadByte(a.Address)); break;
+    case BEQ: BranchIf(Z == 1, ReadByte(a.Address)); break;
+    case BMI: BranchIf(N == 1, ReadByte(a.Address)); break;
+    case BNE: BranchIf(Z == 0, ReadByte(a.Address)); break;
+    case BPL: BranchIf(N == 0, ReadByte(a.Address)); break;
+    case BVC: BranchIf(V == 0, ReadByte(a.Address)); break;
+    case BVS: BranchIf(V == 1, ReadByte(a.Address)); break;
     case ADC: {
         const auto M = ReadByte(a.Address);
         AddWithCarry(M);
@@ -799,7 +371,7 @@ void Cpu::Execute(const Opcode &op) {
     }
     case ASL: {
         const auto address = a.Address;
-        if (op.Addressing == Accumulator) {
+        if (op.Mode == ACC) {
             C = Bit<Left>(A);
             Transfer(A << 1, A);
         }
@@ -813,7 +385,7 @@ void Cpu::Execute(const Opcode &op) {
     }
     case LSR: {
         const auto address = a.Address;
-        if (op.Addressing == Accumulator) {
+        if (op.Mode == ACC) {
             C = Bit<Right>(A);
             Transfer(A >> 1, A);
         }
@@ -827,7 +399,7 @@ void Cpu::Execute(const Opcode &op) {
     }
     case ROL: {
         const auto address = a.Address;
-        if (op.Addressing == Accumulator) {
+        if (op.Mode == ACC) {
             const auto c = Bit<Left>(A);
             Transfer((A << 1) | Mask<Right>(C), A);
             C = c;
@@ -843,7 +415,7 @@ void Cpu::Execute(const Opcode &op) {
     }
     case ROR: {
         const auto address = a.Address;
-        if (op.Addressing == Accumulator) {
+        if (op.Mode == ACC) {
             const auto c = Bit<Right>(A);
             Transfer((A >> 1) | Mask<Left>(C), A);
             C = c;
@@ -1039,17 +611,20 @@ void Cpu::Execute(const Opcode &op) {
 
     case NOP:
     case uNOP:
-    case uXAA:
-    case UNK:
-    default:
+    case uXAA: {
         if (a.HasCrossedPage) ++Ticks;
         break;
     }
+    default: throw std::runtime_error("unknown instruction name");
+    }
 }
 
-string Cpu::ToString() const {
-    ostringstream value;
-    value << "Cpu " << Name << endl
+std::string Cpu::ToString() const {
+    using std::hex, std::dec, std::boolalpha;
+    using std::setfill, std::setw;
+    using std::endl;
+    std::ostringstream value;
+    value << "Cpu " << Name << std::endl
           << "- Registers PC 0x" << hex << setfill('0') << setw(4) << PC << "(" << dec << PC << ")" << endl
           << "            SP 0x" << hex << setfill('0') << setw(2) << S << "(" << dec << S << ")" << endl
           << "             A 0x" << hex << setfill('0') << setw(2) << A << "(" << dec << A << ")" << endl
@@ -1065,7 +640,8 @@ string Cpu::ToString() const {
 }
 
 std::string Cpu::ToMiniString() const {
-    ostringstream value;
+    using std::hex, std::setfill, std::setw;
+    std::ostringstream value;
     const auto P = GetStatusByte(0);
     value << "Cpu " << Name
           << " " << CurrentTick << "@" << Ticks

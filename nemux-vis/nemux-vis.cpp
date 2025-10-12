@@ -7,6 +7,7 @@
 #include <sstream>
 #include <memory>
 #include <iterator>
+#include <utility>
 
 #include "SDL.h"
 
@@ -75,13 +76,14 @@ public:
     }
 
     void StepOneCpuInstruction() {
+        bool done{ false };
         do {
-            (void)cpu.Tick();
+            done = cpu.Tick();
             ppu.Tick();
             ppu.Tick();
             ppu.Tick();
             apu.Tick();
-        } while (cpu.CurrentTick < cpu.Ticks);
+        } while (!done);
     }
 };
 
@@ -128,35 +130,37 @@ namespace debug {
             "BCC", "BCS", "BEQ", "BMI", "BNE", "BPL", "BVC", "BVS", // Branch
             "CLC", "CLD", "CLI", "CLV", "SEC", "SED", "SEI",        // Status Change
             "BRK", "NOP", "RTI",                                    // System
-           "uSTP","uSLO","uNOP","uANC","uRLA","uSRE","uALR","uRRA","uARR", // Unofficial
-           "uSAX", "uXAA", "uAHX", "uTAS", "uSHY", "uSHX", "uLAX", "uLAS",
-           "uDCP", "uAXS", "uISC", "uSBC",
-           "UNK",
+             // Unofficial
+            "uSTP", "uSLO", "uNOP", "uANC", "uRLA", "uSRE", "uALR", "uRRA", "uARR",
+            "uSAX", "uXAA", "uAHX", "uTAS", "uSHY", "uSHX", "uLAX", "uLAS",
+            "uDCP", "uAXS", "uISC", "uSBC",
+            "UNK",
         };
 
         std::stringstream oss;
         const auto instruction = cpu.ReadByte(cpu.PC);
-        const auto opcode = cpu.Decode(instruction);
+        const auto opcode = InstructionSet_6502::Decode(instruction);
         const auto operandB = Word{ cpu.ReadByte(cpu.PC + 1) };
         const auto operandW = cpu.ReadWordAt(cpu.PC + 1);
-        const auto address = cpu.BuildAddress(opcode.Addressing);
+        const auto address = cpu.BuildAddress(opcode.Mode);
         oss << hex << setfill('0');
-        oss << names[opcode.Instruction];
-        switch (opcode.Addressing) {
-        case Addressing::Immediate: oss << " #$" << setw(2) << operandB; break;
-        case Addressing::ZeroPage:  oss << " $" << setw(2) << operandB; break;
-        case Addressing::ZeroPageX: oss << " $" << setw(2) << operandB << ",X"; break;
-        case Addressing::ZeroPageY: oss << " $" << setw(2) << operandB << ",Y"; break;
-        case Addressing::Relative:  oss << " *+" << setw(2) << operandB; break;
-        case Addressing::Absolute:  oss << " $" << setw(4) << operandW; break;
-        case Addressing::AbsoluteX: oss << " $" << setw(4) << operandW << ",X"; break;
-        case Addressing::AbsoluteY: oss << " $" << setw(4) << operandW << ",Y"; break;
-        case Addressing::Indirect:  oss << " ($" << setw(4) << operandW << ")"; break;
-        case Addressing::IndexedIndirect: oss << " ($" << setw(2) << operandB << ",X)"; break;
-        case Addressing::IndirectIndexed: oss << " ($" << setw(2) << operandB << "),Y"; break;
-        case Addressing::Implicit: break;
-        case Addressing::Accumulator: break;
-        case Addressing::Unknown: oss << " ????";
+        oss << names[std::to_underlying(opcode.Name)];
+        switch (opcode.Mode) {
+        using enum InstructionSet_6502::AddressingMode;
+        case IMM: oss << " #$" << setw(2) << operandB; break;
+        case ZPG:  oss << " $" << setw(2) << operandB; break;
+        case ZPX: oss << " $" << setw(2) << operandB << ",X"; break;
+        case ZPY: oss << " $" << setw(2) << operandB << ",Y"; break;
+        case REL:  oss << " *+" << setw(2) << operandB; break;
+        case ABS:  oss << " $" << setw(4) << operandW; break;
+        case ABX: oss << " $" << setw(4) << operandW << ",X"; break;
+        case ABY: oss << " $" << setw(4) << operandW << ",Y"; break;
+        case IND:  oss << " ($" << setw(4) << operandW << ")"; break;
+        case IDX: oss << " ($" << setw(2) << operandB << ",X)"; break;
+        case IDY: oss << " ($" << setw(2) << operandB << "),Y"; break;
+        case IMP: break;
+        case ACC: break;
+        default: oss << " ????";
         }
         return oss.str();
     }

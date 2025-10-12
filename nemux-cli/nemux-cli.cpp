@@ -219,11 +219,13 @@ int main(int argc, char ** argv) {
                     --step;
                     ++counter;
 
-                    (void)cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick();
-                    while (cpu.CurrentTick < cpu.Ticks) {
-                        (void)cpu.Tick(); ppu.Tick(); ppu.Tick(); ppu.Tick();
-                    }
-                    //}
+                    bool done{ false };
+                    do {
+                        done = cpu.Tick();
+                        ppu.Tick();
+                        ppu.Tick();
+                        ppu.Tick();
+                    } while (!done);
 
                     std::cout << dec << counter << " " << cpu.ToMiniString() << " ";
                     if (logfile.first) {

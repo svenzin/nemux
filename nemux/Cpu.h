@@ -1,84 +1,13 @@
-/*
- * Cpu.h
- *
- *  Created on: 10 Jun 2013
- *      Author: scorder
- */
+#pragma once
 
-#ifndef CPU_H_
-#define CPU_H_
-
-#include "Types.h"
-#include "MemoryMap.h"
-#include "Ricoh_RP2A03.h"
+#include "cpu/BaseCpu.h"
+#include "cpu/InstructionSet_6502.h"
 
 #include <string>
 #include <vector>
 
-static const auto OPCODES_COUNT = 0x0100;
-
-namespace Instructions {
-enum Name {
-    LDA, LDX, LDY, STA, STX, STY,           // Load, Store
-    TAX, TAY, TXA, TYA,                     // Register Transfer
-    TSX, TXS, PHA, PLA, PHP, PLP,           // Stack
-    AND, BIT, EOR, ORA,                     // Logical
-    ADC, SBC, CMP, CPX, CPY,                // Arithmetic
-    DEC, DEX, DEY, INC, INX, INY,           // Increment, Decrement
-    ASL, LSR, ROL, ROR,                     // Shift
-    JMP, JSR, RTS,                          // Jump, Call
-    BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS, // Branch
-    CLC, CLD, CLI, CLV, SEC, SED, SEI,      // Status Change
-    BRK, NOP, RTI,                          // System
-
-    // Unofficial instructions
-    uSTP, uSLO, uNOP, uANC, uRLA, uSRE, uALR, uRRA, uARR,
-    uSAX, uXAA, uAHX, uTAS, uSHY, uSHX, uLAX, uLAS,
-    uDCP, uAXS, uISC, uSBC,
-
-    UNK,
-};
-}
-
-typedef int Opsize;
-typedef int Optime;
-
-namespace Addressing {
-enum Type {
-    Implicit,
-    Accumulator,
-    Immediate,
-    ZeroPage,
-    ZeroPageX,
-    ZeroPageY,
-    Relative,
-    Absolute,
-    AbsoluteX,
-    AbsoluteY,
-    Indirect,
-    IndexedIndirect,
-    IndirectIndexed,
-
-    Unknown,
-};
-}
-
 enum class InterruptType {
     None, Irq, Nmi, Rst,
-};
-
-class Opcode {
-public:
-    explicit Opcode(const Instructions::Name &name, const Addressing::Type &addr,
-                    const Opsize &bytes, const Optime &cycles)
-        : Instruction(name), Addressing(addr), Bytes(bytes),
-          Cycles(cycles) {
-    }
-
-    Instructions::Name Instruction;
-    Addressing::Type Addressing;
-    Opsize Bytes;
-    Optime Cycles;
 };
 
 struct address_t {
@@ -87,17 +16,23 @@ struct address_t {
 };
 
 class Cpu : public BaseCpu {
-    // BaseCpu overrides
+protected:
+    size_t InterruptCycles{ 7 };
+    size_t CurrentTick;
+
 public:
+    // BaseCpu overrides
     void PowerUp() override;
     void Reset() override;
     [[nodiscard]] bool Tick() override;
     void DMA(Byte page, Byte* target, Byte offset) override;
 
-private:
-    Ricoh_RP2A03 rp2a03;
-
 public:
+    // TODO still needed for DMC DMA, find a way to remove it
+    using BaseCpu::Ticks;
+
+    using Instruction = InstructionSet_6502::Instruction;
+
     Word ReadWordAt(const Word address) const;
     void WriteWordAt(const Word address, const Word value);
 
@@ -105,15 +40,8 @@ public:
 
     std::string Name;
 
-    // TODO remove when tests have been migrated to using BaseCpu and CpuBaseTest
-    using BaseCpu::Ticks;
-    int InterruptCycles;
-
-    int CurrentTick;
-
-    Opcode Decode(const Byte &byte) const;
-    address_t BuildAddress(const Addressing::Type & type) const;
-    void Execute(const Opcode &op);//, const std::vector<Byte> &data);
+    address_t BuildAddress(InstructionSet_6502::AddressingMode mode) const;
+    void Execute(const Instruction &op);
 
     std::string ToString() const;
     std::string ToMiniString() const;
@@ -122,7 +50,7 @@ public:
     void Increment(Byte & value);
     void Compare(const Byte lhs, const Byte rhs);
     void Transfer(const Byte & from, Byte & to);
-    void BranchIf(const bool condition, const Opcode & op);
+    void BranchIf(bool condition, Byte offset);
     void AddWithCarry(const Byte value);
     void SubstractWithCarry(const Byte value);
 
@@ -136,8 +64,6 @@ public:
 
     void Interrupt(const Flag & isBRK, const Word & vector, const bool readOnly = false);
 
-    // void PowerUp();
-    // void Reset();
     void NMI();
     void IRQ();
 
@@ -147,11 +73,5 @@ public:
     void TriggerIRQ();
 
 private:
-//    std::vector<Instruction> m_opcodes;
-//    std::vector<Opsize> m_opsize;
-//    std::vector<Optime> m_optime;
-//    std::vector<Addressing> m_opaddr;
-    std::vector<Opcode> m_opcodes;
+    std::vector<Instruction> m_opcodes;
 };
-
-#endif /* CPU_H_ */
