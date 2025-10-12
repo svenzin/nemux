@@ -9,17 +9,17 @@ struct CpuTestArithmetic : public CpuBaseTest {
             bench.start();
             
             bench.set_target(m);
-            cpu.A = a;
-            cpu.C = c;
+            cpu->A = a;
+            cpu->C = c;
             ExecuteOne();
             
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(extra), cpu.Ticks);
-            EXPECT_EQ(expA, cpu.A);
-            EXPECT_EQ(expC, cpu.C);
-            EXPECT_EQ(expZ, cpu.Z);
-            EXPECT_EQ(expV, cpu.V);
-            EXPECT_EQ(expN, cpu.N);
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(extra), cpu->GetTicks());
+            EXPECT_EQ(expA, cpu->A);
+            EXPECT_EQ(expC, cpu->C);
+            EXPECT_EQ(expZ, cpu->Z);
+            EXPECT_EQ(expV, cpu->V);
+            EXPECT_EQ(expN, cpu->N);
         };
         
         (bench.*addressingMode)(ADC);
@@ -41,17 +41,17 @@ struct CpuTestArithmetic : public CpuBaseTest {
             bench.start();
 
             bench.set_target(m);
-            cpu.A = a;
-            cpu.C = c;
+            cpu->A = a;
+            cpu->C = c;
             ExecuteOne();
 
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(extra), cpu.Ticks);
-            EXPECT_EQ(expA, cpu.A);
-            EXPECT_EQ(expC, cpu.C);
-            EXPECT_EQ(expZ, cpu.Z);
-            EXPECT_EQ(expV, cpu.V);
-            EXPECT_EQ(expN, cpu.N);
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(extra), cpu->GetTicks());
+            EXPECT_EQ(expA, cpu->A);
+            EXPECT_EQ(expC, cpu->C);
+            EXPECT_EQ(expZ, cpu->Z);
+            EXPECT_EQ(expV, cpu->V);
+            EXPECT_EQ(expN, cpu->N);
         };
 
         (bench.*addressingMode)(SBC);
@@ -91,11 +91,11 @@ struct CpuTestArithmetic : public CpuBaseTest {
             bench.set_target(m);
             ExecuteOne();
 
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(extra), cpu.Ticks);
-            EXPECT_EQ(expC, cpu.C);
-            EXPECT_EQ(expZ, cpu.Z);
-            EXPECT_EQ(expN, cpu.N);
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(extra), cpu->GetTicks());
+            EXPECT_EQ(expC, cpu->C);
+            EXPECT_EQ(expZ, cpu->Z);
+            EXPECT_EQ(expN, cpu->N);
         };
 
         (bench.*addressingMode)(OP);
@@ -114,91 +114,91 @@ struct CpuTestArithmetic : public CpuBaseTest {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(CpuTestArithmetic, CPX_Immediate) {
-    Test_Compare<CPX>(cpu.X, &CpuTestBench::immediate, 0);
+    Test_Compare<CPX>(cpu->X, &CpuTestBench::immediate, 0);
 }
 
 TEST_F(CpuTestArithmetic, CPX_ZeroPage) {
-    Test_Compare<CPX>(cpu.X, &CpuTestBench::zeropage, 0);
+    Test_Compare<CPX>(cpu->X, &CpuTestBench::zeropage, 0);
 }
 
 TEST_F(CpuTestArithmetic, CPX_Absolute) {
-    Test_Compare<CPX>(cpu.X, &CpuTestBench::absolute, 0);
+    Test_Compare<CPX>(cpu->X, &CpuTestBench::absolute, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(CpuTestArithmetic, CPY_Immediate) {
-    Test_Compare<CPY>(cpu.Y, &CpuTestBench::immediate, 0);
+    Test_Compare<CPY>(cpu->Y, &CpuTestBench::immediate, 0);
 }
 
 TEST_F(CpuTestArithmetic, CPY_ZeroPage) {
-    Test_Compare<CPY>(cpu.Y, &CpuTestBench::zeropage, 0);
+    Test_Compare<CPY>(cpu->Y, &CpuTestBench::zeropage, 0);
 }
 
 TEST_F(CpuTestArithmetic, CPY_Absolute) {
-    Test_Compare<CPY>(cpu.Y, &CpuTestBench::absolute, 0);
+    Test_Compare<CPY>(cpu->Y, &CpuTestBench::absolute, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(CpuTestArithmetic, CMP_Immediate) {
-    Test_Compare<CMP>(cpu.A, &CpuTestBench::immediate, 0);
+    Test_Compare<CMP>(cpu->A, &CpuTestBench::immediate, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_ZeroPage) {
-    Test_Compare<CMP>(cpu.A, &CpuTestBench::zeropage, 0);
+    Test_Compare<CMP>(cpu->A, &CpuTestBench::zeropage, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_ZeroPageX) {
-    Test_Compare<CMP>(cpu.A, &CpuTestBench::zeropage_x, 0);
+    Test_Compare<CMP>(cpu->A, &CpuTestBench::zeropage_x, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_ZeroPageX_Wraparound) {
-    Test_Compare<CMP>(cpu.A, &CpuTestBench::zeropage_x_wraparound, 0);
+    Test_Compare<CMP>(cpu->A, &CpuTestBench::zeropage_x_wraparound, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_Absolute) {
-    Test_Compare<CMP>(cpu.A, &CpuTestBench::absolute, 0);
+    Test_Compare<CMP>(cpu->A, &CpuTestBench::absolute, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_AbsoluteX) {
-    Test_Compare<CMP>(cpu.A, &CpuTestBench::absolute_x, 0);
+    Test_Compare<CMP>(cpu->A, &CpuTestBench::absolute_x, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_AbsoluteX_CrossingPage) {
-    Test_Compare<CMP>(cpu.A, &CpuTestBench::absolute_x_crossing_page, 1);
+    Test_Compare<CMP>(cpu->A, &CpuTestBench::absolute_x_crossing_page, 1);
 }
 
 TEST_F(CpuTestArithmetic, CMP_AbsoluteY) {
-    Test_Compare<CMP>(cpu.A, &CpuTestBench::absolute_y, 0);
+    Test_Compare<CMP>(cpu->A, &CpuTestBench::absolute_y, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_AbsoluteY_CrossingPage) {
-    Test_Compare<CMP>(cpu.A, &CpuTestBench::absolute_y_crossing_page, 1);
+    Test_Compare<CMP>(cpu->A, &CpuTestBench::absolute_y_crossing_page, 1);
 }
 
 TEST_F(CpuTestArithmetic, CMP_IndexedIndirect) {
-    Test_Compare<CMP>(cpu.A, &CpuTestBench::indirect_x, 0);
+    Test_Compare<CMP>(cpu->A, &CpuTestBench::indirect_x, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_IndexedIndirect_Wraparound) {
-    Test_Compare<CMP>(cpu.A, &CpuTestBench::indirect_x_wraparound, 0);
+    Test_Compare<CMP>(cpu->A, &CpuTestBench::indirect_x_wraparound, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_IndirectIndexed) {
-    Test_Compare<CMP>(cpu.A, &CpuTestBench::indirect_y, 0);
+    Test_Compare<CMP>(cpu->A, &CpuTestBench::indirect_y, 0);
 }
 
 TEST_F(CpuTestArithmetic, CMP_IndirectIndexed_CrossingPage) {
-    Test_Compare<CMP>(cpu.A, &CpuTestBench::indirect_y_crossing_page, 1);
+    Test_Compare<CMP>(cpu->A, &CpuTestBench::indirect_y_crossing_page, 1);
 }
 
 TEST_F(CpuTestArithmetic, CMP_IndirectIndexed_CrossingWordsize) {
-    Test_Compare<CMP>(cpu.A, &CpuTestBench::indirect_y_crossing_word_size, 1);
+    Test_Compare<CMP>(cpu->A, &CpuTestBench::indirect_y_crossing_word_size, 1);
 }
 
 TEST_F(CpuTestArithmetic, CMP_IndirectIndexed_BaseFromZeroPage) {
-    Test_Compare<CMP>(cpu.A, &CpuTestBench::indirect_y_base_from_zeropage, 0);
+    Test_Compare<CMP>(cpu->A, &CpuTestBench::indirect_y_base_from_zeropage, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

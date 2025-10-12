@@ -25,14 +25,19 @@ public:
     std::function<Byte ()> get_target;
     std::function<void (Byte)> set_target;
 
-    CpuTestBench(BaseCpu* _cpu, MemoryMap* map)
-    : cpu{ _cpu }
-    , memory{ map }
+    CpuTestBench()
+    : cpu{}
+    , memory{}
     , target{}
     , get_target{}
     , set_target{}
     {
         origin(ORIGIN);
+    }
+
+    void initialize(MemoryMap* _memory, BaseCpu* _cpu) {
+        memory = _memory;
+        cpu = _cpu;
     }
 
     CpuTestBench& origin(Word address) {

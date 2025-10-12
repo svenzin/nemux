@@ -17,10 +17,10 @@ struct CpuTestBranch : public CpuBaseTest {
             flag = c;
             ExecuteOne();
 
-            EXPECT_EQ(expPC, cpu.PC);
+            EXPECT_EQ(expPC, cpu->PC);
             EXPECT_EQ(
                 bench.Ticks + bench.op.Cycles + extra + OFFSET_FROM_PREFETCH_NEXT,
-                cpu.GetTicks()
+                cpu->GetTicks()
             );
         };
 
@@ -35,33 +35,33 @@ struct CpuTestBranch : public CpuBaseTest {
 };
 
 TEST_F(CpuTestBranch, BCC) {
-    Test_Branch(cpu.C, 0, 1, BCC);
+    Test_Branch(cpu->C, 0, 1, BCC);
 }
 
 TEST_F(CpuTestBranch, BCS) {
-    Test_Branch(cpu.C, 1, 0, BCS);
+    Test_Branch(cpu->C, 1, 0, BCS);
 }
 
 TEST_F(CpuTestBranch, BEQ) {
-    Test_Branch(cpu.Z, 1, 0, BEQ);
+    Test_Branch(cpu->Z, 1, 0, BEQ);
 }
 
 TEST_F(CpuTestBranch, BMI) {
-    Test_Branch(cpu.N, 1, 0, BMI);
+    Test_Branch(cpu->N, 1, 0, BMI);
 }
 
 TEST_F(CpuTestBranch, BNE) {
-    Test_Branch(cpu.Z, 0, 1, BNE);
+    Test_Branch(cpu->Z, 0, 1, BNE);
 }
 
 TEST_F(CpuTestBranch, BPL) {
-    Test_Branch(cpu.N, 0, 1, BPL);
+    Test_Branch(cpu->N, 0, 1, BPL);
 }
 
 TEST_F(CpuTestBranch, BVC) {
-    Test_Branch(cpu.V, 0, 1, BVC);
+    Test_Branch(cpu->V, 0, 1, BVC);
 }
 
 TEST_F(CpuTestBranch, BVS) {
-    Test_Branch(cpu.V, 1, 0, BVS);
+    Test_Branch(cpu->V, 1, 0, BVS);
 }

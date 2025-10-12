@@ -13,11 +13,11 @@ struct CpuTestStack : public CpuBaseTest {
             from = value;
             ExecuteOne();
 
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(0), cpu.GetTicks());
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
             EXPECT_EQ(value, to);
-            EXPECT_EQ(expZ, cpu.Z);
-            EXPECT_EQ(expN, cpu.N);
+            EXPECT_EQ(expZ, cpu->Z);
+            EXPECT_EQ(expN, cpu->N);
         };
 
         bench.implicit(OP);
@@ -28,49 +28,49 @@ struct CpuTestStack : public CpuBaseTest {
 };
 
 TEST_F(CpuTestStack, TSX) {
-    Test_Transfer<TSX>(cpu.S, cpu.X );
+    Test_Transfer<TSX>(cpu->S, cpu->X );
 }
 
 TEST_F(CpuTestStack, TXS) {
     // TXS does not change the flags
-    auto flags{ cpu.GetStatusByte(0) };
+    auto flags{ cpu->GetStatusByte(0) };
     bench.implicit(TXS).start();
-    cpu.X = 0x20;
+    cpu->X = 0x20;
     ExecuteOne();
 
-    EXPECT_EQ(bench.expected_PC(), cpu.PC);
-    EXPECT_EQ(bench.expected_ticks(0), cpu.GetTicks());
-    EXPECT_EQ(0x20, cpu.S);
-    EXPECT_EQ(flags, cpu.GetStatusByte(0));
+    EXPECT_EQ(bench.expected_PC(), cpu->PC);
+    EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+    EXPECT_EQ(0x20, cpu->S);
+    EXPECT_EQ(flags, cpu->GetStatusByte(0));
 }
 
 TEST_F(CpuTestStack, PHA) {
     bench.implicit(PHA).start();
-    cpu.A = 0x20;
-    cpu.S = 0xF0;
+    cpu->A = 0x20;
+    cpu->S = 0xF0;
     ExecuteOne();
 
-    EXPECT_EQ(bench.expected_PC(), cpu.PC);
-    EXPECT_EQ(bench.expected_ticks(0), cpu.GetTicks());
-    EXPECT_EQ(0xEF, cpu.S);
-    EXPECT_EQ(0xEF, cpu.S);
-    EXPECT_EQ(0x20, memory.GetByteAt(0x01F0));
+    EXPECT_EQ(bench.expected_PC(), cpu->PC);
+    EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+    EXPECT_EQ(0xEF, cpu->S);
+    EXPECT_EQ(0xEF, cpu->S);
+    EXPECT_EQ(0x20, memory->GetByteAt(0x01F0));
 }
 
 TEST_F(CpuTestStack, PLA) {
     auto tester = [&] (Byte m, Flag expZ, Flag expN) {
         bench.start();
 
-        cpu.S = 0xEF;
-        memory.SetByteAt(0x01F0, m);
+        cpu->S = 0xEF;
+        memory->SetByteAt(0x01F0, m);
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.GetTicks());
-        EXPECT_EQ(m, cpu.A);
-        EXPECT_EQ(0xF0, cpu.S);
-        EXPECT_EQ(expZ, cpu.Z);
-        EXPECT_EQ(expN, cpu.N);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+        EXPECT_EQ(m, cpu->A);
+        EXPECT_EQ(0xF0, cpu->S);
+        EXPECT_EQ(expZ, cpu->Z);
+        EXPECT_EQ(expN, cpu->N);
     };
 
     bench.implicit(PLA);
@@ -83,19 +83,19 @@ TEST_F(CpuTestStack, PLP) {
     auto tester = [&] (Byte m, Flag expN, Flag expV, Flag expD, Flag expI, Flag expZ, Flag expC) {
         bench.start();
 
-        cpu.S = 0xEF;
-        memory.SetByteAt(0x01F0, m);
+        cpu->S = 0xEF;
+        memory->SetByteAt(0x01F0, m);
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.GetTicks());
-        EXPECT_EQ(0xF0, cpu.S);
-        EXPECT_EQ(expN, cpu.N);
-        EXPECT_EQ(expV, cpu.V);
-        EXPECT_EQ(expD, cpu.D);
-        EXPECT_EQ(expI, cpu.I);
-        EXPECT_EQ(expZ, cpu.Z);
-        EXPECT_EQ(expC, cpu.C);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+        EXPECT_EQ(0xF0, cpu->S);
+        EXPECT_EQ(expN, cpu->N);
+        EXPECT_EQ(expV, cpu->V);
+        EXPECT_EQ(expD, cpu->D);
+        EXPECT_EQ(expI, cpu->I);
+        EXPECT_EQ(expZ, cpu->Z);
+        EXPECT_EQ(expC, cpu->C);
     };
 
     bench.implicit(PLP);
@@ -107,21 +107,21 @@ TEST_F(CpuTestStack, PHP) {
     auto tester = [&] (Flag n, Flag v, Flag d, Flag i, Flag z, Flag c) {
         bench.start();
 
-        cpu.N = n;
-        cpu.V = v;
-        cpu.D = d;
-        cpu.I = i;
-        cpu.Z = z;
-        cpu.C = c;
-        cpu.S = 0xF0;
+        cpu->N = n;
+        cpu->V = v;
+        cpu->D = d;
+        cpu->I = i;
+        cpu->Z = z;
+        cpu->C = c;
+        cpu->S = 0xF0;
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.GetTicks());
-        EXPECT_EQ(0xEF, cpu.S);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+        EXPECT_EQ(0xEF, cpu->S);
 
         // PHP pushes Status byte with B flag and Unused bit set
-        auto status{ memory.GetByteAt(0x01F0) };
+        auto status{ memory->GetByteAt(0x01F0) };
         EXPECT_EQ(1, Bit<Brk>(status));
         EXPECT_EQ(1, Bit<Unu>(status));
         EXPECT_EQ(n, Bit<Neg>(status));

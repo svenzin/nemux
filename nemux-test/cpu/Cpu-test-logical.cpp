@@ -8,14 +8,14 @@ struct CpuTestLogical : public CpuBaseTest {
         bench.start();
 
         bench.set_target(m);
-        cpu.A = a;
+        cpu->A = a;
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(extra), cpu.Ticks);
-        EXPECT_EQ(expA, cpu.A);
-        EXPECT_EQ(expZ, cpu.Z);
-        EXPECT_EQ(expN, cpu.N);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(extra), cpu->GetTicks());
+        EXPECT_EQ(expA, cpu->A);
+        EXPECT_EQ(expZ, cpu->Z);
+        EXPECT_EQ(expN, cpu->N);
     }
 
     void Test_AND(CpuTestBench::addressing_mode_setup addressingMode, int extra) {
@@ -237,14 +237,14 @@ TEST_F(CpuTestLogical, BIT_ZeroPage) {
                 .at(m).db(m)
                 .start();
             
-            cpu.A = a;
+            cpu->A = a;
             ExecuteOne();
 
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
-            EXPECT_EQ((m & a   ) == 0 ? 1 : 0, cpu.Z);
-            EXPECT_EQ((m & 0x40) == 0 ? 0 : 1, cpu.V);
-            EXPECT_EQ((m & 0x80) == 0 ? 0 : 1, cpu.N);
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+            EXPECT_EQ((m & a   ) == 0 ? 1 : 0, cpu->Z);
+            EXPECT_EQ((m & 0x40) == 0 ? 0 : 1, cpu->V);
+            EXPECT_EQ((m & 0x80) == 0 ? 0 : 1, cpu->N);
         }
     }
 }
@@ -258,14 +258,14 @@ TEST_F(CpuTestLogical, BIT_Absolute) {
                 .at(0x0100 + m).db(m)
                 .start();
             
-            cpu.A = a;
+            cpu->A = a;
             ExecuteOne();
 
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
-            EXPECT_EQ((m & a   ) == 0 ? 1 : 0, cpu.Z);
-            EXPECT_EQ((m & 0x40) == 0 ? 0 : 1, cpu.V);
-            EXPECT_EQ((m & 0x80) == 0 ? 0 : 1, cpu.N);
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+            EXPECT_EQ((m & a   ) == 0 ? 1 : 0, cpu->Z);
+            EXPECT_EQ((m & 0x40) == 0 ? 0 : 1, cpu->V);
+            EXPECT_EQ((m & 0x80) == 0 ? 0 : 1, cpu->N);
         }
     }
 }

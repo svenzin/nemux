@@ -11,12 +11,12 @@ struct CpuTestShift : public CpuBaseTest {
             bench.set_target(m);
             ExecuteOne();
 
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
             EXPECT_EQ(expM, bench.get_target());
-            EXPECT_EQ(expC, cpu.C);
-            EXPECT_EQ(expZ, cpu.Z);
-            EXPECT_EQ(expN, cpu.N);
+            EXPECT_EQ(expC, cpu->C);
+            EXPECT_EQ(expZ, cpu->Z);
+            EXPECT_EQ(expN, cpu->N);
         };
 
         (bench.*addressingMode)(ASL);
@@ -36,11 +36,11 @@ struct CpuTestShift : public CpuBaseTest {
             bench.set_target(m);
             ExecuteOne();
 
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
             EXPECT_EQ(expM, bench.get_target());
-            EXPECT_EQ(expC, cpu.C);
-            EXPECT_EQ(expZ, cpu.Z);
+            EXPECT_EQ(expC, cpu->C);
+            EXPECT_EQ(expZ, cpu->Z);
         };
 
         (bench.*addressingMode)(LSR);
@@ -53,15 +53,15 @@ struct CpuTestShift : public CpuBaseTest {
         bench.start();
         
         bench.set_target(m);
-        cpu.C = c;
+        cpu->C = c;
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
         EXPECT_EQ(expM, bench.get_target());
-        EXPECT_EQ(expC, cpu.C);
-        EXPECT_EQ(expZ, cpu.Z);
-        EXPECT_EQ(expN, cpu.N);
+        EXPECT_EQ(expC, cpu->C);
+        EXPECT_EQ(expZ, cpu->Z);
+        EXPECT_EQ(expN, cpu->N);
     };
 
     void Test_ROL(CpuTestBench::addressing_mode_setup addressingMode) {

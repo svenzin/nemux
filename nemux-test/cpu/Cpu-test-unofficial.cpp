@@ -9,16 +9,16 @@ struct CpuTestUnofficial : public CpuBaseTest {
             bench.start();
 
             bench.set_target(m);
-            cpu.A = a;
+            cpu->A = a;
             ExecuteOne();
 
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
             EXPECT_EQ(expM, bench.get_target());
-            EXPECT_EQ(expA, cpu.A);
-            EXPECT_EQ(expN, cpu.N);
-            EXPECT_EQ(expZ, cpu.Z);
-            EXPECT_EQ(expC, cpu.C);
+            EXPECT_EQ(expA, cpu->A);
+            EXPECT_EQ(expN, cpu->N);
+            EXPECT_EQ(expZ, cpu->Z);
+            EXPECT_EQ(expC, cpu->C);
         };
 
         (bench.*addressingMode)(uSLO);
@@ -33,17 +33,17 @@ struct CpuTestUnofficial : public CpuBaseTest {
             bench.start();
 
             bench.set_target(m);
-            cpu.A = a;
-            cpu.C = c;
+            cpu->A = a;
+            cpu->C = c;
             ExecuteOne();
 
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
             EXPECT_EQ(expM, bench.get_target());
-            EXPECT_EQ(expA, cpu.A);
-            EXPECT_EQ(expN, cpu.N);
-            EXPECT_EQ(expZ, cpu.Z);
-            EXPECT_EQ(expC, cpu.C);
+            EXPECT_EQ(expA, cpu->A);
+            EXPECT_EQ(expN, cpu->N);
+            EXPECT_EQ(expZ, cpu->Z);
+            EXPECT_EQ(expC, cpu->C);
         };
 
         (bench.*addressingMode)(uRLA);
@@ -60,16 +60,16 @@ struct CpuTestUnofficial : public CpuBaseTest {
             bench.start();
 
             bench.set_target(m);
-            cpu.A = a;
+            cpu->A = a;
             ExecuteOne();
 
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
             EXPECT_EQ(expM, bench.get_target());
-            EXPECT_EQ(expA, cpu.A);
-            EXPECT_EQ(expN, cpu.N);
-            EXPECT_EQ(expZ, cpu.Z);
-            EXPECT_EQ(expC, cpu.C);
+            EXPECT_EQ(expA, cpu->A);
+            EXPECT_EQ(expN, cpu->N);
+            EXPECT_EQ(expZ, cpu->Z);
+            EXPECT_EQ(expC, cpu->C);
         };
 
         (bench.*addressingMode)(uSRE);
@@ -85,17 +85,17 @@ struct CpuTestUnofficial : public CpuBaseTest {
             bench.start();
 
             bench.set_target(m);
-            cpu.A = a;
-            cpu.C = c;
+            cpu->A = a;
+            cpu->C = c;
             ExecuteOne();
 
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
             EXPECT_EQ(expM, bench.get_target());
-            EXPECT_EQ(expA, cpu.A);
-            EXPECT_EQ(expN, cpu.N);
-            EXPECT_EQ(expZ, cpu.Z);
-            EXPECT_EQ(expC, cpu.C);
+            EXPECT_EQ(expA, cpu->A);
+            EXPECT_EQ(expN, cpu->N);
+            EXPECT_EQ(expZ, cpu->Z);
+            EXPECT_EQ(expC, cpu->C);
         };
 
         (bench.*addressingMode)(uRRA);
@@ -120,18 +120,18 @@ struct CpuTestUnofficial : public CpuBaseTest {
     }
 
     void Test_SAX(CpuTestBench::addressing_mode_setup addressingMode, bool xIsSet) {
-        // SAX can be called with IndexedIndirect addressing where cpu.X is already set
+        // SAX can be called with IndexedIndirect addressing where cpu->X is already set
         (bench.*addressingMode)(uSAX)
             .start();
         
-        cpu.A = 0x3F;
-        if (!xIsSet) cpu.X = 0xF5;
-        const auto expM{ static_cast<Byte>(cpu.A & cpu.X) };
+        cpu->A = 0x3F;
+        if (!xIsSet) cpu->X = 0xF5;
+        const auto expM{ static_cast<Byte>(cpu->A & cpu->X) };
 
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
         EXPECT_EQ(expM, bench.get_target());
     }
 
@@ -139,15 +139,15 @@ struct CpuTestUnofficial : public CpuBaseTest {
         (bench.*addressingMode)(uAHX)
             .start();
 
-        cpu.A = 0x3F;
-        cpu.X = 0xF5;
+        cpu->A = 0x3F;
+        cpu->X = 0xF5;
         const Byte H{ HI(bench.target.value()) };
-        const auto expM{ static_cast<Byte>(cpu.A & cpu.X & H) };
+        const auto expM{ static_cast<Byte>(cpu->A & cpu->X & H) };
 
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
         EXPECT_EQ(expM, bench.get_target());
     }
 
@@ -155,17 +155,17 @@ struct CpuTestUnofficial : public CpuBaseTest {
         (bench.*addressingMode)(uTAS)
             .start();
 
-        cpu.A = 0x3F;
-        cpu.X = 0xF5;
+        cpu->A = 0x3F;
+        cpu->X = 0xF5;
         const Byte H{ HI(bench.target.value()) };
-        const auto expS{ static_cast<Byte>(cpu.A & cpu.X) };
-        const auto expM{ static_cast<Byte>(cpu.A & cpu.X & H) };
+        const auto expS{ static_cast<Byte>(cpu->A & cpu->X) };
+        const auto expM{ static_cast<Byte>(cpu->A & cpu->X & H) };
 
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
-        EXPECT_EQ(expS, cpu.S);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+        EXPECT_EQ(expS, cpu->S);
         EXPECT_EQ(expM, bench.get_target());
     }
 
@@ -174,23 +174,23 @@ struct CpuTestUnofficial : public CpuBaseTest {
 
         const Word address{ bench.target.value() };
 
-        cpu.Y = 0xF5;
+        cpu->Y = 0xF5;
         const Byte H{ HI(address) };
-        const auto expM{ static_cast<Byte>(cpu.Y & (H + 1)) };
+        const auto expM{ static_cast<Byte>(cpu->Y & (H + 1)) };
 
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
 
-        const bool CrossedPage = (H != HI(address + cpu.X));
+        const bool CrossedPage = (H != HI(address + cpu->X));
         if (CrossedPage) {
             // In case the resulting addres crosses a page
             // The bahviour is corrupted
             // See http://forums.nesdev.com/viewtopic.php?f=3&t=3831&start=30
-            auto hi{ static_cast<Byte>(cpu.Y & (H + 1)) };
+            auto hi{ static_cast<Byte>(cpu->Y & (H + 1)) };
             auto addr{ MakeWord(LO(address), hi) };
-            EXPECT_EQ(expM, memory.GetByteAt(addr));
+            EXPECT_EQ(expM, memory->GetByteAt(addr));
         }
         else {
             EXPECT_EQ(expM, bench.get_target());
@@ -202,23 +202,23 @@ struct CpuTestUnofficial : public CpuBaseTest {
 
         const Word address{ bench.target.value() };
 
-        cpu.X = 0xF5;
+        cpu->X = 0xF5;
         const Byte H{ HI(address) };
-        const auto expM{ static_cast<Byte>(cpu.X & (H + 1)) };
+        const auto expM{ static_cast<Byte>(cpu->X & (H + 1)) };
 
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
 
-        const bool CrossedPage = (H != HI(address + cpu.Y));
+        const bool CrossedPage = (H != HI(address + cpu->Y));
         if (CrossedPage) {
             // In case the resulting addres crosses a page
             // The bahviour is corrupted
             // See http://forums.nesdev.com/viewtopic.php?f=3&t=3831&start=30
-            auto hi{ static_cast<Byte>(cpu.X & (H + 1)) };
+            auto hi{ static_cast<Byte>(cpu->X & (H + 1)) };
             auto addr{ MakeWord(LO(address), hi) };
-            EXPECT_EQ(expM, memory.GetByteAt(addr));
+            EXPECT_EQ(expM, memory->GetByteAt(addr));
         }
         else {
             EXPECT_EQ(expM, bench.get_target());
@@ -232,20 +232,20 @@ struct CpuTestUnofficial : public CpuBaseTest {
             bench.set_target(m);
             ExecuteOne();
             
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(extra), cpu.Ticks);
-            EXPECT_EQ(m, cpu.A);
-            EXPECT_EQ(m, cpu.X);
-            EXPECT_EQ(expN, cpu.N);
-            EXPECT_EQ(expZ, cpu.Z);
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(extra), cpu->GetTicks());
+            EXPECT_EQ(m, cpu->A);
+            EXPECT_EQ(m, cpu->X);
+            EXPECT_EQ(expN, cpu->N);
+            EXPECT_EQ(expZ, cpu->Z);
         };
         
         (bench.*addressingMode)(uLAX);
-        const auto x = cpu.X;
+        const auto x = cpu->X;
         tester(0x10, 0, 0);
-        cpu.X = x;
+        cpu->X = x;
         tester(0x00, 0, 1);
-        cpu.X = x;
+        cpu->X = x;
         tester(0x80, 1, 0);
     }
 
@@ -254,16 +254,16 @@ struct CpuTestUnofficial : public CpuBaseTest {
             bench.start();
 
             bench.set_target(m);
-            cpu.S = s;
+            cpu->S = s;
             ExecuteOne();
 
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(extra), cpu.Ticks);
-            EXPECT_EQ(expAXS, cpu.A);
-            EXPECT_EQ(expAXS, cpu.X);
-            EXPECT_EQ(expAXS, cpu.S);
-            EXPECT_EQ(expN, cpu.N);
-            EXPECT_EQ(expZ, cpu.Z);
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(extra), cpu->GetTicks());
+            EXPECT_EQ(expAXS, cpu->A);
+            EXPECT_EQ(expAXS, cpu->X);
+            EXPECT_EQ(expAXS, cpu->S);
+            EXPECT_EQ(expN, cpu->N);
+            EXPECT_EQ(expZ, cpu->Z);
         };
 
         (bench.*addressingMode)(uLAS);
@@ -277,15 +277,15 @@ struct CpuTestUnofficial : public CpuBaseTest {
             bench.start();
             
             bench.set_target(m);
-            cpu.A = a;
+            cpu->A = a;
             ExecuteOne();
             
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
             EXPECT_EQ(expM, bench.get_target());
-            EXPECT_EQ(expN, cpu.N);
-            EXPECT_EQ(expZ, cpu.Z);
-            EXPECT_EQ(expC, cpu.C);
+            EXPECT_EQ(expN, cpu->N);
+            EXPECT_EQ(expZ, cpu->Z);
+            EXPECT_EQ(expC, cpu->C);
         };
 
         (bench.*addressingMode)(uDCP);
@@ -306,18 +306,18 @@ struct CpuTestUnofficial : public CpuBaseTest {
             bench.start();
             
             bench.set_target(m);
-            cpu.A = a;
-            cpu.C = c;
+            cpu->A = a;
+            cpu->C = c;
             ExecuteOne();
             
-            EXPECT_EQ(bench.expected_PC(), cpu.PC);
-            EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+            EXPECT_EQ(bench.expected_PC(), cpu->PC);
+            EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
             EXPECT_EQ(expM, bench.get_target());
-            EXPECT_EQ(expA, cpu.A);
-            EXPECT_EQ(expC, cpu.C);
-            EXPECT_EQ(expZ, cpu.Z);
-            EXPECT_EQ(expV, cpu.V);
-            EXPECT_EQ(expN, cpu.N);
+            EXPECT_EQ(expA, cpu->A);
+            EXPECT_EQ(expC, cpu->C);
+            EXPECT_EQ(expZ, cpu->Z);
+            EXPECT_EQ(expV, cpu->V);
+            EXPECT_EQ(expN, cpu->N);
         };
 
         (bench.*addressingMode)(uISC);
@@ -354,8 +354,8 @@ struct CpuTestUnofficial : public CpuBaseTest {
 TEST_F(CpuTestUnofficial, uNOP) {
     bench.implicit(uNOP).start();
     ExecuteOne();
-    EXPECT_EQ(bench.expected_PC(), cpu.PC);
-    EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+    EXPECT_EQ(bench.expected_PC(), cpu->PC);
+    EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -364,14 +364,14 @@ TEST_F(CpuTestUnofficial, uSTP) {
     bench.implicit(uSTP).start();
     ExecuteOne();
     
-    const auto stopPC{ cpu.PC };
-    EXPECT_TRUE(cpu.IsStopped());
+    const auto stopPC{ cpu->PC };
+    EXPECT_TRUE(cpu->IsStopped());
 
     // Check that the CPU is dead
     bench.implicit(NOP);//.start();
     ExecuteOne();
-    EXPECT_EQ(stopPC, cpu.PC);
-    EXPECT_TRUE(cpu.IsStopped());
+    EXPECT_EQ(stopPC, cpu->PC);
+    EXPECT_TRUE(cpu->IsStopped());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -439,15 +439,15 @@ TEST_F(CpuTestUnofficial, uANC_Immediate) {
         bench.start();
 
         bench.set_target(m);
-        cpu.A = a;
+        cpu->A = a;
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
-        EXPECT_EQ(expA, cpu.A);
-        EXPECT_EQ(expZ, cpu.Z);
-        EXPECT_EQ(expN, cpu.N);
-        EXPECT_EQ(expC, cpu.C);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+        EXPECT_EQ(expA, cpu->A);
+        EXPECT_EQ(expZ, cpu->Z);
+        EXPECT_EQ(expN, cpu->N);
+        EXPECT_EQ(expC, cpu->C);
     };
 
     bench.immediate(uANC);
@@ -579,14 +579,14 @@ TEST_F(CpuTestUnofficial, uALR_Immediate) {
         bench.start();
 
         bench.set_target(m);
-        cpu.A = a;
+        cpu->A = a;
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
-        EXPECT_EQ(expA, cpu.A);
-        EXPECT_EQ(expZ, cpu.Z);
-        EXPECT_EQ(expC, cpu.C);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+        EXPECT_EQ(expA, cpu->A);
+        EXPECT_EQ(expZ, cpu->Z);
+        EXPECT_EQ(expC, cpu->C);
     };
 
     bench.immediate(uALR);
@@ -661,17 +661,17 @@ TEST_F(CpuTestUnofficial, uARR_Immediate) {
         bench.start();
 
         bench.set_target(m);
-        cpu.A = a;
-        cpu.C = c;
+        cpu->A = a;
+        cpu->C = c;
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
-        EXPECT_EQ(expA, cpu.A);
-        EXPECT_EQ(expN, cpu.N);
-        EXPECT_EQ(expV, cpu.V);
-        EXPECT_EQ(expZ, cpu.Z);
-        EXPECT_EQ(expC, cpu.C);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+        EXPECT_EQ(expA, cpu->A);
+        EXPECT_EQ(expN, cpu->N);
+        EXPECT_EQ(expV, cpu->V);
+        EXPECT_EQ(expZ, cpu->Z);
+        EXPECT_EQ(expC, cpu->C);
     };
     
     bench.immediate(uARR);
@@ -903,16 +903,16 @@ TEST_F(CpuTestUnofficial, uAXS_Immediate) {
         bench.start();
 
         bench.set_target(m);
-        cpu.A = a;
-        cpu.X = x;
+        cpu->A = a;
+        cpu->X = x;
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
-        EXPECT_EQ(expX, cpu.X);
-        EXPECT_EQ(expN, cpu.N);
-        EXPECT_EQ(expZ, cpu.Z);
-        EXPECT_EQ(expC, cpu.C);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+        EXPECT_EQ(expX, cpu->X);
+        EXPECT_EQ(expN, cpu->N);
+        EXPECT_EQ(expZ, cpu->Z);
+        EXPECT_EQ(expC, cpu->C);
     };
 
     bench.immediate(uAXS);
@@ -997,17 +997,17 @@ TEST_F(CpuTestUnofficial, uSBC_Immediate) {
         bench.start();
 
         bench.set_target(m);
-        cpu.A = a;
-        cpu.C = c;
+        cpu->A = a;
+        cpu->C = c;
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
-        EXPECT_EQ(expA, cpu.A);
-        EXPECT_EQ(expC, cpu.C);
-        EXPECT_EQ(expZ, cpu.Z);
-        EXPECT_EQ(expV, cpu.V);
-        EXPECT_EQ(expN, cpu.N);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+        EXPECT_EQ(expA, cpu->A);
+        EXPECT_EQ(expC, cpu->C);
+        EXPECT_EQ(expZ, cpu->Z);
+        EXPECT_EQ(expV, cpu->V);
+        EXPECT_EQ(expN, cpu->N);
     };
 
     bench.immediate(uSBC);

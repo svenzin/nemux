@@ -10,36 +10,36 @@ struct CpuTestStatusChange : public CpuBaseTest {
         bench.encode(OP, IMP).start();
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
         EXPECT_EQ(expected, f);
     }
 };
 
 TEST_F(CpuTestStatusChange, CLC) {
-    TesterFlag<CLC>(cpu.C, 1, 0);
+    TesterFlag<CLC>(cpu->C, 1, 0);
 }
 
 TEST_F(CpuTestStatusChange, CLD) {
-    TesterFlag<CLD>(cpu.D, 1, 0);
+    TesterFlag<CLD>(cpu->D, 1, 0);
 }
 
 TEST_F(CpuTestStatusChange, CLI) {
-    TesterFlag<CLI>(cpu.I, 1, 0);
+    TesterFlag<CLI>(cpu->I, 1, 0);
 }
 
 TEST_F(CpuTestStatusChange, CLV) {
-    TesterFlag<CLV>(cpu.V, 1, 0);
+    TesterFlag<CLV>(cpu->V, 1, 0);
 }
 
 TEST_F(CpuTestStatusChange, SEC) {
-    TesterFlag<SEC>(cpu.C, 0, 1);
+    TesterFlag<SEC>(cpu->C, 0, 1);
 }
 
 TEST_F(CpuTestStatusChange, SED) {
-    TesterFlag<SED>(cpu.D, 0, 1);
+    TesterFlag<SED>(cpu->D, 0, 1);
 }
 
 TEST_F(CpuTestStatusChange, SEI) {
-    TesterFlag<SEI>(cpu.I, 0, 1);
+    TesterFlag<SEI>(cpu->I, 0, 1);
 }

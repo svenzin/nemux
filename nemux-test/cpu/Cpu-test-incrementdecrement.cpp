@@ -10,11 +10,11 @@ struct CpuTestIncrementDecrement : public CpuBaseTest {
         bench.set_target(m);
         ExecuteOne();
 
-        EXPECT_EQ(bench.expected_PC(), cpu.PC);
-        EXPECT_EQ(bench.expected_ticks(0), cpu.Ticks);
+        EXPECT_EQ(bench.expected_PC(), cpu->PC);
+        EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
         EXPECT_EQ(expM, bench.get_target());
-        EXPECT_EQ(expZ, cpu.Z);
-        EXPECT_EQ(expN, cpu.N);
+        EXPECT_EQ(expZ, cpu->Z);
+        EXPECT_EQ(expN, cpu->N);
     };
 
     template <InstructionSet_6502::OpName OP>
@@ -60,13 +60,13 @@ TEST_F(CpuTestIncrementDecrement, DEC_AbsoluteX) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(CpuTestIncrementDecrement, DEX) {
-    Test_DEC<DEX>(bench.implicit_target(cpu.X));
+    Test_DEC<DEX>(bench.implicit_target(cpu->X));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(CpuTestIncrementDecrement, DEY) {
-    Test_DEC<DEY>(bench.implicit_target(cpu.Y));
+    Test_DEC<DEY>(bench.implicit_target(cpu->Y));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -94,11 +94,11 @@ TEST_F(CpuTestIncrementDecrement, INC_AbsoluteX) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(CpuTestIncrementDecrement, INX) {
-    Test_INC<INX>(bench.implicit_target(cpu.X));
+    Test_INC<INX>(bench.implicit_target(cpu->X));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(CpuTestIncrementDecrement, INY) {
-    Test_INC<INY>(bench.implicit_target(cpu.Y));
+    Test_INC<INY>(bench.implicit_target(cpu->Y));
 }
