@@ -45,7 +45,7 @@ struct ApuTest : public ::testing::Test {
     DMCOutput<Cpu> output;
 
     ApuTest() :
-        cpu(""),
+        cpu("", nullptr),
         cpumap(&cpu, &apu, &ppu, &mapper, &ctrl)
     {
         cpu.Map = &cpumap;

@@ -1,37 +1,50 @@
 #include "Cpu.h"
 
+
 #include "BitUtil.h"
-#include "Ppu.h"
 #include "Controllers.h"
+#include "Ppu.h"
 
 #include <iomanip>
-#include <sstream>
 #include <iostream>
+#include <sstream>
 
-Word Cpu::ReadWordAt(const Word address) const {
+
+////////////////////////////////////////////////////////////////////////////////
+
+Word Cpu::ReadWordAt(Word address) const {
     const auto lo{ ReadByte(address) };
     const auto hi{ ReadByte(address + 1) };
     return MakeWord(lo, hi);
 }
 
-void Cpu::WriteWordAt(const Word address, const Word value) {
+void Cpu::WriteWordAt(Word address, Word value) {
     WriteByte(address, LO(value));
     WriteByte(address + 1, HI(value));
 }
 
-/* explicit */ Cpu::Cpu(std::string name, MemoryMap * map)
-    : Name{name}
-    , InterruptCycles{7}
+void Cpu::PushWord(Word value) {
+    Push(HI(value));
+    Push(LO(value));
+}
+
+Word Cpu::PullWord() {
+    const auto lo{ Pull() };
+    const auto hi{ Pull() };
+    return MakeWord(lo, hi);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+Cpu::Cpu(const std::string& name, MemoryMap* map)
+    : Name{ name }
+    , InterruptCycles{ 7 }
     , BaseCpu{}
 {
     Map = map;
 
-    m_opcodes.resize(
-        InstructionSet_6502::INSTRUCTION_COUNT,
-        Instruction{ InstructionSet_6502::OpName::UNK }
-    );
-    
-    for (size_t i{ 0 }; i < InstructionSet_6502::INSTRUCTION_COUNT; ++i) {
+    // m_opcodes.fill({ InstructionSet_6502::OpName::UNK });
+    for (size_t i{ 0 }; i < m_opcodes.size(); ++i) {
         m_opcodes[i] = InstructionSet_6502::Decode(i);
     }
 
@@ -42,31 +55,174 @@ void Cpu::WriteWordAt(const Word address, const Word value) {
     PendingInterrupt = InterruptType::None;
 }
 
+void Cpu::Decrement(Byte& value) {
+    Transfer(value - 1, value);
+}
+
+void Cpu::Increment(Byte& value) {
+    Transfer(value + 1, value);
+}
+
+void Cpu::Transfer(Byte value, Byte & to) {
+    to = value;
+    Z = (to == 0) ? 1 : 0;
+    N = SignBit(to);
+}
+
+void Cpu::Compare(Byte lhs, Byte rhs) {
+    C = (lhs >= rhs) ? 1 : 0;
+    Z = (lhs == rhs) ? 1 : 0;
+    N = SignBit(lhs - rhs);
+}
+
+void Cpu::BranchIf(bool condition, address_t target) {
+    if (condition) {
+        PC = target.Address;
+        Ticks += target.HasCrossedPage ? 2 : 1;
+    }
+}
+
+void Cpu::AddWithCarry(Byte value) {
+    // Overflow checks that the sign has improperly changed
+    // See https://stackoverflow.com/questions/16845912/determining-carry-and-overflow-flag-in-6502-emulation-in-java
+    const auto a{ static_cast<Word>(A + value + C) };
+    C = (a > BYTE_MASK) ? 1 : 0;
+    V = ~SignBit(A ^ value) & SignBit(A ^ a);
+    Transfer(LO(a), A);
+}
+
+void Cpu::SubstractWithCarry(Byte value) {
+    // Overflow checks that the sign has improperly changed
+    // See https://stackoverflow.com/questions/16845912/determining-carry-and-overflow-flag-in-6502-emulation-in-java
+    const auto a{ static_cast<Word>(A - value - (1 - C)) };
+    C = (a > BYTE_MASK) ? 0 : 1;
+    V = SignBit(A ^ value) & SignBit(A ^ a);
+    Transfer(LO(a), A);
+}
+
+void Cpu::Jump(Word address) {
+    PC = address;
+}
+
+void Cpu::Push(Byte value) {
+    WriteByte(StackPage + S, value);
+    --S;
+}
+
+Byte Cpu::Pull() {
+    ++S;
+    return ReadByte(StackPage + S);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+address_t Cpu::BuildAddress(const Instruction& op) const {
+    const auto PC_1{ static_cast<Word>(PC + 1) };
+
+    switch (op.Mode) {
+        using enum InstructionSet_6502::AddressingMode;
+
+        case IMP: [[fallthrough]];
+        case ACC: {
+            // Dummy fetch of the next opcode
+            ReadByte(PC_1);
+            return { static_cast<Word>(-1), false };
+        }
+
+        case IMM: {
+            return { PC_1, false };
+        }
+
+        case ZPG: {
+            return { ReadByte(PC_1), false };
+        }
+
+        case ZPX: {
+            return { LO(ReadByte(PC_1) + X), false };
+        }
+
+        case ZPY: {
+            return { LO(ReadByte(PC_1) + Y), false };
+        }
+
+        case ABS: {
+            return { ReadWordAt(PC_1), false };
+        }
+
+        case ABX: {
+            const auto address{ static_cast<Word>(ReadWordAt(PC_1) + X) };
+            const bool crossed{ X > LO(address) };
+            if (crossed) ReadByte(address - 0x0100); // Dummy read
+            return { address, crossed };
+        }
+
+        case ABY: {
+            const auto address{ static_cast<Word>(ReadWordAt(PC_1) + Y) };
+            const bool crossed{ Y > LO(address) };
+            if (crossed) ReadByte(address - 0x0100); // Dummy read
+            return{ address, crossed };
+        }
+
+        case IDX: {
+            // "indirect X" reads an address strictly from ZeroPage at (operand + X)
+            // wrapping around to the beginning of ZeroPage if necessary
+            const Byte addrLO{ LO(ReadByte(PC_1) + X) };
+            const Byte addrHI{ LO(addrLO + 1) };
+            const Byte lo{ ReadByte(addrLO) };
+            const Byte hi{ ReadByte(addrHI) };
+            return { MakeWord(lo, hi), false };
+        }
+
+        case IDY: {
+            // "indirect Y" reads an address strictly from ZeroPage at operand
+            // wrapping around to the beginning of ZeroPage if necessary
+            // and then applies the Y offset
+            const Byte addrLO{ ReadByte(PC_1) };
+            const Byte addrHI{ LO(addrLO + 1) };
+            const Byte lo{ ReadByte(addrLO) };
+            const Byte hi{ ReadByte(addrHI) };
+            const auto addr{ static_cast<Word>(MakeWord(lo, hi) + Y) };
+            const bool crossed{ Y > LO(addr) };
+            if (crossed) ReadByte(addr - 0x0100); // Dummy read
+            return { addr, crossed };
+        }
+
+        case IND: {
+            // Indirect will read both LO and HI parts of the address from the same page
+            const Word addrLO{ ReadWordAt(PC_1) };
+            const Word addrHI{ MakeWord(LO(addrLO + 1), HI(addrLO)) };
+            const Byte lo{ ReadByte(addrLO) };
+            const Byte hi{ ReadByte(addrHI) };
+            return { MakeWord(lo, hi), false };
+        }
+
+        case REL: {
+            const auto offset{ SignExtend(ReadByte(PC_1)) };
+            const auto address{ static_cast<Word>(PC + offset + op.Bytes) };
+            return { address, HI(PC) != HI(address) };
+        }
+
+        default: throw std::runtime_error("Unknown addressing mode");
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 bool Cpu::Tick() {
     ++CurrentTick;
-    static auto m = dynamic_cast<CpuMemoryMap<Cpu, Ppu, Controllers, Apu<Cpu>> *>(Map);
-    static bool nmi = false;
-    static bool nmiDelayed1 = false;
-    static bool nmiDelayed2 = false;
-    static bool nmiDelayed3 = false;
-    static bool nmiDelayed4 = false;
-    if (m != nullptr) {
-        if (!nmiDelayed4 && nmiDelayed3) {
+    {
+        static bool nmi = false;
+        if (!nmi && LineNMI) {
             TriggerNMI();
         }
-        nmiDelayed4 = nmiDelayed3;
-        nmiDelayed3 = nmiDelayed2;
-        nmiDelayed2 = nmiDelayed1;
-        nmiDelayed1 = nmi;
-        nmi = m->PPU->NMIActive;
-
-        if (I == 0 && (
-            m->APU->Frame.Interrupt ||
-            m->APU->DMC1.Output.DMA.Interrupt)) {
+        nmi = LineNMI;
+    }
+    {
+        if ((I == 0) && LineIRQ) {
             TriggerIRQ();
         }
-
     }
+
     if (CurrentTick > Ticks) {
         if (PendingInterrupt == InterruptType::Rst) {
             Reset();
@@ -86,136 +242,6 @@ bool Cpu::Tick() {
     return CurrentTick >= Ticks;
 }
 
-address_t Cpu::BuildAddress(InstructionSet_6502::AddressingMode mode) const {
-    using enum InstructionSet_6502::AddressingMode;
-    const Word PC_1 = PC + 1;
-    switch (mode) {
-        case IMM:
-        case REL: {
-            return { PC_1, false };
-        }
-        case ZPG: {
-            return { ReadByte(PC_1), false };
-        }
-        case ZPX: {
-            const auto address = (ReadByte(PC_1) + X) & WORD_LO_MASK;
-            return { static_cast<Word>(address), false };
-        }
-        case ZPY: {
-            const auto address = (ReadByte(PC_1) + Y) & WORD_LO_MASK;
-            return { static_cast<Word>(address), false };
-        }
-        case ABS: {
-            return { ReadWordAt(PC_1), false };
-        }
-        case ABX: {
-            const Word address = ReadWordAt(PC_1) + X;
-            const bool crossed = (X > (address & BYTE_MASK));
-            if (crossed) ReadByte(address - 0x0100); // Dummy read
-            return { address, crossed };
-        }
-        case ABY: {
-            const Word address = ReadWordAt(PC_1) + Y;
-            const bool crossed = (Y > (address & BYTE_MASK));
-            if (crossed) ReadByte(address - 0x0100); // Dummy read
-            return{ address, crossed };
-        }
-        case IDX: {
-            const Byte base = ReadByte(PC_1) + X;
-            const Byte lo = base;
-            const Byte hi = (base + Byte(1));
-            // const Word base = ReadByte(PC_1) + X;
-            // const Word lo = base & WORD_LO_MASK;
-            // const Word hi = (base + 1) & WORD_LO_MASK;
-            const Word addr = MakeWord(ReadByte(lo), ReadByte(hi));
-            return { addr, false };
-        }
-        case IDY: {
-            const Word base = ReadByte(PC_1);
-            const Word lo = ReadByte(base);
-            const Word hi = ReadByte((base + 1) & WORD_LO_MASK);
-            const Word addr = (hi << BYTE_WIDTH) + lo + Y;
-            const bool crossed = (Y > (addr & BYTE_MASK));
-            if (crossed) ReadByte(addr - 0x0100); // Dummy read
-            return { addr, crossed };
-        }
-        case IND: {
-            const Word base = ReadWordAt(PC_1);
-            const Word lo = base;
-            const Word hi = (base & WORD_HI_MASK) | ((base + 1) & WORD_LO_MASK);
-            const Word addr = ReadByte(hi) << BYTE_WIDTH | ReadByte(lo);
-            return { addr, false };
-        }
-        case IMP:
-        case ACC: {
-            // Dummy fetch of the next opcode
-            ReadByte(PC_1);
-            return { static_cast<Word>(-1), false };
-        }
-        default: throw std::runtime_error("Unknown addressing mode");
-    }
-}
-
-void Cpu::Decrement(Byte & value) {
-    Transfer(value - 1, value);
-}
-void Cpu::Increment(Byte & value) {
-    Transfer(value + 1, value);
-}
-void Cpu::Transfer(const Byte & from, Byte & to) {
-    to = from;
-    Z = (to == 0) ? 1 : 0;
-    N = Bit<Neg>(to);
-}
-void Cpu::Compare(const Byte lhs, const Byte rhs) {
-    const auto r = lhs - rhs;
-    C = (r >= 0) ? 1 : 0;
-    Z = (r == 0) ? 1 : 0;
-    N = (IsBitSet<BYTE_SIGN_BIT>(r)) ? 1 : 0;
-}
-
-void Cpu::BranchIf(bool condition, Byte offset) {
-    const auto basePC = PC;
-    if (condition) {
-        Word wOffset = SignExtend(offset);
-        PC = (PC + wOffset) & WORD_MASK;
-        Ticks += 1;
-        if ((PC & WORD_HI_MASK) != (basePC & WORD_HI_MASK)) {
-            Ticks += 1;
-        }
-    }
-}
-
-void Cpu::AddWithCarry(const Byte value) {
-    Word a = A + value + C;
-    C = (a > BYTE_MASK) ? 1 : 0;
-    V = ~Bit<Neg>(A ^ value) & Bit<Neg>(A ^ a);
-    Transfer(a & BYTE_MASK, A);
-}
-void Cpu::SubstractWithCarry(const Byte value) {
-    Word a = A - value - (1 - C);
-    C = (a > BYTE_MASK) ? 0 : 1;
-    V = Bit<Neg>(A ^ value) & Bit<Neg>(A ^ a);
-    Transfer(a & BYTE_MASK, A);
-}
-void Cpu::Jump(const Word address) {
-    PC = address;
-}
-void Cpu::Push(const Byte & value) {
-    WriteByte(StackPage + S, value);
-    --S;
-}
-Byte Cpu::Pull() {
-    ++S;
-    return ReadByte(StackPage + S);
-}
-void Cpu::PushWord(const Word & value) {
-    Push((value >> BYTE_WIDTH) & BYTE_MASK);
-    Push(value & BYTE_MASK);
-}
-Word Cpu::PullWord() {
-    return Pull() | (Pull() << BYTE_WIDTH);
-}
 void Cpu::Interrupt(const Flag & isBRK,
                     const Word & vector,
                     const bool readOnly /*= false*/) {
@@ -279,14 +305,21 @@ void Cpu::DMA(Byte page, Byte* target, Byte offset) {
 void Cpu::Execute(const Instruction &op) {
     if (IsStopped()) return;
 
-    const auto a = BuildAddress(op.Mode);
+    const auto a = BuildAddress(op);
     Ticks += op.Cycles;
     PC += op.Bytes;
 
     switch (op.Name) {
     using enum InstructionSet_6502::OpName;
     using enum InstructionSet_6502::AddressingMode;
-    case BRK: Interrupt(1, VectorIRQ); break;
+    case BRK: {
+        if (I == 0) {
+            // The interrupt itself will tick PC
+            Ticks -= op.Cycles;
+            Interrupt(1, VectorIRQ);
+        }
+        break;
+    }
     case JMP: Jump(a.Address); break;
     case JSR: {
         PushWord(PC - 1);
@@ -348,14 +381,14 @@ void Cpu::Execute(const Instruction &op) {
     case STA: WriteByte(a.Address, A); break;
     case STX: WriteByte(a.Address, X); break;
     case STY: WriteByte(a.Address, Y); break;
-    case BCC: BranchIf(C == 0, ReadByte(a.Address)); break;
-    case BCS: BranchIf(C == 1, ReadByte(a.Address)); break;
-    case BEQ: BranchIf(Z == 1, ReadByte(a.Address)); break;
-    case BMI: BranchIf(N == 1, ReadByte(a.Address)); break;
-    case BNE: BranchIf(Z == 0, ReadByte(a.Address)); break;
-    case BPL: BranchIf(N == 0, ReadByte(a.Address)); break;
-    case BVC: BranchIf(V == 0, ReadByte(a.Address)); break;
-    case BVS: BranchIf(V == 1, ReadByte(a.Address)); break;
+    case BCC: BranchIf(C == 0, a); break;
+    case BCS: BranchIf(C == 1, a); break;
+    case BEQ: BranchIf(Z == 1, a); break;
+    case BMI: BranchIf(N == 1, a); break;
+    case BNE: BranchIf(Z == 0, a); break;
+    case BPL: BranchIf(N == 0, a); break;
+    case BVC: BranchIf(V == 0, a); break;
+    case BVS: BranchIf(V == 1, a); break;
     case ADC: {
         const auto M = ReadByte(a.Address);
         AddWithCarry(M);

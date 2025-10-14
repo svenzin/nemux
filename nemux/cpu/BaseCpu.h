@@ -48,7 +48,9 @@ public:
     Flag Z;  // Zero Flag
     Flag C;  // Carry Flag
 
-    // TODO rename
+    // TODO rename and redesign for multiple sources
+    bool LineRST; // Is triggering reset using a "line" the right way?
+                  // a straight Reset() method call is quite simple
     bool LineIRQ; // Interrupt ReQuest line
     bool LineNMI; // Non-Maskable Interrupt line
 

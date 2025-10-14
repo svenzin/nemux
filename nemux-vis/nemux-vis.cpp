@@ -142,7 +142,7 @@ namespace debug {
         const auto opcode = InstructionSet_6502::Decode(instruction);
         const auto operandB = Word{ cpu.ReadByte(cpu.PC + 1) };
         const auto operandW = cpu.ReadWordAt(cpu.PC + 1);
-        const auto address = cpu.BuildAddress(opcode.Mode);
+        const auto address = cpu.BuildAddress(opcode);
         oss << hex << setfill('0');
         oss << names[std::to_underlying(opcode.Name)];
         switch (opcode.Mode) {

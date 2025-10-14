@@ -22,9 +22,13 @@ constexpr bool IsBitClear(Byte value) {
     return !IsBitSet<bit>(value);
 }
 
+constexpr Flag SignBit(Byte value) {
+    return Bit<BYTE_SIGN_BIT>(value);
+}
+
 constexpr Word SignExtend(Byte value) {
     return MakeWord(
         value,
-        IsBitSet<BYTE_SIGN_BIT>(value) ? 0xFF : 0x00
+        SignBit(value) == 1 ? 0xFF : 0x00
     );
 }

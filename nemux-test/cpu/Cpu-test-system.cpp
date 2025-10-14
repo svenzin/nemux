@@ -107,45 +107,44 @@ TEST_F(CpuTestSystem, Reset) {
 }
 
 TEST_F(CpuTestSystem, NMI) {
-    FAIL();
-    // cpu->S = 0xF0;
-    // cpu->SetStatusByte(0xFF);
-    // bench.implicit(NOP)
-    //     .at(cpu->VectorNMI).dw(0x0120)
-    //     .start();
+    cpu->S = 0xF0;
+    cpu->SetStatusByte(0xFF);
+    bench.implicit(NOP)
+        .at(cpu->VectorNMI).dw(0x0120)
+        .start();
     
-    // cpu->TriggerNMI();
-    // ExecuteOne();
+    cpu->LineNMI = 1;
+    ExecuteOne();
 
-    // EXPECT_EQ(0x0120, cpu->PC);
-    // EXPECT_EQ(bench.Ticks + 7, cpu->GetTicks());
-    // EXPECT_EQ(0xED, cpu->S);
-    // EXPECT_EQ(1, cpu->I);
-    // Byte status{ memory->GetByteAt(0x01EE) };
-    // EXPECT_EQ(0, Bit<Brk>(status)); // Hardware interrupts push B flag clear
-    // EXPECT_EQ(1, Bit<Unu>(status)); // Unused is always 1
-    // EXPECT_EQ(LO(bench.PC), memory->GetByteAt(0x01EF));
-    // EXPECT_EQ(HI(bench.PC), memory->GetByteAt(0x01F0));
+    EXPECT_EQ(0x0120, cpu->PC);
+    EXPECT_EQ(bench.Ticks + 7, cpu->GetTicks());
+    EXPECT_EQ(0xED, cpu->S);
+    EXPECT_EQ(1, cpu->I);
+    Byte status{ memory->GetByteAt(0x01EE) };
+    EXPECT_EQ(0, Bit<Brk>(status)); // Hardware interrupts push B flag clear
+    EXPECT_EQ(1, Bit<Unu>(status)); // Unused is always 1
+    EXPECT_EQ(LO(bench.PC), memory->GetByteAt(0x01EF));
+    EXPECT_EQ(HI(bench.PC), memory->GetByteAt(0x01F0));
 }
 
 TEST_F(CpuTestSystem, IRQ) {
-    FAIL();
-    // cpu->S = 0xF0;
-    // cpu->SetStatusByte(0xFF);
-    // bench.implicit(NOP)
-    //     .at(cpu->VectorIRQ).dw(0x0120)
-    //     .start();
+    cpu->S = 0xF0;
+    cpu->SetStatusByte(0xFF);
+    bench.implicit(NOP)
+        .at(cpu->VectorIRQ).dw(0x0120)
+        .start();
     
-    // cpu->TriggerIRQ();
-    // ExecuteOne();
+    cpu->I = 0;
+    cpu->LineIRQ = 1;
+    ExecuteOne();
 
-    // EXPECT_EQ(0x0120, cpu->PC);
-    // EXPECT_EQ(bench.Ticks + 7, cpu->GetTicks());
-    // EXPECT_EQ(0xED, cpu->S);
-    // EXPECT_EQ(1, cpu->I);
-    // Byte status{ memory->GetByteAt(0x01EE) };
-    // EXPECT_EQ(0, Bit<Brk>(status)); // Hardware interrupts push B flag clear
-    // EXPECT_EQ(1, Bit<Unu>(status)); // Unused is always 1
-    // EXPECT_EQ(LO(bench.PC), memory->GetByteAt(0x01EF));
-    // EXPECT_EQ(HI(bench.PC), memory->GetByteAt(0x01F0));
+    EXPECT_EQ(0x0120, cpu->PC);
+    EXPECT_EQ(bench.Ticks + 7, cpu->GetTicks());
+    EXPECT_EQ(0xED, cpu->S);
+    EXPECT_EQ(1, cpu->I);
+    Byte status{ memory->GetByteAt(0x01EE) };
+    EXPECT_EQ(0, Bit<Brk>(status)); // Hardware interrupts push B flag clear
+    EXPECT_EQ(1, Bit<Unu>(status)); // Unused is always 1
+    EXPECT_EQ(LO(bench.PC), memory->GetByteAt(0x01EF));
+    EXPECT_EQ(HI(bench.PC), memory->GetByteAt(0x01F0));
 }

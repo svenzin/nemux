@@ -1,16 +1,19 @@
 #pragma once
 
+
 #include "Types.h"
 
 #include <stdexcept>
 #include <tuple>
+#include <array>
+
 
 struct InstructionSet_6502 {
     static constexpr size_t INSTRUCTION_COUNT{ 0x100 };
 
     using OpCode = Byte;
 
-    enum class OpName {
+    enum class OpName : Byte {
         LDA, LDX, LDY, STA, STX, STY,           // Load, Store
         TAX, TAY, TXA, TYA,                     // Register Transfer
         TSX, TXS, PHA, PLA, PHP, PLP,           // Stack
@@ -32,7 +35,7 @@ struct InstructionSet_6502 {
         UNK
     };
 
-    enum class AddressingMode {
+    enum class AddressingMode : Byte {
         IMP, // implied
         ACC, // accumulator
         IMM, // immediate
@@ -57,9 +60,9 @@ struct InstructionSet_6502 {
         auto operator<=>(const Instruction&) const = default;
     };
 
-    static constexpr OpCode Encode(OpName name, AddressingMode mode) {
+    struct LUT {
         using enum OpName;
-        constexpr std::array<OpName, 0x100> OpNames{
+        static constexpr inline std::array<OpName, INSTRUCTION_COUNT> OpcodeNames{
             /*           x0   x1   x2   x3   x4   x5   x6   x7   x8   x9   xA   xB   xC   xD   xE   xF */
             /* 0x */    BRK, ORA,uSTP,uSLO,uNOP, ORA, ASL,uSLO, PHP, ORA, ASL,uANC,uNOP, ORA, ASL,uSLO,
             /* 1x */    BPL, ORA,uSTP,uSLO,uNOP, ORA, ASL,uSLO, CLC, ORA,uNOP,uSLO,uNOP, ORA, ASL,uSLO,
@@ -80,7 +83,7 @@ struct InstructionSet_6502 {
         };
 
         using enum AddressingMode;
-        constexpr std::array<AddressingMode, 0x100> OpModes{
+        static constexpr inline std::array<AddressingMode, INSTRUCTION_COUNT> OpcodeAddressingModes{
             /*           x0   x1   x2   x3   x4   x5   x6   x7   x8   x9   xA   xB   xC   xD   xE   xF */
             /* 0x */    IMP, IDX, IMP, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS,
             /* 1x */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
@@ -100,58 +103,7 @@ struct InstructionSet_6502 {
             /* Fx */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
         };
 
-        for (int i{ 0 }; i < 0x100; ++i) {
-            if (std::tie(OpNames[i], OpModes[i]) == std::tie(name, mode)) {
-                return static_cast<Byte>(i);
-            }
-        }
-        throw std::runtime_error("unexpected instruction name and addressing mode");
-    }
-
-    static constexpr Instruction Decode(OpCode opcode) {
-        using enum OpName;
-        constexpr std::array<OpName, 0x100> OpNames{
-            /*           x0   x1   x2   x3   x4   x5   x6   x7   x8   x9   xA   xB   xC   xD   xE   xF */
-            /* 0x */    BRK, ORA,uSTP,uSLO,uNOP, ORA, ASL,uSLO, PHP, ORA, ASL,uANC,uNOP, ORA, ASL,uSLO,
-            /* 1x */    BPL, ORA,uSTP,uSLO,uNOP, ORA, ASL,uSLO, CLC, ORA,uNOP,uSLO,uNOP, ORA, ASL,uSLO,
-            /* 2x */    JSR, AND,uSTP,uRLA, BIT, AND, ROL,uRLA, PLP, AND, ROL,uANC, BIT, AND, ROL,uRLA,
-            /* 3x */    BMI, AND,uSTP,uRLA,uNOP, AND, ROL,uRLA, SEC, AND,uNOP,uRLA,uNOP, AND, ROL,uRLA,
-            /* 4x */    RTI, EOR,uSTP,uSRE,uNOP, EOR, LSR,uSRE, PHA, EOR, LSR,uALR, JMP, EOR, LSR,uSRE,
-            /* 5x */    BVC, EOR,uSTP,uSRE,uNOP, EOR, LSR,uSRE, CLI, EOR,uNOP,uSRE,uNOP, EOR, LSR,uSRE,
-            /* 6x */    RTS, ADC,uSTP,uRRA,uNOP, ADC, ROR,uRRA, PLA, ADC, ROR,uARR, JMP, ADC, ROR,uRRA,
-            /* 7x */    BVS, ADC,uSTP,uRRA,uNOP, ADC, ROR,uRRA, SEI, ADC,uNOP,uRRA,uNOP, ADC, ROR,uRRA,
-            /* 8x */   uNOP, STA,uNOP,uSAX, STY, STA, STX,uSAX, DEY,uNOP, TXA,uXAA, STY, STA, STX,uSAX,
-            /* 9x */    BCC, STA,uSTP,uAHX, STY, STA, STX,uSAX, TYA, STA, TXS,uTAS,uSHY, STA,uSHX,uAHX,
-            /* Ax */    LDY, LDA, LDX,uLAX, LDY, LDA, LDX,uLAX, TAY, LDA, TAX,uLAX, LDY, LDA, LDX,uLAX,
-            /* Bx */    BCS, LDA,uSTP,uLAX, LDY, LDA, LDX,uLAX, CLV, LDA, TSX,uLAS, LDY, LDA, LDX,uLAX,
-            /* Cx */    CPY, CMP,uNOP,uDCP, CPY, CMP, DEC,uDCP, INY, CMP, DEX,uAXS, CPY, CMP, DEC,uDCP,
-            /* Dx */    BNE, CMP,uSTP,uDCP,uNOP, CMP, DEC,uDCP, CLD, CMP,uNOP,uDCP,uNOP, CMP, DEC,uDCP,
-            /* Ex */    CPX, SBC,uNOP,uISC, CPX, SBC, INC,uISC, INX, SBC, NOP,uSBC, CPX, SBC, INC,uISC,
-            /* Fx */    BEQ, SBC,uSTP,uISC,uNOP, SBC, INC,uISC, SED, SBC,uNOP,uISC,uNOP, SBC, INC,uISC,
-        };
-
-        using enum AddressingMode;
-        constexpr std::array<AddressingMode, 0x100> OpModes{
-            /*           x0   x1   x2   x3   x4   x5   x6   x7   x8   x9   xA   xB   xC   xD   xE   xF */
-            /* 0x */    IMP, IDX, IMP, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS,
-            /* 1x */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
-            /* 2x */    ABS, IDX, IMP, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS,
-            /* 3x */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
-            /* 4x */    IMP, IDX, IMP, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS,
-            /* 5x */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
-            /* 6x */    IMP, IDX, IMP, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, IND, ABS, ABS, ABS,
-            /* 7x */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
-            /* 8x */    IMM, IDX, IMM, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, IMP, IMM, ABS, ABS, ABS, ABS,
-            /* 9x */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPY, ZPY, IMP, ABY, IMP, ABY, ABX, ABX, ABY, ABY,
-            /* Ax */    IMM, IDX, IMM, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, IMP, IMM, ABS, ABS, ABS, ABS,
-            /* Bx */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPY, ZPY, IMP, ABY, IMP, ABY, ABX, ABX, ABY, ABY,
-            /* Cx */    IMM, IDX, IMM, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, IMP, IMM, ABS, ABS, ABS, ABS,
-            /* Dx */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
-            /* Ex */    IMM, IDX, IMM, IDX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, IMP, IMM, ABS, ABS, ABS, ABS,
-            /* Fx */    REL, IDY, IMP, IDY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX,
-        };
-
-        constexpr std::array<Byte, 0x100> OpSizes{
+        static constexpr inline std::array<Byte, INSTRUCTION_COUNT> OpcodeSizes{
             /*       x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC xD xE xF */
             /* 0x */  2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 3, 3, 3, 3,
             /* 1x */  2, 2, 1, 2, 2, 2, 2, 2, 1, 3, 1, 3, 3, 3, 3, 3,
@@ -171,7 +123,7 @@ struct InstructionSet_6502 {
             /* Fx */  2, 2, 1, 2, 2, 2, 2, 2, 1, 3, 1, 3, 3, 3, 3, 3,
         };
 
-        constexpr std::array<Byte, 0x100> OpCycles{
+        static constexpr inline std::array<Byte, INSTRUCTION_COUNT> OpcodeCycles{
             /*       x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC xD xE xF */
             /* 0x */  7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
             /* 1x */  2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
@@ -190,7 +142,23 @@ struct InstructionSet_6502 {
             /* Ex */  2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6,
             /* Fx */  2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
         };
+    };
 
-        return { OpNames[opcode], OpModes[opcode], OpSizes[opcode], OpCycles[opcode] };
+    static constexpr OpCode Encode(OpName name, AddressingMode mode) {
+        for (int i{ 0 }; i < 0x100; ++i) {
+            if (std::tie(LUT::OpcodeNames[i], LUT::OpcodeAddressingModes[i])
+                == std::tie(name, mode))
+            {
+                return static_cast<Byte>(i);
+            }
+        }
+        throw std::runtime_error("unexpected instruction name and addressing mode");
+    }
+
+    static constexpr Instruction Decode(OpCode opcode) {
+        return { LUT::OpcodeNames[opcode],
+                 LUT::OpcodeAddressingModes[opcode],
+                 LUT::OpcodeSizes[opcode],
+                 LUT::OpcodeCycles[opcode] };
     }
 };

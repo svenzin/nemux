@@ -307,19 +307,23 @@ TEST_F(CpuTest, OpcodeEncoding) {
 }
 
 TEST_F(CpuTest, PowerUpState) {
-    FAIL();
-    // EXPECT_FALSE(cpu->IsStopped());
+    // FAIL();
 
-    // EXPECT_EQ(0, cpu->A);
-    // EXPECT_EQ(0, cpu->X);
-    // EXPECT_EQ(0, cpu->Y);
-    // EXPECT_EQ(0xFD, cpu->S);
-    // // On power up or reset, the CPU replaces stack writes by reads
-    // // => there is no correct value for the "B flag"
-    // // see https://www.pagetable.com/?p=410
-    // EXPECT_EQ(0x24, cpu->GetStatusByte(0));
+    EXPECT_FALSE(cpu->IsStopped());
 
-    // EXPECT_EQ(0, cpu->GetTicks());
+    EXPECT_EQ(0, cpu->A);
+    EXPECT_EQ(0, cpu->X);
+    EXPECT_EQ(0, cpu->Y);
+    EXPECT_EQ(0xFD, cpu->S);
+    // On power up or reset, the CPU replaces stack writes by reads
+    // => there is no correct value for the "B flag"
+    // => here I'm assuming 0
+    // see https://www.pagetable.com/?p=410
+    EXPECT_EQ(0x24, cpu->GetStatusByte(0));
+
+    EXPECT_EQ(0, cpu->GetTicks());
+
+    // TODO is it necessary?
     // EXPECT_EQ(InterruptType::None, cpu->PendingInterrupt);
 }
 
@@ -376,83 +380,82 @@ TEST_F(CpuTest, Ticking) {
 }
 
 TEST_F(CpuTest, TickingWithInterrupt) {
-    FAIL();
-    // bench.at(0x0000).db(0x02)
-    //      .origin(0x0200)
-    //      .encode(CLI, IMP)          // CLI
-    //      .encode(LDA, IMM).db(0x01) // LDA #1
-    //      .encode(ADC, ZPG).db(0x00) // ADC $00
-    //      .encode(INC, ZPG).db(0x00) // INC $00
-    //      .at(0x03FE).dw(0x0080)
-    //      .start();
+    // FAIL();
+    bench.at(0x0000).db(0x02)
+         .origin(0x0200)
+         .encode(CLI, IMP)          // CLI
+         .encode(LDA, IMM).db(0x01) // LDA #1
+         .encode(ADC, ZPG).db(0x00) // ADC $00
+         .encode(INC, ZPG).db(0x00) // INC $00
+         .at(0x03FE).dw(0x0080)
+         .start();
 
-    // cpu->VectorIRQ = 0x03FE;
-    // cpu->I = 1;
+    cpu->VectorIRQ = 0x03FE;
+    cpu->I = 0;
     
-    // EXPECT_EQ(0, cpu->GetTicks());
-    // EXPECT_EQ(0, cpu->A);
+    EXPECT_EQ(0, cpu->GetTicks());
+    EXPECT_EQ(0, cpu->A);
 
-    // // CLI => 2 cycles, 1 byte
-    // EXPECT_FALSE(cpu->Tick());
-    // EXPECT_TRUE(cpu->Tick());
-    // EXPECT_EQ(2, cpu->GetTicks());
-    // EXPECT_EQ(0x0201, cpu->PC);
-    // EXPECT_EQ(0, cpu->I);
+    // CLI => 2 cycles, 1 byte
+    EXPECT_FALSE(cpu->Tick());
+    EXPECT_TRUE(cpu->Tick());
+    EXPECT_EQ(2, cpu->GetTicks());
+    EXPECT_EQ(0x0201, cpu->PC);
+    EXPECT_EQ(0, cpu->I);
     
-    // // LDA #1 => 2 cycles, 2 bytes
-    // EXPECT_FALSE(cpu->Tick());
+    // LDA #1 => 2 cycles, 2 bytes
+    EXPECT_FALSE(cpu->Tick());
 
-    // cpu->TriggerIRQ();
-    // cpu->LineIRQ = 1;
+    cpu->LineIRQ = 1;
 
-    // EXPECT_TRUE(cpu->Tick());
-    // EXPECT_EQ(4, cpu->GetTicks());
-    // EXPECT_EQ(0x0203, cpu->PC);
-    // EXPECT_EQ(0x01, cpu->A);
+    EXPECT_TRUE(cpu->Tick());
+    EXPECT_EQ(4, cpu->GetTicks());
+    EXPECT_EQ(0x0203, cpu->PC);
+    EXPECT_EQ(0x01, cpu->A);
     
-    // // Interrupt => 7 cycles
-    // EXPECT_FALSE(cpu->Tick());
-    // EXPECT_FALSE(cpu->Tick());
-    // EXPECT_FALSE(cpu->Tick());
-    // EXPECT_FALSE(cpu->Tick());
-    // EXPECT_FALSE(cpu->Tick());
-    // EXPECT_FALSE(cpu->Tick());
-    // EXPECT_TRUE(cpu->Tick());
-    // EXPECT_EQ(11, cpu->GetTicks());
-    // EXPECT_EQ(0x0080, cpu->PC);
+    // Interrupt => 7 cycles
+    EXPECT_FALSE(cpu->Tick());
+    EXPECT_FALSE(cpu->Tick());
+    EXPECT_FALSE(cpu->Tick());
+    EXPECT_FALSE(cpu->Tick());
+    EXPECT_FALSE(cpu->Tick());
+    EXPECT_FALSE(cpu->Tick());
+    EXPECT_TRUE(cpu->Tick());
+    EXPECT_EQ(11, cpu->GetTicks());
+    EXPECT_EQ(0x0080, cpu->PC);
 }
 
 TEST_F(CpuTest, TickingWithInhibitedInterrupt) {
-    FAIL();
-    // bench.at(0x0000).db(0x02)
-    //      .origin(0x0200)
-    //      .encode(SEI, IMP)          // SEI
-    //      .encode(LDA, IMM).db(0x01) // LDA #1
-    //      .at(0x03FE).dw(0x0080)
-    //      .start();
+    // FAIL();
+    bench.at(0x0000).db(0x02)
+         .origin(0x0200)
+         .encode(SEI, IMP)          // SEI
+         .encode(LDA, IMM).db(0x01) // LDA #1
+         .at(0x03FE).dw(0x0080)
+         .start();
 
-    // cpu->VectorIRQ = 0x03FE;
-    // cpu->I = 0;
+    cpu->VectorIRQ = 0x03FE;
+    cpu->I = 1;
     
-    // EXPECT_EQ(0, cpu->GetTicks());
-    // EXPECT_EQ(0, cpu->A);
+    EXPECT_EQ(0, cpu->GetTicks());
+    EXPECT_EQ(0, cpu->A);
     
-    // // SEI => 2 cycles, 1 byte
-    // EXPECT_FALSE(cpu->Tick());
+    // SEI => 2 cycles, 1 byte
+    EXPECT_FALSE(cpu->Tick());
 
-    // cpu->TriggerIRQ();
+    cpu->LineIRQ = 1;
 
-    // EXPECT_TRUE(cpu->Tick());
-    // EXPECT_EQ(2, cpu->GetTicks());
-    // EXPECT_EQ(0x0201, cpu->PC);
-    // EXPECT_EQ(1, cpu->I);
+    EXPECT_TRUE(cpu->Tick());
+    EXPECT_EQ(2, cpu->GetTicks());
+    EXPECT_EQ(0x0201, cpu->PC);
+    EXPECT_EQ(1, cpu->I);
 
-    // // LDA #1 => 2 cycles, 2 bytes
-    // EXPECT_FALSE(cpu->Tick());
-    // EXPECT_TRUE(cpu->Tick());
-    // EXPECT_EQ(4, cpu->GetTicks());
-    // EXPECT_EQ(0x0203, cpu->PC);
-    // EXPECT_EQ(0x01, cpu->A);
+    // LDA #1 => 2 cycles, 2 bytes
+    EXPECT_FALSE(cpu->Tick());
+    EXPECT_TRUE(cpu->Tick());
+    EXPECT_EQ(4, cpu->GetTicks());
+    EXPECT_EQ(0x0203, cpu->PC);
+    EXPECT_EQ(0x01, cpu->A);
 }
 
 TEST_F(CpuTest, OAMDMA) {
