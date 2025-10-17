@@ -195,7 +195,7 @@ private:
     inline void xDCP() { DEC(); CMP(); }
     inline void xISC() { INC(); SBC(); }
 
-    inline void xANC() { AND(); C = Bit<Left>(A); }
+    inline void xANC() { AND(); C = Bit<BYTE_MSB_BIT>(A); }
     inline void xALR() { AND(); LSRa(); }
     inline void xARR() { AND(); RORa(); C = Bit<6>(A); V = (C ^ Bit<5>(A)); }
     inline void xXAA() {}
@@ -254,18 +254,18 @@ public:
     }
 
     void ROLc(Byte & value, const Flag flag) {
-        C = Bit<Left>(value);
-        Transfer((value << 1) | Mask<Right>(flag), value);
+        C = Bit<BYTE_MSB_BIT>(value);
+        Transfer((value << 1) | Mask<BYTE_LSB_BIT>(flag), value);
     }
 
     void RORc(Byte & value, const Flag flag) {
-        C = Bit<Right>(value);
-        Transfer((value >> 1) | Mask<Left>(flag), value);
+        C = Bit<BYTE_LSB_BIT>(value);
+        Transfer((value >> 1) | Mask<BYTE_MSB_BIT>(flag), value);
     }
 
     void AddWithCarry(const Byte & value) {
         Word a = A + value + C;
-        C = Bit<Right>(HI(a));
+        C = Bit<BYTE_LSB_BIT>(HI(a));
         V = ~Bit<Neg>(A ^ value) & Bit<Neg>(A ^ a);
         Transfer(Byte(a), A);
     }
