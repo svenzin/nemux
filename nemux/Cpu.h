@@ -63,6 +63,7 @@ public:
     void Jump(Word address);
     void Push(Byte value);
     Byte Pull();
+    void Interrupt(bool isBRK, Word vector, bool isReadOnly = false);
 ////////////////////////////////////////////////////////////////////////////////
     address_t BuildAddress(const Instruction& op) const;
 ////////////////////////////////////////////////////////////////////////////////
@@ -77,15 +78,10 @@ public:
 
 
 
-    void Interrupt(const Flag & isBRK, const Word & vector, const bool readOnly = false);
-
-    void NMI();
-    void IRQ();
 
     InterruptType PendingInterrupt;
-    void TriggerReset();
-    void TriggerNMI();
-    void TriggerIRQ();
+    void NMI();
+    void IRQ();
 
 private:
     std::array<Instruction, InstructionSet_6502::INSTRUCTION_COUNT> m_opcodes;

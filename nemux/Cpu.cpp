@@ -114,6 +114,17 @@ Byte Cpu::Pull() {
     return ReadByte(StackPage + S);
 }
 
+void Cpu::Interrupt(bool isBRK, Word vector, bool isReadOnly) {
+    if (isReadOnly) {
+        S -= 3;
+    } else {
+        PushWord(PC);
+        Push(GetStatusByte(isBRK));
+    }
+    I = 1;
+    PC = ReadWordAt(vector);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 address_t Cpu::BuildAddress(const Instruction& op) const {
@@ -212,17 +223,16 @@ bool Cpu::Tick() {
     ++CurrentTick;
     {
         static bool nmi = false;
-        if (!nmi && LineNMI) {
-            TriggerNMI();
+        if (LineRST) {
+            PendingInterrupt = InterruptType::Rst;
+        } else if (!nmi && LineNMI && (PendingInterrupt != InterruptType::Rst)) {
+            PendingInterrupt = InterruptType::Nmi;
+        } else if ((I == 0) && LineIRQ && (PendingInterrupt == InterruptType::None)) {
+            PendingInterrupt = InterruptType::Irq;
         }
         nmi = LineNMI;
     }
-    {
-        if ((I == 0) && LineIRQ) {
-            TriggerIRQ();
-        }
-    }
-
+    
     if (CurrentTick > Ticks) {
         if (PendingInterrupt == InterruptType::Rst) {
             Reset();
@@ -242,19 +252,6 @@ bool Cpu::Tick() {
     return CurrentTick >= Ticks;
 }
 
-void Cpu::Interrupt(const Flag & isBRK,
-                    const Word & vector,
-                    const bool readOnly /*= false*/) {
-    if (readOnly) {
-        S -= 3;
-    } else {
-        PushWord(PC);
-        Push(GetStatusByte(isBRK));
-    }
-    I = 1;
-    PC = ReadWordAt(vector);
-    Ticks += InterruptCycles;
-}
 
 void Cpu::PowerUp() {
     PC = ReadWordAt(VectorRST);
@@ -263,6 +260,7 @@ void Cpu::PowerUp() {
 void Cpu::Reset() {
     std::cout << "RST" << std::endl;
     PendingInterrupt = InterruptType::None;
+    Ticks += InterruptCycles;
     Interrupt(0, VectorRST, true);
 }
 
@@ -270,25 +268,14 @@ void Cpu::NMI() {
     static int nmic{ 0 };
     std::cout << "NMI " << nmic++ << std::endl;
     PendingInterrupt = InterruptType::None;
+    Ticks += InterruptCycles;
     Interrupt(0, VectorNMI);
 }
 void Cpu::IRQ() {
     std::cout << "IRQ" << std::endl;
     PendingInterrupt = InterruptType::None;
+    Ticks += InterruptCycles;
     Interrupt(0, VectorIRQ);
-}
-void Cpu::TriggerReset() {
-    PendingInterrupt = InterruptType::Rst;
-}
-void Cpu::TriggerNMI() {
-    if (PendingInterrupt != InterruptType::Rst) {
-        PendingInterrupt = InterruptType::Nmi;
-    }
-}
-void Cpu::TriggerIRQ() {
-    if (PendingInterrupt == InterruptType::None) {
-        PendingInterrupt = InterruptType::Irq;
-    }
 }
 
 void Cpu::DMA(Byte page, Byte* target, Byte offset) {
@@ -314,8 +301,6 @@ void Cpu::Execute(const Instruction &op) {
     using enum InstructionSet_6502::AddressingMode;
     case BRK: {
         if (I == 0) {
-            // The interrupt itself will tick PC
-            Ticks -= op.Cycles;
             Interrupt(1, VectorIRQ);
         }
         break;
