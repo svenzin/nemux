@@ -2,6 +2,7 @@
 
 #include "cpu/BaseCpu.h"
 #include "cpu/InstructionSet_6502.h"
+#include "MemoryMap.h"
 
 #include <functional>
 
