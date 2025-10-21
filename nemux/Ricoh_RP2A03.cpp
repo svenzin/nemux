@@ -1,96 +1,153 @@
 #include "Ricoh_RP2A03.h"
 
+
+void Ricoh_RP2A03::cycle_fetch_opcode_increment_PC() {
+    if (interrupted()) return;
+    
+    opcode = ReadByte(PC);
+    ++PC;
+    
+    ProcessOpcode();
+}
+
+
 #define M(f) (& Ricoh_RP2A03::f)
 
-Ricoh_RP2A03::AddressingMode_f GetAddressingMode(Byte opcode) {
-    const Byte opType = (opcode & 0b00000011);
-    const Byte opMode = ((opcode & 0b00011100) >> 2);
-    const Byte opCode = ((opcode & 0b11100000) >> 5);
+namespace {
+    Ricoh_RP2A03::AddressingMode_f GetAddressingMode(Byte opcode) {
+        const Byte opType = (opcode & 0b00000011);
+        const Byte opMode = ((opcode & 0b00011100) >> 2);
+        const Byte opCode = ((opcode & 0b11100000) >> 5);
 
-    switch (opType) {
-    case 0: // Control instructions
-        switch (opMode) {
-        case 0:                  return M(ModeImmediate);
-        case 1: if (opCode == 4) return M(ModeZeropageWrite);
-                else             return M(ModeZeropageRead);
-        case 2:                  return M(ModeImplied);
-        case 3: if (opCode == 4) return M(ModeAbsoluteWrite);
-                else             return M(ModeAbsoluteRead);
-        case 4:                  return M(ModeRelative);
-        case 5: if (opCode == 4) return M(ModeZeropageXWrite);
-                else             return M(ModeZeropageXRead);
-        case 6:                  return M(ModeImplied);
-        case 7: if (opCode == 4) return M(ModeAbsoluteXWrite);
-                else             return M(ModeAbsoluteXRead);
+        switch (opType) {
+        case 0: // Control instructions
+            switch (opMode) {
+            case 0:                  return M(ModeImmediate);
+            case 1: if (opCode == 4) return M(ModeZeropageWrite);
+                    else             return M(ModeZeropageRead);
+            case 2:                  return M(ModeImplied);
+            case 3: if (opCode == 4) return M(ModeAbsoluteWrite);
+                    else             return M(ModeAbsoluteRead);
+            case 4:                  return M(ModeRelative);
+            case 5: if (opCode == 4) return M(ModeZeropageXWrite);
+                    else             return M(ModeZeropageXRead);
+            case 6:                  return M(ModeImplied);
+            case 7: if (opCode == 4) return M(ModeAbsoluteXWrite);
+                    else             return M(ModeAbsoluteXRead);
+            }
+            break;
+        case 1: // ALU instructions
+            switch (opMode) {
+            case 0: if (opCode == 4) return M(ModeIndirectXWrite);
+                    else             return M(ModeIndirectXRead);
+            case 1: if (opCode == 4) return M(ModeZeropageWrite);
+                    else             return M(ModeZeropageRead);
+            case 2:                  return M(ModeImmediate);
+            case 3: if (opCode == 4) return M(ModeAbsoluteWrite);
+                    else             return M(ModeAbsoluteRead);
+            case 4: if (opCode == 4) return M(ModeIndirectYWrite);
+                    else             return M(ModeIndirectYRead);
+            case 5: if (opCode == 4) return M(ModeZeropageXWrite);
+                    else             return M(ModeZeropageXRead);
+            case 6: if (opCode == 4) return M(ModeAbsoluteYWrite);
+                    else             return M(ModeAbsoluteYRead);
+            case 7: if (opCode == 4) return M(ModeAbsoluteXWrite);
+                    else             return M(ModeAbsoluteXRead);
+            }
+            break;
+        case 2: // RMW instructions
+            switch (opMode) {
+            case 0:                       return M(ModeImmediate);
+            case 1: if      (opCode == 4) return M(ModeZeropageWrite);
+                    else if (opCode == 5) return M(ModeZeropageRead);
+                    else                  return M(ModeZeropageRMW);
+            case 2:                       return M(ModeImplied);
+            case 3: if      (opCode == 4) return M(ModeAbsoluteWrite);
+                    else if (opCode == 5) return M(ModeAbsoluteRead);
+                    else                  return M(ModeAbsoluteRMW);
+            case 4:                       return M(ModeImplied);
+            case 5: if      (opCode == 4) return M(ModeZeropageYWrite);
+                    else if (opCode == 5) return M(ModeZeropageYRead);
+                    else                  return M(ModeZeropageXRMW);
+            case 6:                       return M(ModeImplied);
+            case 7: if      (opCode == 4) return M(ModeAbsoluteYWrite);
+                    else if (opCode == 5) return M(ModeAbsoluteYRead);
+                    else                  return M(ModeAbsoluteXRMW);
+            }
+            break;
+        case 3: // Combined ALU/RMW instructions
+            switch (opMode) {
+            case 0: if      (opCode == 4) return M(ModeIndirectXWrite);
+                    else if (opCode == 5) return M(ModeIndirectXRead);
+                    else                  return M(ModeIndirectXRMW);
+            case 1: if      (opCode == 4) return M(ModeZeropageWrite);
+                    else if (opCode == 5) return M(ModeZeropageRead);
+                    else                  return M(ModeZeropageRMW);
+            case 2:                       return M(ModeImmediate);
+            case 3: if      (opCode == 4) return M(ModeAbsoluteWrite);
+                    else if (opCode == 5) return M(ModeAbsoluteRead);
+                    else                  return M(ModeAbsoluteRMW); 
+            case 4: if      (opCode == 4) return M(ModeIndirectYWrite);
+                    else if (opCode == 5) return M(ModeIndirectYRead);
+                    else                  return M(ModeIndirectYRMW);
+            case 5: if      (opCode == 4) return M(ModeZeropageYWrite);
+                    else if (opCode == 5) return M(ModeZeropageYRead);
+                    else                  return M(ModeZeropageXRMW);
+            case 6: if      (opCode == 4) return M(ModeAbsoluteYWrite);
+                    else if (opCode == 5) return M(ModeAbsoluteYRead);
+                    else                  return M(ModeAbsoluteYRMW);
+            case 7: if      (opCode == 4) return M(ModeAbsoluteYWrite);
+                    else if (opCode == 5) return M(ModeAbsoluteYRead);
+                    else                  return M(ModeAbsoluteXRMW);
+            }
+            break;
         }
-        break;
-    case 1: // ALU instructions
-        switch (opMode) {
-        case 0: if (opCode == 4) return M(ModeIndirectXWrite);
-                else             return M(ModeIndirectXRead);
-        case 1: if (opCode == 4) return M(ModeZeropageWrite);
-                else             return M(ModeZeropageRead);
-        case 2:                  return M(ModeImmediate);
-        case 3: if (opCode == 4) return M(ModeAbsoluteWrite);
-                else             return M(ModeAbsoluteRead);
-        case 4: if (opCode == 4) return M(ModeIndirectYWrite);
-                else             return M(ModeIndirectYRead);
-        case 5: if (opCode == 4) return M(ModeZeropageXWrite);
-                else             return M(ModeZeropageXRead);
-        case 6: if (opCode == 4) return M(ModeAbsoluteYWrite);
-                else             return M(ModeAbsoluteYRead);
-        case 7: if (opCode == 4) return M(ModeAbsoluteXWrite);
-                else             return M(ModeAbsoluteXRead);
-        }
-        break;
-    case 2: // RMW instructions
-        switch (opMode) {
-        case 0:                       return M(ModeImmediate);
-        case 1: if      (opCode == 4) return M(ModeZeropageWrite);
-                else if (opCode == 5) return M(ModeZeropageRead);
-                else                  return M(ModeZeropageRMW);
-        case 2:                       return M(ModeImplied);
-        case 3: if      (opCode == 4) return M(ModeAbsoluteWrite);
-                else if (opCode == 5) return M(ModeAbsoluteRead);
-                else                  return M(ModeAbsoluteRMW);
-        case 4:                       return M(ModeImplied);
-        case 5: if      (opCode == 4) return M(ModeZeropageYWrite);
-                else if (opCode == 5) return M(ModeZeropageYRead);
-                else                  return M(ModeZeropageXRMW);
-        case 6:                       return M(ModeImplied);
-        case 7: if      (opCode == 4) return M(ModeAbsoluteYWrite);
-                else if (opCode == 5) return M(ModeAbsoluteYRead);
-                else                  return M(ModeAbsoluteXRMW);
-        }
-        break;
-    case 3: // Combined ALU/RMW instructions
-        switch (opMode) {
-        case 0: if      (opCode == 4) return M(ModeIndirectXWrite);
-                else if (opCode == 5) return M(ModeIndirectXRead);
-                else                  return M(ModeIndirectXRMW);
-        case 1: if      (opCode == 4) return M(ModeZeropageWrite);
-                else if (opCode == 5) return M(ModeZeropageRead);
-                else                  return M(ModeZeropageRMW);
-        case 2:                       return M(ModeImmediate);
-        case 3: if      (opCode == 4) return M(ModeAbsoluteWrite);
-                else if (opCode == 5) return M(ModeAbsoluteRead);
-                else                  return M(ModeAbsoluteRMW); 
-        case 4: if      (opCode == 4) return M(ModeIndirectYWrite);
-                else if (opCode == 5) return M(ModeIndirectYRead);
-                else                  return M(ModeIndirectYRMW);
-        case 5: if      (opCode == 4) return M(ModeZeropageYWrite);
-                else if (opCode == 5) return M(ModeZeropageYRead);
-                else                  return M(ModeZeropageXRMW);
-        case 6: if      (opCode == 4) return M(ModeAbsoluteYWrite);
-                else if (opCode == 5) return M(ModeAbsoluteYRead);
-                else                  return M(ModeAbsoluteYRMW);
-        case 7: if      (opCode == 4) return M(ModeAbsoluteYWrite);
-                else if (opCode == 5) return M(ModeAbsoluteYRead);
-                else                  return M(ModeAbsoluteXRMW);
-        }
-        break;
+        throw std::runtime_error("unexpected addressing mode");
     }
-    throw std::runtime_error("unexpected addressing mode");
+}
+
+Ricoh_RP2A03::Ricoh_RP2A03(const std::string& name, MemoryMap* map)
+    : IRQLevel{ false }
+    , NMIEdge{ false }
+    , NMIFlipFlop{ false }
+    , CycleActive{ false }
+    , BaseCpu{}
+{
+    // Build addressing mode LUT from opcode decoding
+    for (int opcode = 0; opcode < 0x100; ++opcode) {
+        modes[opcode] = GetAddressingMode(opcode);
+    }
+    // Set up special instructions
+    modes[0x20] = M(ModeJSR);          // JSR
+    modes[0x40] = M(ModeRTI);          // RTI
+    modes[0x60] = M(ModeRTS);          // RTS
+    modes[0x08] = M(ModePush);         // PHP
+    modes[0x28] = M(ModePull);         // PLP
+    modes[0x48] = M(ModePush);         // PHA
+    modes[0x68] = M(ModePull);         // PLA
+    modes[0x4C] = M(ModeJump);         // JMP
+    modes[0x6C] = M(ModeJumpIndirect); // JMP
+
+    // Build instruction LUT
+    uOpCode = {
+//           x0      x1      x2      x3      x4      x5      x6      x7      x8      x9      xA       xB      xC      xD      xE      xF
+/* 0x */ M( BRK),M( ORA),M(xHLT),M(xSLO),M(xNOP),M( ORA),M( ASL),M(xSLO),M( PHP),M( ORA),M( ASLa),M(xANC),M(xNOP),M( ORA),M( ASL),M(xSLO),
+/* 1x */ M( BPL),M( ORA),M(xHLT),M(xSLO),M(xNOP),M( ORA),M( ASL),M(xSLO),M( CLC),M( ORA),M(xNOP), M(xSLO),M(xNOP),M( ORA),M( ASL),M(xSLO),
+/* 2x */ M( JSR),M( AND),M(xHLT),M(xRLA),M( BIT),M( AND),M( ROL),M(xRLA),M( PLP),M( AND),M( ROLa),M(xANC),M( BIT),M( AND),M( ROL),M(xRLA),
+/* 3x */ M( BMI),M( AND),M(xHLT),M(xRLA),M(xNOP),M( AND),M( ROL),M(xRLA),M( SEC),M( AND),M(xNOP), M(xRLA),M(xNOP),M( AND),M( ROL),M(xRLA),
+/* 4x */ M( RTI),M( EOR),M(xHLT),M(xSRE),M(xNOP),M( EOR),M( LSR),M(xSRE),M( PHA),M( EOR),M( LSRa),M(xALR),M( JMP),M( EOR),M( LSR),M(xSRE),
+/* 5x */ M( BVC),M( EOR),M(xHLT),M(xSRE),M(xNOP),M( EOR),M( LSR),M(xSRE),M( CLI),M( EOR),M(xNOP), M(xSRE),M(xNOP),M( EOR),M( LSR),M(xSRE),
+/* 6x */ M( RTS),M( ADC),M(xHLT),M(xRRA),M(xNOP),M( ADC),M( ROR),M(xRRA),M( PLA),M( ADC),M( RORa),M(xARR),M( JMP),M( ADC),M( ROR),M(xRRA),
+/* 7x */ M( BVS),M( ADC),M(xHLT),M(xRRA),M(xNOP),M( ADC),M( ROR),M(xRRA),M( SEI),M( ADC),M(xNOP), M(xRRA),M(xNOP),M( ADC),M( ROR),M(xRRA),
+/* 8x */ M(xNOP),M( STA),M(xNOP),M(xSAX),M( STY),M( STA),M( STX),M(xSAX),M( DEY),M(xNOP),M( TXA), M(xXAA),M( STY),M( STA),M( STX),M(xSAX),
+/* 9x */ M( BCC),M( STA),M(xHLT),M(xAHX),M( STY),M( STA),M( STX),M(xSAX),M( TYA),M( STA),M( TXS), M(xTAS),M(xSHY),M( STA),M(xSHX),M(xAHX),
+/* Ax */ M( LDY),M( LDA),M( LDX),M(xLAX),M( LDY),M( LDA),M( LDX),M(xLAX),M( TAY),M( LDA),M( TAX), M(xLAX),M( LDY),M( LDA),M( LDX),M(xLAX),
+/* Bx */ M( BCS),M( LDA),M(xHLT),M(xLAX),M( LDY),M( LDA),M( LDX),M(xLAX),M( CLV),M( LDA),M( TSX), M(xLAS),M( LDY),M( LDA),M( LDX),M(xLAX),
+/* Cx */ M( CPY),M( CMP),M(xNOP),M(xDCP),M( CPY),M( CMP),M( DEC),M(xDCP),M( INY),M( CMP),M( DEX), M(xAXS),M( CPY),M( CMP),M( DEC),M(xDCP),
+/* Dx */ M( BNE),M( CMP),M(xHLT),M(xDCP),M(xNOP),M( CMP),M( DEC),M(xDCP),M( CLD),M( CMP),M(xNOP), M(xDCP),M(xNOP),M( CMP),M( DEC),M(xDCP),
+/* Ex */ M( CPX),M( SBC),M(xNOP),M(xISC),M( CPX),M( SBC),M( INC),M(xISC),M( INX),M( SBC),M( NOP), M(xSBC),M( CPX),M( SBC),M( INC),M(xISC),
+/* Fx */ M( BEQ),M( SBC),M(xHLT),M(xISC),M(xNOP),M( SBC),M( INC),M(xISC),M( SED),M( SBC),M(xNOP), M(xISC),M(xNOP),M( SBC),M( INC),M(xISC),
+    };
 }
 
 void Ricoh_RP2A03::ModeImplied() {
@@ -119,6 +176,11 @@ void Ricoh_RP2A03::ModeAbsoluteWrite() {
           M(increment_PC));
     Cycle(M(read_PC_to_addressHi),
           M(increment_PC));
+    // Cycle(&Ricoh_RP2A03::Chain<&Ricoh_RP2A03::read_PC_to_addressLo,
+    //                            &Ricoh_RP2A03::increment_PC>
+    // );
+    // Cycle(&Ricoh_RP2A03::Chain<&Ricoh_RP2A03::read_PC_to_addressHi,
+    //                            &Ricoh_RP2A03::increment_PC>);
 }
 
 void Ricoh_RP2A03::ModeZeropageRead() {
@@ -389,50 +451,6 @@ void Ricoh_RP2A03::do_DMA() {
     }
 }
 
-Ricoh_RP2A03::Ricoh_RP2A03()
-    : Ticks{ 0 }
-    , IRQLevel{ false }
-    , NMIEdge{ false }
-    , NMIFlipFlop{ false }
-    , CycleActive{ false }
-    , BaseCpu{}
-{
-    // Build addressing mode LUT from opcode decoding
-    for (int opcode = 0; opcode < 0x100; ++opcode) {
-        modes[opcode] = GetAddressingMode(opcode);
-    }
-    // Set up special instructions
-    modes[0x20] = M(ModeJSR);          // JSR
-    modes[0x40] = M(ModeRTI);          // RTI
-    modes[0x60] = M(ModeRTS);          // RTS
-    modes[0x08] = M(ModePush);         // PHP
-    modes[0x28] = M(ModePull);         // PLP
-    modes[0x48] = M(ModePush);         // PHA
-    modes[0x68] = M(ModePull);         // PLA
-    modes[0x4C] = M(ModeJump);         // JMP
-    modes[0x6C] = M(ModeJumpIndirect); // JMP
-
-    // Build instruction LUT
-    uOpCode = {
-//           x0      x1      x2      x3      x4      x5      x6      x7      x8      x9      xA       xB      xC      xD      xE      xF
-/* 0x */ M( BRK),M( ORA),M(xHLT),M(xSLO),M(xNOP),M( ORA),M( ASL),M(xSLO),M( PHP),M( ORA),M( ASLa),M(xANC),M(xNOP),M( ORA),M( ASL),M(xSLO),
-/* 1x */ M( BPL),M( ORA),M(xHLT),M(xSLO),M(xNOP),M( ORA),M( ASL),M(xSLO),M( CLC),M( ORA),M(xNOP), M(xSLO),M(xNOP),M( ORA),M( ASL),M(xSLO),
-/* 2x */ M( JSR),M( AND),M(xHLT),M(xRLA),M( BIT),M( AND),M( ROL),M(xRLA),M( PLP),M( AND),M( ROLa),M(xANC),M( BIT),M( AND),M( ROL),M(xRLA),
-/* 3x */ M( BMI),M( AND),M(xHLT),M(xRLA),M(xNOP),M( AND),M( ROL),M(xRLA),M( SEC),M( AND),M(xNOP), M(xRLA),M(xNOP),M( AND),M( ROL),M(xRLA),
-/* 4x */ M( RTI),M( EOR),M(xHLT),M(xSRE),M(xNOP),M( EOR),M( LSR),M(xSRE),M( PHA),M( EOR),M( LSRa),M(xALR),M( JMP),M( EOR),M( LSR),M(xSRE),
-/* 5x */ M( BVC),M( EOR),M(xHLT),M(xSRE),M(xNOP),M( EOR),M( LSR),M(xSRE),M( CLI),M( EOR),M(xNOP), M(xSRE),M(xNOP),M( EOR),M( LSR),M(xSRE),
-/* 6x */ M( RTS),M( ADC),M(xHLT),M(xRRA),M(xNOP),M( ADC),M( ROR),M(xRRA),M( PLA),M( ADC),M( RORa),M(xARR),M( JMP),M( ADC),M( ROR),M(xRRA),
-/* 7x */ M( BVS),M( ADC),M(xHLT),M(xRRA),M(xNOP),M( ADC),M( ROR),M(xRRA),M( SEI),M( ADC),M(xNOP), M(xRRA),M(xNOP),M( ADC),M( ROR),M(xRRA),
-/* 8x */ M(xNOP),M( STA),M(xNOP),M(xSAX),M( STY),M( STA),M( STX),M(xSAX),M( DEY),M(xNOP),M( TXA), M(xXAA),M( STY),M( STA),M( STX),M(xSAX),
-/* 9x */ M( BCC),M( STA),M(xHLT),M(xAHX),M( STY),M( STA),M( STX),M(xSAX),M( TYA),M( STA),M( TXS), M(xTAS),M(xSHY),M( STA),M(xSHX),M(xAHX),
-/* Ax */ M( LDY),M( LDA),M( LDX),M(xLAX),M( LDY),M( LDA),M( LDX),M(xLAX),M( TAY),M( LDA),M( TAX), M(xLAX),M( LDY),M( LDA),M( LDX),M(xLAX),
-/* Bx */ M( BCS),M( LDA),M(xHLT),M(xLAX),M( LDY),M( LDA),M( LDX),M(xLAX),M( CLV),M( LDA),M( TSX), M(xLAS),M( LDY),M( LDA),M( LDX),M(xLAX),
-/* Cx */ M( CPY),M( CMP),M(xNOP),M(xDCP),M( CPY),M( CMP),M( DEC),M(xDCP),M( INY),M( CMP),M( DEX), M(xAXS),M( CPY),M( CMP),M( DEC),M(xDCP),
-/* Dx */ M( BNE),M( CMP),M(xHLT),M(xDCP),M(xNOP),M( CMP),M( DEC),M(xDCP),M( CLD),M( CMP),M(xNOP), M(xDCP),M(xNOP),M( CMP),M( DEC),M(xDCP),
-/* Ex */ M( CPX),M( SBC),M(xNOP),M(xISC),M( CPX),M( SBC),M( INC),M(xISC),M( INX),M( SBC),M( NOP), M(xSBC),M( CPX),M( SBC),M( INC),M(xISC),
-/* Fx */ M( BEQ),M( SBC),M(xHLT),M(xISC),M(xNOP),M( SBC),M( INC),M(xISC),M( SED),M( SBC),M(xNOP), M(xISC),M(xNOP),M( SBC),M( INC),M(xISC),
-    };
-}
 
 void Ricoh_RP2A03::Phi1() {
     if (IsStopped()) return;

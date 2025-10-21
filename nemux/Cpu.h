@@ -36,7 +36,7 @@ protected:
 
 public:
     explicit Cpu(const std::string& name,
-                MemoryMap* map);
+                 MemoryMap* map);
 
     ////////////////////////////////////////////////////////////
     // BaseCpu overrides

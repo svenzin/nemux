@@ -4,10 +4,12 @@
 
 #include "CpuTestBench.h"
 #include "Cpu.h"
+#include "Ricoh_RP2A03.h"
+#include "cpu/RP2A03.h"
 
 struct CpuBaseTest : public ::testing::Test {
 
-    using CpuT = Cpu;
+    using CpuT = RP2A03; //Ricoh_RP2A03; //Cpu;
     using MemoryMapT = MemoryBlock<0x10000>;
 
     CpuBaseTest() {
@@ -26,9 +28,11 @@ struct CpuBaseTest : public ::testing::Test {
     CpuTestBench bench;
 
     void ExecuteOne() {
+        size_t count{ 0 };
         bool done{ false };
         do {
             done = cpu->Tick();
-        } while (!done);
+            ++count;
+        } while (!done && (count < 10));
     }
 };

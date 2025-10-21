@@ -1,16 +1,27 @@
 #pragma once
 
-#include "Types.h"
-#include "MemoryMap.h"
-#include "CircularQueue.h"
+
 #include "cpu/BaseCpu.h"
 
-#include <string>
+
+#include "Types.h"
+#include "CircularQueue.h"
+
 #include <vector>
 
 #include <iostream>
 
+
 class Ricoh_RP2A03 : public BaseCpu {
+public:
+    explicit Ricoh_RP2A03(const std::string& name,
+                          MemoryMap* map);
+
+protected:
+    ////////////////////////////////////////////////////////////
+    void cycle_fetch_opcode_increment_PC();
+
+    ////////////////////////////////////////////////////////////
     // BaseCpu overrides
 public:
     void PowerUp() override;
@@ -348,12 +359,11 @@ private:
 
 public:
     // CPU state
-    size_t Ticks;
+    using BaseCpu::Ticks; // TODO remove when not needed anymore
 
     static constexpr const char * Id = "2A03";
     static constexpr const char * Name = "Ricoh RP2A03";
 
-    explicit Ricoh_RP2A03();
     void Phi1();
     void Phi2();
 };
