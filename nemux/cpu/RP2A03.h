@@ -81,4 +81,11 @@ protected:
     void Cycle_Operation();
     void Cycle_ReadOperand_IndexX();
     void Cycle_ReadOperand_IndexY();
+    void Cycle_ReadAddressLO();
+    void Cycle_ReadAddressHI();
+    void Cycle_ReadAddressHI_IndexY();
+
+    void Transfer(Byte value, Byte& to);
+
+    void LDA();
 };
