@@ -301,6 +301,11 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
     switch (opname) {
         using enum InstructionSet_6502::OpName;
         case LDA: _Operation = &RP2A03::LDA; break;
+        case LDX: _Operation = &RP2A03::LDX; break;
+        case LDY: _Operation = &RP2A03::LDY; break;
+        case STA: _Operation = &RP2A03::STA; break;
+        case STX: _Operation = &RP2A03::STX; break;
+        case STY: _Operation = &RP2A03::STY; break;
         default: _Operation = &RP2A03::Cycle_Unreachable; break;
     }
 
@@ -466,6 +471,26 @@ void RP2A03::Transfer(Byte value, Byte& to) {
 
 void RP2A03::LDA() {
     Transfer(_ByteOperand, A);
+}
+
+void RP2A03::LDX() {
+    Transfer(_ByteOperand, X);
+}
+
+void RP2A03::LDY() {
+    Transfer(_ByteOperand, Y);
+}
+
+void RP2A03::STA() {
+    WriteByte(_WordOperand, A);
+}
+
+void RP2A03::STX() {
+    WriteByte(_WordOperand, X);
+}
+
+void RP2A03::STY() {
+    WriteByte(_WordOperand, Y);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

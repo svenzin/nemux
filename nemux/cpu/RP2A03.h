@@ -88,4 +88,9 @@ protected:
     void Transfer(Byte value, Byte& to);
 
     void LDA();
+    void LDX();
+    void LDY();
+    void STA();
+    void STX();
+    void STY();
 };
