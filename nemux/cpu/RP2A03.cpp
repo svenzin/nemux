@@ -314,7 +314,21 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
                 *(cycle++) = &RP2A03::Cycle_PullPCL_IncrementS;
                 *(cycle++) = &RP2A03::Cycle_PullPCH;
                 *(cycle++) = &RP2A03::Cycle_IncrementPC_Operation;
-
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
+            case PHA: [[fallthrough]];
+            case PHP: {
+                *(cycle++) = &RP2A03::Cycle_FetchDummy;
+                *(cycle++) = &RP2A03::Cycle_Operation_DecrementS;
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
+            case PLA: [[fallthrough]];
+            case PLP: {
+                *(cycle++) = &RP2A03::Cycle_FetchDummy;
+                *(cycle++) = &RP2A03::Cycle_ReadDummyStack_IncrementS;
+                *(cycle++) = &RP2A03::Cycle_Operation;
                 *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
                 break;
             }
@@ -335,6 +349,16 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+Byte RP2A03::ReadByteFromStack() {
+    return ReadByte(StackPage + S);
+}
+
+void RP2A03::WriteByteToStack(Byte value) {
+    WriteByte(StackPage + S, value);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void RP2A03::Cycle_Unreachable() {
     UNREACHABLE();
 }
@@ -349,11 +373,13 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
         using enum InstructionSet_6502::OpName;
         #define CASE(OP) case OP: { _Operation = &RP2A03::OP; break; }
         CASE(LDA)   CASE(LDX)   CASE(LDY)
-        CASE(STA)   CASE(STX)   CASE(STY)   CASE(BCC)
-        CASE(BCS)   CASE(BEQ)   CASE(BMI)   CASE(BNE)
-        CASE(BPL)   CASE(BVC)   CASE(BVS)   CASE(TAX)
-        CASE(TAY)   CASE(TXA)   CASE(TYA)
+        CASE(STA)   CASE(STX)   CASE(STY)
+        CASE(BCC)   CASE(BCS)   CASE(BEQ)   CASE(BMI)
+        CASE(BNE)   CASE(BPL)   CASE(BVC)   CASE(BVS)
+        CASE(TAX)   CASE(TAY)   CASE(TXA)   CASE(TYA)
         CASE(JMP)   CASE(JSR)   CASE(RTS)
+        CASE(TSX)   CASE(TXS)
+        CASE(PHA)   CASE(PLA)   CASE(PHP)   CASE(PLP)
         #undef CASE
         default: _Operation = &RP2A03::Cycle_Unreachable; break;
     }
@@ -576,14 +602,20 @@ void RP2A03::Cycle_ReadAddressHI_Operation() {
     ++_CurrentCycle;
 }
 
+void RP2A03::Cycle_Operation_DecrementS() {
+    (this->*_Operation)();
+    --S;
+    ++_CurrentCycle;
+}
+
 void RP2A03::Cycle_PushPCL_DecrementS() {
-    WriteByte(StackPage + S, LO(PC));
+    WriteByteToStack(LO(PC));
     --S;
     ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_PushPCH_DecrementS() {
-    WriteByte(StackPage + S, HI(PC));
+    WriteByteToStack(HI(PC));
     --S;
     ++_CurrentCycle;
 }
@@ -605,13 +637,13 @@ void RP2A03::Cycle_ReadDummyStack_IncrementS() {
 }
 
 void RP2A03::Cycle_PullPCL_IncrementS() {
-    SetLO(PC, ReadByte(StackPage + S));
+    SetLO(PC, ReadByteFromStack());
     ++S;
     ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_PullPCH() {
-    SetHI(PC, ReadByte(StackPage + S));
+    SetHI(PC, ReadByteFromStack());
     ++_CurrentCycle;
 }
 
@@ -647,6 +679,16 @@ void RP2A03::Jump() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// TODO - Performance
+// Can those uses of _ByteOperand be replaced by direct memory reads?
+//
+// For example, set up _WordOperand with the address to read or write to
+// before calling LDA, in order to cover immediate, absolute and indirect
+// addressing modes.
+//
+// Alternatively, have the memory operation moved into the step-by-step
+// and all operations must use _ByteOperand and _WordOperand instead.
+
 void RP2A03::LDA() { Transfer(_ByteOperand, A); }
 void RP2A03::LDX() { Transfer(_ByteOperand, X); }
 void RP2A03::LDY() { Transfer(_ByteOperand, Y); }
@@ -672,6 +714,14 @@ void RP2A03::TYA() { Transfer(Y, A); }
 void RP2A03::JMP() { Jump(); }
 void RP2A03::JSR() { Jump(); }
 void RP2A03::RTS() {} // TODO to call Jump() here, set up _WordOperand in the step-by-step
+
+void RP2A03::TSX() { Transfer(S, X); }
+void RP2A03::TXS() { S = X; }
+
+void RP2A03::PHA() { WriteByteToStack(A); }
+void RP2A03::PLA() { Transfer(ReadByteFromStack(), A); }
+void RP2A03::PHP() { WriteByteToStack(GetStatusByte(1)); }
+void RP2A03::PLP() { SetStatusByte(ReadByteFromStack()); }
 
 ////////////////////////////////////////////////////////////////////////////////
 

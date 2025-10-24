@@ -60,6 +60,9 @@ protected:
     CycleCounter _CurrentBegin;
     Byte _CurrentOpcode;
 
+    Byte ReadByteFromStack();
+    void WriteByteToStack(Byte value);
+
     void Cycle_Unreachable();
     void Cycle_FetchOpcode_IncrementPC();
     void Cycle_FetchDummy_Operation();
@@ -89,6 +92,7 @@ protected:
     void Cycle_FetchDummy_FixBranch();
     void Cycle_FetchAddressHI_Operation(); // TODO can increment PC before OP if useful for refactoring
     void Cycle_ReadAddressHI_Operation();
+    void Cycle_Operation_DecrementS();
     void Cycle_PushPCL_DecrementS();
     void Cycle_PushPCH_DecrementS();
     void Cycle_ReadDummyStack();
@@ -126,4 +130,12 @@ protected:
     void JMP();
     void JSR();
     void RTS();
+
+    void TSX();
+    void TXS();
+
+    void PHA();
+    void PLA();
+    void PHP();
+    void PLP();
 };
