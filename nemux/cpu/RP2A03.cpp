@@ -302,6 +302,25 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
                 }
                 break;
             }
+            case JSR: {
+                *(cycle++) = &RP2A03::Cycle_FetchAddressLO_IncrementPC;
+                *(cycle++) = &RP2A03::Cycle_ReadDummyStack;
+                *(cycle++) = &RP2A03::Cycle_PushPCH_DecrementS;
+                *(cycle++) = &RP2A03::Cycle_PushPCL_DecrementS;
+                *(cycle++) = &RP2A03::Cycle_FetchAddressHI_Operation;
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
+            case RTS: {
+                *(cycle++) = &RP2A03::Cycle_FetchDummy;
+                *(cycle++) = &RP2A03::Cycle_ReadDummyStack_IncrementS;
+                *(cycle++) = &RP2A03::Cycle_PullPCL_IncrementS;
+                *(cycle++) = &RP2A03::Cycle_PullPCH;
+                *(cycle++) = &RP2A03::Cycle_IncrementPC_Operation;
+
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
             default: {
                 FillWithModeCycles(cycle, instr.Mode, type);
                 break;
@@ -337,7 +356,7 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
         CASE(BCS)   CASE(BEQ)   CASE(BMI)   CASE(BNE)
         CASE(BPL)   CASE(BVC)   CASE(BVS)   CASE(TAX)
         CASE(TAY)   CASE(TXA)   CASE(TYA)
-        CASE(JMP)
+        CASE(JMP)   CASE(JSR)   CASE(RTS)
         #undef CASE
         default: _Operation = &RP2A03::Cycle_Unreachable; break;
     }
@@ -558,6 +577,51 @@ void RP2A03::Cycle_ReadAddressHI_Operation() {
     ++_CurrentCycle;
 }
 
+void RP2A03::Cycle_PushPCL_DecrementS() {
+    WriteByte(StackPage + S, LO(PC));
+    --S;
+    ++_CurrentCycle;
+}
+
+void RP2A03::Cycle_PushPCH_DecrementS() {
+    WriteByte(StackPage + S, HI(PC));
+    --S;
+    ++_CurrentCycle;
+}
+
+void RP2A03::Cycle_ReadDummyStack() {
+    ReadByte(StackPage + S);
+    ++_CurrentCycle;
+}
+
+void RP2A03::Cycle_FetchDummy() {
+    ReadByte(PC);
+    ++_CurrentCycle;
+}
+
+void RP2A03::Cycle_ReadDummyStack_IncrementS() {
+    ReadByte(StackPage + S);
+    ++S;
+    ++_CurrentCycle;
+}
+
+void RP2A03::Cycle_PullPCL_IncrementS() {
+    SetLO(PC, ReadByte(StackPage + S));
+    ++S;
+    ++_CurrentCycle;
+}
+
+void RP2A03::Cycle_PullPCH() {
+    SetHI(PC, ReadByte(StackPage + S));
+    ++_CurrentCycle;
+}
+
+void RP2A03::Cycle_IncrementPC_Operation() {
+    ++PC;
+    (this->*_Operation)();
+    ++_CurrentCycle;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void RP2A03::Transfer(Byte value, Byte& to) {
@@ -576,6 +640,10 @@ void RP2A03::Branch(bool condition) {
     } else {
         _WordOperand = PC;
     }
+}
+
+void RP2A03::Jump() {
+    PC = _WordOperand;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -602,7 +670,9 @@ void RP2A03::TAY() { Transfer(A, Y); }
 void RP2A03::TXA() { Transfer(X, A); }
 void RP2A03::TYA() { Transfer(Y, A); }
 
-void RP2A03::JMP() { PC = _WordOperand; }
+void RP2A03::JMP() { Jump(); }
+void RP2A03::JSR() { Jump(); }
+void RP2A03::RTS() {} // TODO to call Jump() here, set up _WordOperand in the step-by-step
 
 ////////////////////////////////////////////////////////////////////////////////
 

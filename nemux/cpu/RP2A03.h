@@ -89,9 +89,18 @@ protected:
     void Cycle_FixBranch();
     void Cycle_FetchAddressHI_Operation(); // TODO can increment PC before OP if useful for refactoring
     void Cycle_ReadAddressHI_Operation();
+    void Cycle_PushPCL_DecrementS();
+    void Cycle_PushPCH_DecrementS();
+    void Cycle_ReadDummyStack();
+    void Cycle_FetchDummy();
+    void Cycle_ReadDummyStack_IncrementS();
+    void Cycle_PullPCL_IncrementS();
+    void Cycle_PullPCH();
+    void Cycle_IncrementPC_Operation();
 
     void Transfer(Byte value, Byte& to);
     void Branch(bool condition);
+    void Jump();
 
     void LDA();
     void LDX();
@@ -115,4 +124,6 @@ protected:
     void TYA();
 
     void JMP();
+    void JSR();
+    void RTS();
 };
