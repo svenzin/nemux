@@ -85,8 +85,8 @@ protected:
     void Cycle_ReadAddressHI();
     void Cycle_ReadAddressHI_IndexY();
     void Cycle_FetchOperand_IncrementPC_Branch();
-    void Cycle_TakeBranch();
-    void Cycle_FixBranch();
+    void Cycle_FetchDummy_TakeBranch();
+    void Cycle_FetchDummy_FixBranch();
     void Cycle_FetchAddressHI_Operation(); // TODO can increment PC before OP if useful for refactoring
     void Cycle_ReadAddressHI_Operation();
     void Cycle_PushPCL_DecrementS();

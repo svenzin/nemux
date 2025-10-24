@@ -210,8 +210,8 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
 
                 case REL: {
                     *(cycle++) = &RP2A03::Cycle_FetchOperand_IncrementPC_Branch;
-                    *(cycle++) = &RP2A03::Cycle_TakeBranch;
-                    *(cycle++) = &RP2A03::Cycle_FixBranch;
+                    *(cycle++) = &RP2A03::Cycle_FetchDummy_TakeBranch;
+                    *(cycle++) = &RP2A03::Cycle_FetchDummy_FixBranch;
                     *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
                     break;
                 }
@@ -270,10 +270,7 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
                     break;
                 }
 
-                case IND: {
-                    break;
-                }
-
+                case IND: [[fallthrough]]; // JMP is already covered in the special cases
                 default: UNREACHABLE();
             }
         };
@@ -531,7 +528,8 @@ void RP2A03::Cycle_FetchOperand_IncrementPC_Branch() {
     ++_CurrentCycle;
 }
 
-void RP2A03::Cycle_TakeBranch() {
+void RP2A03::Cycle_FetchDummy_TakeBranch() {
+    ReadByte(PC);
     SetLO(PC, PC + _ByteOperand);
     if constexpr (BRANCH_USING_WORDOPERAND) {
         if (PC == _WordOperand) {
@@ -551,7 +549,8 @@ void RP2A03::Cycle_TakeBranch() {
     ++_CurrentCycle;
 }
 
-void RP2A03::Cycle_FixBranch() {
+void RP2A03::Cycle_FetchDummy_FixBranch() {
+    ReadByte(PC);
     if constexpr (BRANCH_USING_WORDOPERAND) {
         PC = _WordOperand;
     } else {
