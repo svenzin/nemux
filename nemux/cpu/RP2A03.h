@@ -69,9 +69,12 @@ public:
     template <ActionT OP> void Cycle_ReadOperand_FixHI_IndexX_Try();
     template <ActionT OP> void Cycle_ReadOperand_FixHI_IndexY_Try();
 
+    void Cycle_GetAddressHI(Word from, Byte index);
+
     void Cycle_Unreachable();
     void Cycle_FetchOpcode_IncrementPC();
     void Cycle_FetchZeroPageAddress_IncrementPC();
+    void Cycle_FetchAddressLO_IncrementPC();
     void Cycle_FetchAddressHI_IncrementPC();
     void Cycle_FetchAddressHI_IndexX_IncrementPC();
     void Cycle_FetchAddressHI_IndexY_IncrementPC();
@@ -79,6 +82,7 @@ public:
     void Cycle_ReadOperand_IndexY();
     void Cycle_ReadOperand_FixHI_IndexX();
     void Cycle_ReadOperand_FixHI_IndexY();
+    void Cycle_ReadAddressLO();
     void Cycle_ReadAddressHI();
     void Cycle_ReadAddressHI_IndexY();
 

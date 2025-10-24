@@ -88,7 +88,7 @@ namespace {
             }
 
             case ABS: {
-                *(cycle++) = &RP2A03::Cycle_FetchOperand_IncrementPC<>;
+                *(cycle++) = &RP2A03::Cycle_FetchAddressLO_IncrementPC;
                 *(cycle++) = &RP2A03::Cycle_FetchAddressHI_IncrementPC;
                 FillReadWriteRMW<OP>(cycle, type);
                 *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
@@ -96,7 +96,7 @@ namespace {
             }
 
             case ABX: {
-                *(cycle++) = &RP2A03::Cycle_FetchOperand_IncrementPC<>;
+                *(cycle++) = &RP2A03::Cycle_FetchAddressLO_IncrementPC;
                 *(cycle++) = &RP2A03::Cycle_FetchAddressHI_IndexX_IncrementPC;
                 switch (type) {
                     case Read: {
@@ -119,7 +119,7 @@ namespace {
             }
 
             case ABY: {
-                *(cycle++) = &RP2A03::Cycle_FetchOperand_IncrementPC<>;
+                *(cycle++) = &RP2A03::Cycle_FetchAddressLO_IncrementPC;
                 *(cycle++) = &RP2A03::Cycle_FetchAddressHI_IndexY_IncrementPC;
                 switch (type) {
                     case Read: {
@@ -149,8 +149,8 @@ namespace {
 
             case IDX: {
                 *(cycle++) = &RP2A03::Cycle_FetchZeroPageAddress_IncrementPC;
-                *(cycle++) = &RP2A03::Cycle_ReadOperand_IndexX;
-                *(cycle++) = &RP2A03::Cycle_ReadOperand<>;
+                *(cycle++) = &RP2A03::Cycle_ReadOperand_IndexX; // Dummy operand read needed to apply index
+                *(cycle++) = &RP2A03::Cycle_ReadAddressLO;
                 *(cycle++) = &RP2A03::Cycle_ReadAddressHI;
                 FillReadWriteRMW<OP>(cycle, type);
                 *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
@@ -159,7 +159,7 @@ namespace {
 
             case IDY: {
                 *(cycle++) = &RP2A03::Cycle_FetchZeroPageAddress_IncrementPC;
-                *(cycle++) = &RP2A03::Cycle_ReadOperand<>;
+                *(cycle++) = &RP2A03::Cycle_ReadAddressLO;
                 *(cycle++) = &RP2A03::Cycle_ReadAddressHI_IndexY;
                 switch (type) {
                     case Read: {
@@ -233,6 +233,13 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void RP2A03::Cycle_GetAddressHI(Word from, Byte index) {
+    _WordOperand = MakeWord(_ByteOperand + index, ReadByte(from));
+    ++_CurrentCycle;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void RP2A03::Cycle_Unreachable() {
     UNREACHABLE();
 }
@@ -255,23 +262,16 @@ void RP2A03::Cycle_FetchZeroPageAddress_IncrementPC() {
     ++_CurrentCycle;
 }
 
-void RP2A03::Cycle_FetchAddressHI_IncrementPC() {
-    _WordOperand = MakeWord(_ByteOperand, ReadByte(PC));
-    ++PC;
-    ++_CurrentCycle;
-}
+void RP2A03::Cycle_FetchAddressLO_IncrementPC()        { Cycle_FetchOperand_IncrementPC<>(); }
 
-void RP2A03::Cycle_FetchAddressHI_IndexX_IncrementPC() {
-    _WordOperand = MakeWord(_ByteOperand + X, ReadByte(PC));
-    ++PC;
-    ++_CurrentCycle;
-}
+void RP2A03::Cycle_FetchAddressHI_IncrementPC()        { Cycle_GetAddressHI(PC++, 0); }
+void RP2A03::Cycle_FetchAddressHI_IndexX_IncrementPC() { Cycle_GetAddressHI(PC++, X); }
+void RP2A03::Cycle_FetchAddressHI_IndexY_IncrementPC() { Cycle_GetAddressHI(PC++, Y); }
 
-void RP2A03::Cycle_FetchAddressHI_IndexY_IncrementPC() {
-    _WordOperand = MakeWord(_ByteOperand + Y, ReadByte(PC));
-    ++PC;
-    ++_CurrentCycle;
-}
+void RP2A03::Cycle_ReadAddressLO()        { Cycle_ReadOperand<>(); }
+
+void RP2A03::Cycle_ReadAddressHI()        { Cycle_GetAddressHI(LO(_WordOperand + 1), 0); }
+void RP2A03::Cycle_ReadAddressHI_IndexY() { Cycle_GetAddressHI(LO(_WordOperand + 1), Y); }
 
 void RP2A03::Cycle_ReadOperand_IndexX() {
     _ByteOperand = ReadByte(_WordOperand);
@@ -298,19 +298,6 @@ void RP2A03::Cycle_ReadOperand_FixHI_IndexY() {
     if (LO(_WordOperand) < Y) {
         _WordOperand += Word{ 0x0100 };
     }
-    ++_CurrentCycle;
-}
-
-// TODO the following ones can probably be merged with the FetchXYZ ones
-void RP2A03::Cycle_ReadAddressHI() {
-    const auto hi{ ReadByte(LO(_WordOperand + 1)) };
-    _WordOperand = MakeWord(_ByteOperand, hi);
-    ++_CurrentCycle;
-}
-
-void RP2A03::Cycle_ReadAddressHI_IndexY() {
-    const auto hi{ ReadByte(LO(_WordOperand + 1)) };
-    _WordOperand = MakeWord(_ByteOperand + Y, hi);
     ++_CurrentCycle;
 }
 
