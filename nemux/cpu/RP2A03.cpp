@@ -279,7 +279,34 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
         };
 
         auto counter{ CycleCounter::ValueFrom(opcode, 0) };
-        FillWithModeCycles(_InstructionsCycles.begin() + counter, instr.Mode, type);
+        auto* cycle{ _InstructionsCycles.begin() + counter };
+        switch (instr.Name) {
+            using enum InstructionSet_6502::OpName;
+            case JMP: {
+                switch (instr.Mode) {
+                    case ABS: {
+                        *(cycle++) = &RP2A03::Cycle_FetchAddressLO_IncrementPC;
+                        *(cycle++) = &RP2A03::Cycle_FetchAddressHI_Operation;
+                        *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                        break;
+                    }
+                    case IND: {
+                        *(cycle++) = &RP2A03::Cycle_FetchAddressLO_IncrementPC;
+                        *(cycle++) = &RP2A03::Cycle_FetchAddressHI_IncrementPC;
+                        *(cycle++) = &RP2A03::Cycle_ReadAddressLO;
+                        *(cycle++) = &RP2A03::Cycle_ReadAddressHI_Operation;
+                        *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                        break;
+                    }
+                    default: UNREACHABLE();
+                }
+                break;
+            }
+            default: {
+                FillWithModeCycles(cycle, instr.Mode, type);
+                break;
+            }
+        }
     }
 
     _CurrentCycle.Set(0xEA, 1);
@@ -304,24 +331,14 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
     const auto opname{ InstructionSet_6502::LUT::OpcodeNames[opcode] };
     switch (opname) {
         using enum InstructionSet_6502::OpName;
-        case LDA: _Operation = &RP2A03::LDA; break;
-        case LDX: _Operation = &RP2A03::LDX; break;
-        case LDY: _Operation = &RP2A03::LDY; break;
-        case STA: _Operation = &RP2A03::STA; break;
-        case STX: _Operation = &RP2A03::STX; break;
-        case STY: _Operation = &RP2A03::STY; break;
-        case BCC: _Operation = &RP2A03::BCC; break;
-        case BCS: _Operation = &RP2A03::BCS; break;
-        case BEQ: _Operation = &RP2A03::BEQ; break;
-        case BMI: _Operation = &RP2A03::BMI; break;
-        case BNE: _Operation = &RP2A03::BNE; break;
-        case BPL: _Operation = &RP2A03::BPL; break;
-        case BVC: _Operation = &RP2A03::BVC; break;
-        case BVS: _Operation = &RP2A03::BVS; break;
-        case TAX: _Operation = &RP2A03::TAX; break;
-        case TAY: _Operation = &RP2A03::TAY; break;
-        case TXA: _Operation = &RP2A03::TXA; break;
-        case TYA: _Operation = &RP2A03::TYA; break;
+        #define CASE(OP) case OP: { _Operation = &RP2A03::OP; break; }
+        CASE(LDA)   CASE(LDX)   CASE(LDY)
+        CASE(STA)   CASE(STX)   CASE(STY)   CASE(BCC)
+        CASE(BCS)   CASE(BEQ)   CASE(BMI)   CASE(BNE)
+        CASE(BPL)   CASE(BVC)   CASE(BVS)   CASE(TAX)
+        CASE(TAY)   CASE(TXA)   CASE(TYA)
+        CASE(JMP)
+        #undef CASE
         default: _Operation = &RP2A03::Cycle_Unreachable; break;
     }
 
@@ -464,14 +481,23 @@ void RP2A03::Cycle_ReadAddressLO() {
 }
 
 void RP2A03::Cycle_ReadAddressHI() {
-    const auto hi{ ReadByte(LO(_WordOperand + 1)) };
-    _WordOperand = MakeWord(_ByteOperand, hi);
+    // Only used in IndirectX and IndirectY addressing modes
+    // so reading from zero page is good enough.
+    // const auto hi{ ReadByte(LO(_WordOperand + 1)) };
+
+    // The same "logic" of reading "address HI" is also used in Indirect (JMP)
+    // which might read from any memory page. So for the sake of making refactoring
+    // easier, we handle any memory page.
+    SetLO(_WordOperand, _WordOperand + 1);
+    _WordOperand = MakeWord(_ByteOperand, ReadByte(_WordOperand));
     ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_ReadAddressHI_IndexY() {
-    const auto hi{ ReadByte(LO(_WordOperand + 1)) };
-    _WordOperand = MakeWord(_ByteOperand + Y, hi);
+    // Same remark as for Cycle_ReadAddressHI()
+    // const auto hi{ ReadByte(LO(_WordOperand + 1)) };
+    SetLO(_WordOperand, _WordOperand + 1);
+    _WordOperand = MakeWord(_ByteOperand + Y, ReadByte(_WordOperand));
     ++_CurrentCycle;
 }
 
@@ -519,6 +545,19 @@ void RP2A03::Cycle_FixBranch() {
     ++_CurrentCycle;
 }
 
+void RP2A03::Cycle_FetchAddressHI_Operation() {
+    SetHI(_WordOperand, ReadByte(PC));
+    (this->*_Operation)();
+    ++_CurrentCycle;
+}
+
+void RP2A03::Cycle_ReadAddressHI_Operation() {
+    SetLO(_WordOperand, _WordOperand + 1);
+    _WordOperand = MakeWord(_ByteOperand, ReadByte(_WordOperand));
+    (this->*_Operation)();
+    ++_CurrentCycle;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void RP2A03::Transfer(Byte value, Byte& to) {
@@ -562,6 +601,8 @@ void RP2A03::TAX() { Transfer(A, X); }
 void RP2A03::TAY() { Transfer(A, Y); }
 void RP2A03::TXA() { Transfer(X, A); }
 void RP2A03::TYA() { Transfer(Y, A); }
+
+void RP2A03::JMP() { PC = _WordOperand; }
 
 ////////////////////////////////////////////////////////////////////////////////
 
