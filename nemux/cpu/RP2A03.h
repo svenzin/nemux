@@ -107,4 +107,9 @@ protected:
     void BPL();
     void BVC();
     void BVS();
+    
+    void TAX();
+    void TAY();
+    void TXA();
+    void TYA();
 };

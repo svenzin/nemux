@@ -318,6 +318,10 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
         case BPL: _Operation = &RP2A03::BPL; break;
         case BVC: _Operation = &RP2A03::BVC; break;
         case BVS: _Operation = &RP2A03::BVS; break;
+        case TAX: _Operation = &RP2A03::TAX; break;
+        case TAY: _Operation = &RP2A03::TAY; break;
+        case TXA: _Operation = &RP2A03::TXA; break;
+        case TYA: _Operation = &RP2A03::TYA; break;
         default: _Operation = &RP2A03::Cycle_Unreachable; break;
     }
 
@@ -553,6 +557,11 @@ void RP2A03::BNE() { Branch(Z == 0); }
 void RP2A03::BPL() { Branch(N == 0); }
 void RP2A03::BVC() { Branch(V == 0); }
 void RP2A03::BVS() { Branch(V == 1); }
+
+void RP2A03::TAX() { Transfer(A, X); }
+void RP2A03::TAY() { Transfer(A, Y); }
+void RP2A03::TXA() { Transfer(X, A); }
+void RP2A03::TYA() { Transfer(Y, A); }
 
 ////////////////////////////////////////////////////////////////////////////////
 
