@@ -18,6 +18,176 @@ namespace {
         if (type == 5) return AddressingType::Read;
         return AddressingType::ReadModifyWrite;
     }
+
+    template <RP2A03::ActionT OP>
+    void FillReadWriteRMW(RP2A03::CycleT*& cycle, AddressingType type) {
+        switch (type) {
+            using enum AddressingType;
+            
+            case Read: {
+                *(cycle++) = &RP2A03::Cycle_ReadOperand<OP>;
+                break;
+            }
+            case Write: {
+                *(cycle++) = &RP2A03::Cycle<OP>;
+                break;
+            }
+            case ReadModifyWrite: {
+                *(cycle++) = &RP2A03::Cycle_ReadOperand<>;
+                *(cycle++) = &RP2A03::Cycle_ReadOperand<OP>;
+                *(cycle++) = &RP2A03::Cycle_WriteOperand<>;
+                break;
+            }
+            default: UNREACHABLE();
+        }
+    }
+    
+    template <RP2A03::ActionT OP>
+    void FillCycles(RP2A03::CycleT* cycle,
+                    InstructionSet_6502::AddressingMode mode,
+                    AddressingType type)
+    {
+        switch (mode) {
+            using enum InstructionSet_6502::AddressingMode;
+            using enum AddressingType;
+            
+            case IMP: [[fallthrough]];
+            case ACC: {
+                *(cycle++) = &RP2A03::Cycle_FetchDummy<OP>;
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
+
+            case IMM: {
+                *(cycle++) = &RP2A03::Cycle_FetchOperand_IncrementPC<OP>;
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
+
+            case ZPG: {
+                *(cycle++) = &RP2A03::Cycle_FetchZeroPageAddress_IncrementPC;
+                FillReadWriteRMW<OP>(cycle, type);
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
+
+            case ZPX: {
+                *(cycle++) = &RP2A03::Cycle_FetchZeroPageAddress_IncrementPC;
+                *(cycle++) = &RP2A03::Cycle_ReadOperand_IndexX;
+                FillReadWriteRMW<OP>(cycle, type);
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
+
+            case ZPY: {
+                *(cycle++) = &RP2A03::Cycle_FetchZeroPageAddress_IncrementPC;
+                *(cycle++) = &RP2A03::Cycle_ReadOperand_IndexY;
+                FillReadWriteRMW<OP>(cycle, type);
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
+
+            case ABS: {
+                *(cycle++) = &RP2A03::Cycle_FetchOperand_IncrementPC<>;
+                *(cycle++) = &RP2A03::Cycle_FetchAddressHI_IncrementPC;
+                FillReadWriteRMW<OP>(cycle, type);
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
+
+            case ABX: {
+                *(cycle++) = &RP2A03::Cycle_FetchOperand_IncrementPC<>;
+                *(cycle++) = &RP2A03::Cycle_FetchAddressHI_IndexX_IncrementPC;
+                switch (type) {
+                    case Read: {
+                        *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexX_Try<OP>;
+                        break;
+                    }
+                    case Write: {
+                        *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexX;
+                        break;
+                    }
+                    case ReadModifyWrite: {
+                        *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexX;
+                        break;
+                    }
+                    default: UNREACHABLE();
+                }
+                FillReadWriteRMW<OP>(cycle, type);
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
+
+            case ABY: {
+                *(cycle++) = &RP2A03::Cycle_FetchOperand_IncrementPC<>;
+                *(cycle++) = &RP2A03::Cycle_FetchAddressHI_IndexY_IncrementPC;
+                switch (type) {
+                    case Read: {
+                        *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY_Try<OP>;
+                        break;
+                    }
+                    case Write: {
+                        *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY;
+                        break;
+                    }
+                    case ReadModifyWrite: {
+                        *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY;
+                        break;
+                    }
+                    default: UNREACHABLE();
+                }
+                FillReadWriteRMW<OP>(cycle, type);
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
+
+            case REL: {
+                *(cycle++) = &RP2A03::Cycle_FetchOperand_IncrementPC<>;
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
+
+            case IDX: {
+                *(cycle++) = &RP2A03::Cycle_FetchZeroPageAddress_IncrementPC;
+                *(cycle++) = &RP2A03::Cycle_ReadOperand_IndexX;
+                *(cycle++) = &RP2A03::Cycle_ReadOperand<>;
+                *(cycle++) = &RP2A03::Cycle_ReadAddressHI;
+                FillReadWriteRMW<OP>(cycle, type);
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
+
+            case IDY: {
+                *(cycle++) = &RP2A03::Cycle_FetchZeroPageAddress_IncrementPC;
+                *(cycle++) = &RP2A03::Cycle_ReadOperand<>;
+                *(cycle++) = &RP2A03::Cycle_ReadAddressHI_IndexY;
+                switch (type) {
+                    case Read: {
+                        *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY_Try<OP>;
+                        break;
+                    }
+                    case Write: {
+                        *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY;
+                        break;
+                    }
+                    case ReadModifyWrite: {
+                        *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY;
+                        break;
+                    }
+                    default: UNREACHABLE();
+                }
+                FillReadWriteRMW<OP>(cycle, type);
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
+
+            case IND: {
+                break;
+            }
+
+            default: UNREACHABLE();
+        }
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -38,248 +208,23 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
     ) {
         const auto instr{ InstructionSet_6502::Decode(opcode) };
         const auto type{ OpcodeType(opcode) };
-        
-        using enum AddressingType;
-        using enum InstructionSet_6502::AddressingMode;
-        static auto FillWithModeCycles = [](CycleT* cycle, auto mode, auto type) {
-            switch (mode) {
-
-                case IMP: [[fallthrough]];
-                case ACC: {
-                    *(cycle++) = &RP2A03::Cycle_FetchDummy_Operation;
-                    *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
-                    break;
-                }
-
-                case IMM: {
-                    *(cycle++) = &RP2A03::Cycle_FetchOperand_IncrementPC_Operation;
-                    *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
-                    break;
-                }
-
-                case ZPG: {
-                    *(cycle++) = &RP2A03::Cycle_FetchAddress_IncrementPC;
-                    switch (type) {
-                        case Read: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_Operation;
-                            break;
-                        }
-                        case Write: {
-                            *(cycle++) = &RP2A03::Cycle_Operation;
-                            break;
-                        }
-                        case ReadModifyWrite: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand_Operation;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand;
-                            break;
-                        }
-                        default: UNREACHABLE();
-                    }
-                    *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
-                    break;
-                }
-
-                case ZPX: {
-                    *(cycle++) = &RP2A03::Cycle_FetchAddress_IncrementPC;
-                    *(cycle++) = &RP2A03::Cycle_ReadOperand_IndexX;
-                    switch (type) {
-                        case Read: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_Operation;
-                            break;
-                        }
-                        case Write: {
-                            *(cycle++) = &RP2A03::Cycle_Operation;
-                            break;
-                        }
-                        case ReadModifyWrite: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand_Operation;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand;
-                            break;
-                        }
-                        default: UNREACHABLE();
-                    }
-                    *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
-                    break;
-                }
-
-                case ZPY: {
-                    *(cycle++) = &RP2A03::Cycle_FetchAddress_IncrementPC;
-                    *(cycle++) = &RP2A03::Cycle_ReadOperand_IndexY;
-                    switch (type) {
-                        case Read: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_Operation;
-                            break;
-                        }
-                        case Write: {
-                            *(cycle++) = &RP2A03::Cycle_Operation;
-                            break;
-                        }
-                        case ReadModifyWrite: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand_Operation;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand;
-                            break;
-                        }
-                        default: UNREACHABLE();
-                    }
-                    *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
-                    break;
-                }
-
-                case ABS: {
-                    *(cycle++) = &RP2A03::Cycle_FetchAddressLO_IncrementPC;
-                    *(cycle++) = &RP2A03::Cycle_FetchAddressHI_IncrementPC;
-                    switch (type) {
-                        case Read: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_Operation;
-                            break;
-                        }
-                        case Write: {
-                            *(cycle++) = &RP2A03::Cycle_Operation;
-                            break;
-                        }
-                        case ReadModifyWrite: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand_Operation;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand;
-                            break;
-                        }
-                        default: UNREACHABLE();
-                    }
-                    *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
-                    break;
-                }
-
-                case ABX: {
-                    *(cycle++) = &RP2A03::Cycle_FetchAddressLO_IncrementPC;
-                    *(cycle++) = &RP2A03::Cycle_FetchAddressHI_IndexX_IncrementPC;
-                    switch (type) {
-                        case Read: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexX_TryOperation;
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_Operation;
-                            break;
-                        }
-                        case Write: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexX;
-                            *(cycle++) = &RP2A03::Cycle_Operation;
-                            break;
-                        }
-                        case ReadModifyWrite: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexX;
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand_Operation;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand;
-                            break;
-                        }
-                        default: UNREACHABLE();
-                    }
-                    *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
-                    break;
-                }
-
-                case ABY: {
-                    *(cycle++) = &RP2A03::Cycle_FetchAddressLO_IncrementPC;
-                    *(cycle++) = &RP2A03::Cycle_FetchAddressHI_IndexY_IncrementPC;
-                    switch (type) {
-                        case Read: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY_TryOperation;
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_Operation;
-                            break;
-                        }
-                        case Write: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY;
-                            *(cycle++) = &RP2A03::Cycle_Operation;
-                            break;
-                        }
-                        case ReadModifyWrite: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY;
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand_Operation;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand;
-                            break;
-                        }
-                        default: UNREACHABLE();
-                    }
-                    *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
-                    break;
-                }
-
-                case REL: {
-                    *(cycle++) = &RP2A03::Cycle_FetchOperand_IncrementPC;
-                    *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
-                    break;
-                }
-
-                case IDX: {
-                    *(cycle++) = &RP2A03::Cycle_FetchAddress_IncrementPC;
-                    *(cycle++) = &RP2A03::Cycle_ReadOperand_IndexX;
-                    *(cycle++) = &RP2A03::Cycle_ReadAddressLO;
-                    *(cycle++) = &RP2A03::Cycle_ReadAddressHI;
-                    switch (type) {
-                        case Read: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_Operation;
-                            break;
-                        }
-                        case Write: {
-                            *(cycle++) = &RP2A03::Cycle_Operation;
-                            break;
-                        }
-                        case ReadModifyWrite: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand_Operation;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand;
-                            break;
-                        }
-                        default: UNREACHABLE();
-                    }
-                    *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
-                    break;
-                }
-
-                case IDY: {
-                    *(cycle++) = &RP2A03::Cycle_FetchAddress_IncrementPC;
-                    *(cycle++) = &RP2A03::Cycle_ReadAddressLO;
-                    *(cycle++) = &RP2A03::Cycle_ReadAddressHI_IndexY;
-                    switch (type) {
-                        case Read: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY_TryOperation;
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_Operation;
-                            break;
-                        }
-                        case Write: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY;
-                            *(cycle++) = &RP2A03::Cycle_Operation;
-                            break;
-                        }
-                        case ReadModifyWrite: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY;
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand_Operation;
-                            *(cycle++) = &RP2A03::Cycle_WriteOperand;
-                            break;
-                        }
-                        default: UNREACHABLE();
-                    }
-                    *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
-                    break;
-                }
-
-                case IND: {
-                    break;
-                }
-
-                default: UNREACHABLE();
+        const auto counter{ CycleCounter::ValueFrom(opcode, 0) };
+        const auto opname{ InstructionSet_6502::LUT::OpcodeNames[opcode] };
+        [opname] {
+            switch (opname) {
+                using enum InstructionSet_6502::OpName;
+                case LDA: return FillCycles<&RP2A03::LDA>;
+                case LDX: return FillCycles<&RP2A03::LDX>;
+                case LDY: return FillCycles<&RP2A03::LDY>;
+                case STA: return FillCycles<&RP2A03::STA>;
+                case STX: return FillCycles<&RP2A03::STX>;
+                case STY: return FillCycles<&RP2A03::STY>;
+                default:  return FillCycles<&RP2A03::Cycle_Unreachable>;
             }
-        };
-
-        auto counter{ CycleCounter::ValueFrom(opcode, 0) };
-        FillWithModeCycles(_InstructionsCycles.begin() + counter, instr.Mode, type);
+        }()(_InstructionsCycles.begin() + counter, instr.Mode, type);
     }
 
     _CurrentCycle.Set(0xEA, 1);
-    _Operation = &RP2A03::Cycle_Unreachable;
 
     _IRQTriggered = false;
     _NMITriggered = false;
@@ -297,93 +242,34 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
     ++PC;
     
     _CurrentCycle.Set(opcode, 0);
-    const auto opname{ InstructionSet_6502::LUT::OpcodeNames[opcode] };
-    switch (opname) {
-        using enum InstructionSet_6502::OpName;
-        case LDA: _Operation = &RP2A03::LDA; break;
-        case LDX: _Operation = &RP2A03::LDX; break;
-        case LDY: _Operation = &RP2A03::LDY; break;
-        case STA: _Operation = &RP2A03::STA; break;
-        case STX: _Operation = &RP2A03::STX; break;
-        case STY: _Operation = &RP2A03::STY; break;
-        default: _Operation = &RP2A03::Cycle_Unreachable; break;
-    }
 
     _CurrentOpcode = opcode;
     _CurrentInstruction = InstructionSet_6502::Decode(opcode);
     _CurrentBegin.Set(opcode, 0);
 }
 
-void RP2A03::Cycle_FetchDummy_Operation() {
-    ReadByte(PC);
-    (this->*_Operation)();
-    ++_CurrentCycle;
-}
-
-void RP2A03::Cycle_FetchOperand_IncrementPC() {
-    _ByteOperand = ReadByte(PC);
-    ++PC;
-    ++_CurrentCycle;
-}
-
-void RP2A03::Cycle_FetchOperand_IncrementPC_Operation() {
-    _ByteOperand = ReadByte(PC);
-    ++PC;
-    (this->*_Operation)();
-    ++_CurrentCycle;
-}
-
-void RP2A03::Cycle_FetchAddress_IncrementPC() {
+void RP2A03::Cycle_FetchZeroPageAddress_IncrementPC() {
     // TODO might be replaced by Cycle_FetchOperand_IncrementPC and using _ByteOperand as address
     _WordOperand = ReadByte(PC);
     ++PC;
     ++_CurrentCycle;
 }
 
-void RP2A03::Cycle_FetchAddressLO_IncrementPC() {
-    // TODO might be replaced by Cycle_FetchOperand_IncrementPC and using _ByteOperand as address
-    SetLO(_WordOperand, ReadByte(PC));
-    ++PC;
-    ++_CurrentCycle;
-}
-
 void RP2A03::Cycle_FetchAddressHI_IncrementPC() {
-    SetHI(_WordOperand, ReadByte(PC));
+    _WordOperand = MakeWord(_ByteOperand, ReadByte(PC));
     ++PC;
     ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_FetchAddressHI_IndexX_IncrementPC() {
-    _WordOperand = MakeWord(LO(_WordOperand) + X, ReadByte(PC));
+    _WordOperand = MakeWord(_ByteOperand + X, ReadByte(PC));
     ++PC;
     ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_FetchAddressHI_IndexY_IncrementPC() {
-    _WordOperand = MakeWord(LO(_WordOperand) + Y, ReadByte(PC));
+    _WordOperand = MakeWord(_ByteOperand + Y, ReadByte(PC));
     ++PC;
-    ++_CurrentCycle;
-}
-
-void RP2A03::Cycle_ReadOperand_Operation() {
-    _ByteOperand = ReadByte(_WordOperand);
-    (this->*_Operation)();
-    ++_CurrentCycle;
-}
-
-void RP2A03::Cycle_ReadOperand() {
-    _ByteOperand = ReadByte(_WordOperand);
-    ++_CurrentCycle;
-}
-
-void RP2A03::Cycle_WriteOperand_Operation() {
-    WriteByte(_WordOperand, _ByteOperand);
-    (this->*_Operation)();
-    ++_CurrentCycle;
-}
-
-void RP2A03::Cycle_WriteOperand() {
-    WriteByte(_WordOperand, _ByteOperand);
     ++_CurrentCycle;
 }
 
@@ -407,17 +293,6 @@ void RP2A03::Cycle_ReadOperand_FixHI_IndexX() {
     ++_CurrentCycle;
 }
 
-void RP2A03::Cycle_ReadOperand_FixHI_IndexX_TryOperation() {
-    _ByteOperand = ReadByte(_WordOperand);
-    if (LO(_WordOperand) < X) {
-        _WordOperand += Word{ 0x0100 };
-    } else {
-        (this->*_Operation)();
-        ++_CurrentCycle; // skip the extra cycle
-    }
-    ++_CurrentCycle;
-}
-
 void RP2A03::Cycle_ReadOperand_FixHI_IndexY() {
     _ByteOperand = ReadByte(_WordOperand);
     if (LO(_WordOperand) < Y) {
@@ -426,27 +301,7 @@ void RP2A03::Cycle_ReadOperand_FixHI_IndexY() {
     ++_CurrentCycle;
 }
 
-void RP2A03::Cycle_ReadOperand_FixHI_IndexY_TryOperation() {
-    _ByteOperand = ReadByte(_WordOperand);
-    if (LO(_WordOperand) < Y) {
-        _WordOperand += Word{ 0x0100 };
-    } else {
-        (this->*_Operation)();
-        ++_CurrentCycle; // skip the extra cycle
-    }
-    ++_CurrentCycle;
-}
-
-void RP2A03::Cycle_Operation() {
-    (this->*_Operation)();
-    ++_CurrentCycle;
-}
-
-void RP2A03::Cycle_ReadAddressLO() {
-    _ByteOperand = ReadByte(_WordOperand);
-    ++_CurrentCycle;
-}
-
+// TODO the following ones can probably be merged with the FetchXYZ ones
 void RP2A03::Cycle_ReadAddressHI() {
     const auto hi{ ReadByte(LO(_WordOperand + 1)) };
     _WordOperand = MakeWord(_ByteOperand, hi);
@@ -456,6 +311,81 @@ void RP2A03::Cycle_ReadAddressHI() {
 void RP2A03::Cycle_ReadAddressHI_IndexY() {
     const auto hi{ ReadByte(LO(_WordOperand + 1)) };
     _WordOperand = MakeWord(_ByteOperand + Y, hi);
+    ++_CurrentCycle;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+template <RP2A03::ActionT OP = (RP2A03::ActionT)nullptr>
+void RP2A03::Cycle() {
+    if constexpr (OP) {
+        (this->*OP)();
+    }
+    ++_CurrentCycle;
+}
+
+template <RP2A03::ActionT OP = (RP2A03::ActionT)nullptr>
+void RP2A03::Cycle_FetchDummy() {
+    ReadByte(PC);
+    if constexpr (OP) {
+        (this->*OP)();
+    }
+    ++_CurrentCycle;
+}
+
+template <RP2A03::ActionT OP = (RP2A03::ActionT)nullptr>
+void RP2A03::Cycle_FetchOperand_IncrementPC() {
+    _ByteOperand = ReadByte(PC);
+    ++PC;
+    if constexpr (OP) {
+        (this->*OP)();
+    }
+    ++_CurrentCycle;
+}
+
+template <RP2A03::ActionT OP = (RP2A03::ActionT)nullptr>
+void RP2A03::Cycle_ReadOperand() {
+    _ByteOperand = ReadByte(_WordOperand);
+    if constexpr (OP) {
+        (this->*OP)();
+    }
+    ++_CurrentCycle;
+}
+
+template <RP2A03::ActionT OP = (RP2A03::ActionT)nullptr>
+void RP2A03::Cycle_WriteOperand() {
+    WriteByte(_WordOperand, _ByteOperand);
+    if constexpr (OP) {
+        (this->*OP)();
+    }
+    ++_CurrentCycle;
+}
+
+template <RP2A03::ActionT OP>
+void RP2A03::Cycle_ReadOperand_FixHI_IndexX_Try() {
+    _ByteOperand = ReadByte(_WordOperand);
+    if (LO(_WordOperand) < X) {
+        _WordOperand += Word{ 0x0100 };
+    } else {
+        if constexpr (OP) {
+            (this->*OP)();
+        }
+        ++_CurrentCycle; // skip the extra cycle
+    }
+    ++_CurrentCycle;
+}
+
+template <RP2A03::ActionT OP>
+void RP2A03::Cycle_ReadOperand_FixHI_IndexY_Try() {
+    _ByteOperand = ReadByte(_WordOperand);
+    if (LO(_WordOperand) < Y) {
+        _WordOperand += Word{ 0x0100 };
+    } else {
+        if constexpr (OP) {
+            (this->*OP)();
+        }
+        ++_CurrentCycle; // skip the extra cycle
+    }
     ++_CurrentCycle;
 }
 
@@ -509,8 +439,8 @@ bool RP2A03::Tick() {
     Phi1();
     Phi2();
 
-    return (_InstructionsCycles[_CurrentCycle.Get()]
-        == &RP2A03::Cycle_FetchOpcode_IncrementPC);
+    const auto current{ _InstructionsCycles[_CurrentCycle.Get()] };
+    return (current == &RP2A03::Cycle_FetchOpcode_IncrementPC);
 }
 
 void RP2A03::DMA(Byte page, Byte* target, Byte offset) {

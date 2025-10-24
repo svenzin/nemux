@@ -17,11 +17,12 @@ public:
     [[nodiscard]] bool Tick() override;
     void DMA(Byte page, Byte* target, Byte offset) override;
 
+    using ActionT = void(RP2A03::*)();
+    using CycleT = ActionT;
+
 protected:
     void Phi1();
     void Phi2();
-
-    using CycleT = void(RP2A03::*)();
 
     static constexpr size_t MAX_CYCLES_PER_INSTRUCTION{ 8 };
     static constexpr size_t MAX_CYCLE_COUNT{
@@ -48,7 +49,6 @@ protected:
 
     std::array<CycleT, MAX_CYCLE_COUNT> _InstructionsCycles;
     CycleCounter _CurrentCycle;
-    CycleT _Operation;
     Byte _ByteOperand;
     Word _WordOperand;
     bool _IRQTriggered;
@@ -60,28 +60,25 @@ protected:
     CycleCounter _CurrentBegin;
     Byte _CurrentOpcode;
 
+public:
+    template <ActionT OP = (ActionT)nullptr> void Cycle();
+    template <ActionT OP = (ActionT)nullptr> void Cycle_FetchDummy();
+    template <ActionT OP = (ActionT)nullptr> void Cycle_FetchOperand_IncrementPC();
+    template <ActionT OP = (ActionT)nullptr> void Cycle_ReadOperand();
+    template <ActionT OP = (ActionT)nullptr> void Cycle_WriteOperand();
+    template <ActionT OP> void Cycle_ReadOperand_FixHI_IndexX_Try();
+    template <ActionT OP> void Cycle_ReadOperand_FixHI_IndexY_Try();
+
     void Cycle_Unreachable();
     void Cycle_FetchOpcode_IncrementPC();
-    void Cycle_FetchDummy_Operation();
-    void Cycle_FetchOperand_IncrementPC();
-    void Cycle_FetchOperand_IncrementPC_Operation();
-    void Cycle_FetchAddress_IncrementPC();
-    void Cycle_FetchAddressLO_IncrementPC();
+    void Cycle_FetchZeroPageAddress_IncrementPC();
     void Cycle_FetchAddressHI_IncrementPC();
     void Cycle_FetchAddressHI_IndexX_IncrementPC();
     void Cycle_FetchAddressHI_IndexY_IncrementPC();
-    void Cycle_ReadOperand_Operation(); // read
-    void Cycle_ReadOperand();               // read-modify-write step 1
-    void Cycle_WriteOperand_Operation();    // read-modify-write step 2
-    void Cycle_WriteOperand();              // read-modify-write step 3
-    void Cycle_ReadOperand_FixHI_IndexX();
-    void Cycle_ReadOperand_FixHI_IndexX_TryOperation();
-    void Cycle_ReadOperand_FixHI_IndexY();
-    void Cycle_ReadOperand_FixHI_IndexY_TryOperation();
-    void Cycle_Operation();
     void Cycle_ReadOperand_IndexX();
     void Cycle_ReadOperand_IndexY();
-    void Cycle_ReadAddressLO();
+    void Cycle_ReadOperand_FixHI_IndexX();
+    void Cycle_ReadOperand_FixHI_IndexY();
     void Cycle_ReadAddressHI();
     void Cycle_ReadAddressHI_IndexY();
 
