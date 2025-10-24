@@ -85,7 +85,12 @@ protected:
     void Cycle_ReadAddressHI();
     void Cycle_ReadAddressHI_IndexY();
 
+    void Cycle_FetchOperand_IncrementPC_Branch();
+    void Cycle_TakeBranch();
+    void Cycle_FixBranch();
+
     void Transfer(Byte value, Byte& to);
+    void Branch(bool condition);
 
     void LDA();
     void LDX();
@@ -93,4 +98,13 @@ protected:
     void STA();
     void STX();
     void STY();
+
+    void BCC();
+    void BCS();
+    void BEQ();
+    void BMI();
+    void BNE();
+    void BPL();
+    void BVC();
+    void BVS();
 };

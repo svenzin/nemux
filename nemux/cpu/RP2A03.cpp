@@ -3,6 +3,8 @@
 
 // TODO remove when not needed anymore
 namespace {
+    static constexpr bool BRANCH_USING_WORDOPERAND{ false };
+
     void NOT_IMPLEMENTED() { throw std::runtime_error("not implemented"); }
     void UNREACHABLE() { throw std::runtime_error("unreachable"); }
 
@@ -207,7 +209,9 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
                 }
 
                 case REL: {
-                    *(cycle++) = &RP2A03::Cycle_FetchOperand_IncrementPC;
+                    *(cycle++) = &RP2A03::Cycle_FetchOperand_IncrementPC_Branch;
+                    *(cycle++) = &RP2A03::Cycle_TakeBranch;
+                    *(cycle++) = &RP2A03::Cycle_FixBranch;
                     *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
                     break;
                 }
@@ -306,6 +310,14 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
         case STA: _Operation = &RP2A03::STA; break;
         case STX: _Operation = &RP2A03::STX; break;
         case STY: _Operation = &RP2A03::STY; break;
+        case BCC: _Operation = &RP2A03::BCC; break;
+        case BCS: _Operation = &RP2A03::BCS; break;
+        case BEQ: _Operation = &RP2A03::BEQ; break;
+        case BMI: _Operation = &RP2A03::BMI; break;
+        case BNE: _Operation = &RP2A03::BNE; break;
+        case BPL: _Operation = &RP2A03::BPL; break;
+        case BVC: _Operation = &RP2A03::BVC; break;
+        case BVS: _Operation = &RP2A03::BVS; break;
         default: _Operation = &RP2A03::Cycle_Unreachable; break;
     }
 
@@ -459,39 +471,88 @@ void RP2A03::Cycle_ReadAddressHI_IndexY() {
     ++_CurrentCycle;
 }
 
+void RP2A03::Cycle_FetchOperand_IncrementPC_Branch() {
+    _ByteOperand = ReadByte(PC);
+    ++PC;
+    (this->*_Operation)();
+    if (PC == _WordOperand) {
+        ++_CurrentCycle;    // branch is not taken
+        ++_CurrentCycle;    // skip both branching cycles
+    }
+    ++_CurrentCycle;
+}
+
+void RP2A03::Cycle_TakeBranch() {
+    SetLO(PC, PC + _ByteOperand);
+    if constexpr (BRANCH_USING_WORDOPERAND) {
+        if (PC == _WordOperand) {
+            ++_CurrentCycle;    // no page crossing: skip PCH fix
+        }
+    } else {
+        if (IsSignBitClear(_ByteOperand)) {
+            if (LO(PC) >= _ByteOperand) {
+                ++_CurrentCycle;    // no page crossing: skip PCH fix
+            }
+        } else {
+            if (LO(PC) < _ByteOperand) {
+                ++_CurrentCycle;    // no page crossing: skip PCH fix
+            }
+        }
+    }
+    ++_CurrentCycle;
+}
+
+void RP2A03::Cycle_FixBranch() {
+    if constexpr (BRANCH_USING_WORDOPERAND) {
+        PC = _WordOperand;
+    } else {
+        if (IsSignBitClear(_ByteOperand)) {
+            PC += Word{ 0x0100 };
+        } else {
+            PC -= Word{ 0x0100 };
+        }
+    }
+    ++_CurrentCycle;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void RP2A03::Transfer(Byte value, Byte& to) {
     to = value;
     Z = (to == 0) ? 1 : 0;
-    N = Bit<Neg>(to);
+    N = SignBit(to);
+}
+
+void RP2A03::Branch(bool condition) {
+    if (condition) {
+        if constexpr (BRANCH_USING_WORDOPERAND) {
+            _WordOperand = PC + SignExtend(_ByteOperand);
+        } else {
+            _WordOperand = PC + _ByteOperand;
+        }
+    } else {
+        _WordOperand = PC;
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RP2A03::LDA() {
-    Transfer(_ByteOperand, A);
-}
+void RP2A03::LDA() { Transfer(_ByteOperand, A); }
+void RP2A03::LDX() { Transfer(_ByteOperand, X); }
+void RP2A03::LDY() { Transfer(_ByteOperand, Y); }
 
-void RP2A03::LDX() {
-    Transfer(_ByteOperand, X);
-}
+void RP2A03::STA() { WriteByte(_WordOperand, A); }
+void RP2A03::STX() { WriteByte(_WordOperand, X); }
+void RP2A03::STY() { WriteByte(_WordOperand, Y); }
 
-void RP2A03::LDY() {
-    Transfer(_ByteOperand, Y);
-}
-
-void RP2A03::STA() {
-    WriteByte(_WordOperand, A);
-}
-
-void RP2A03::STX() {
-    WriteByte(_WordOperand, X);
-}
-
-void RP2A03::STY() {
-    WriteByte(_WordOperand, Y);
-}
+void RP2A03::BCC() { Branch(C == 0); }
+void RP2A03::BCS() { Branch(C == 1); }
+void RP2A03::BEQ() { Branch(Z == 1); }
+void RP2A03::BMI() { Branch(N == 1); }
+void RP2A03::BNE() { Branch(Z == 0); }
+void RP2A03::BPL() { Branch(N == 0); }
+void RP2A03::BVC() { Branch(V == 0); }
+void RP2A03::BVS() { Branch(V == 1); }
 
 ////////////////////////////////////////////////////////////////////////////////
 
