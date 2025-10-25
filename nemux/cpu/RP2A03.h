@@ -150,4 +150,11 @@ protected:
     void LSR_a();
     void ROL_a();
     void ROR_a();
+
+    void DEC();
+    void DEX();
+    void DEY();
+    void INC();
+    void INX();
+    void INY();
 };
