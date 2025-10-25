@@ -107,6 +107,8 @@ protected:
     void Jump();
     void RotateLeft(Byte& value, Flag bit);
     void RotateRight(Byte& value, Flag bit);
+    void Compare(Byte lhs, Byte rhs);
+    void AddWithCarry(Byte value);
 
     void LDA();
     void LDX();
@@ -165,4 +167,10 @@ protected:
     void SEC();
     void SED();
     void SEI();
+
+    void CPX();
+    void CPY();
+    void CMP();
+    void ADC();
+    void SBC();
 };

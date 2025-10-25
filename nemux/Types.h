@@ -13,6 +13,7 @@ using Word = uint16_t;
 #define BYTE_SIGN_BIT   7
 #define BYTE_LSB_BIT    0
 #define BYTE_MSB_BIT    7
+#define BYTE_MAX_VALUE  0xFF
 
 #define WORD_WIDTH      16
 #define WORD_MASK       0xFFFF

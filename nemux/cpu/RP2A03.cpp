@@ -8,6 +8,7 @@ namespace {
     void NOT_IMPLEMENTED() { throw std::runtime_error("not implemented"); }
     void UNREACHABLE() { throw std::runtime_error("unreachable"); }
 
+    // TODO move this somwehere in InstructionSet6502
     enum class AddressingType {
         Unused,
         Read,
@@ -15,9 +16,11 @@ namespace {
         ReadModifyWrite,
     };
     constexpr AddressingType OpcodeType(Byte opcode) {
+        const auto group{ (opcode & 0b00000010) >> 1 };
         const auto type{ (opcode & 0b11100000) >> 5 };
         if (type == 4) return AddressingType::Write;
         if (type == 5) return AddressingType::Read;
+        if (group == 0) return AddressingType::Read;
         return AddressingType::ReadModifyWrite;
     }
 }
@@ -389,6 +392,7 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
         CASE(DEC)   CASE(DEX)   CASE(DEY)   CASE(INC)   CASE(INX)   CASE(INY)
         CASE(CLC)   CASE(CLD)   CASE(CLI)   CASE(CLV)
         CASE(SEC)   CASE(SED)   CASE(SEI)
+        CASE(CPX)   CASE(CPY)   CASE(CMP)   CASE(ADC)   CASE(SBC)
         default: _Operation = &RP2A03::Cycle_Unreachable; break;
 
         #undef CASE_A
@@ -705,6 +709,19 @@ void RP2A03::RotateRight(Byte& value, Flag bit) {
     Transfer(rotated, value);
 }
 
+void RP2A03::Compare(Byte lhs, Byte rhs) {
+    const auto r{ lhs - rhs };
+    C = (r >= 0) ? 1 : 0;
+    Z = (r == 0) ? 1 : 0;
+    N = SignBit(r);
+}
+
+void RP2A03::AddWithCarry(Byte value) {
+    const auto a{ A + value + C };
+    C = (a > BYTE_MAX_VALUE) ? 1 : 0; // Bit<BYTE_LSB_BIT>(HI(a));
+    V = ~SignBit(A ^ value) & SignBit(A ^ a);
+    Transfer(LO(a), A);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -776,6 +793,12 @@ void RP2A03::CLV() { V = 0; }
 void RP2A03::SEC() { C = 1; }
 void RP2A03::SED() { D = 1; }
 void RP2A03::SEI() { I = 1; }
+
+void RP2A03::CPX() { Compare(X, _ByteOperand); }
+void RP2A03::CPY() { Compare(Y, _ByteOperand); }
+void RP2A03::CMP() { Compare(A, _ByteOperand); }
+void RP2A03::ADC() { AddWithCarry(_ByteOperand); }
+void RP2A03::SBC() { AddWithCarry(~_ByteOperand); }
 
 ////////////////////////////////////////////////////////////////////////////////
 
