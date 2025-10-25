@@ -387,6 +387,8 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
         CASE(PHA)   CASE(PLA)   CASE(PHP)   CASE(PLP)
         CASE_A(ASL) CASE_A(LSR) CASE_A(ROL) CASE_A(ROR)
         CASE(DEC)   CASE(DEX)   CASE(DEY)   CASE(INC)   CASE(INX)   CASE(INY)
+        CASE(CLC)   CASE(CLD)   CASE(CLI)   CASE(CLV)
+        CASE(SEC)   CASE(SED)   CASE(SEI)
         default: _Operation = &RP2A03::Cycle_Unreachable; break;
 
         #undef CASE_A
@@ -766,6 +768,14 @@ void RP2A03::DEY() { Transfer(Y - 1, Y); }
 void RP2A03::INC() { Transfer(_ByteOperand + 1, _ByteOperand); }
 void RP2A03::INX() { Transfer(X + 1, X); }
 void RP2A03::INY() { Transfer(Y + 1, Y); }
+
+void RP2A03::CLC() { C = 0; }
+void RP2A03::CLD() { D = 0; }
+void RP2A03::CLI() { I = 0; }
+void RP2A03::CLV() { V = 0; }
+void RP2A03::SEC() { C = 1; }
+void RP2A03::SED() { D = 1; }
+void RP2A03::SEI() { I = 1; }
 
 ////////////////////////////////////////////////////////////////////////////////
 

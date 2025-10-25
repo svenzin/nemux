@@ -157,4 +157,12 @@ protected:
     void INC();
     void INX();
     void INY();
+
+    void CLC();
+    void CLD();
+    void CLI();
+    void CLV();
+    void SEC();
+    void SED();
+    void SEI();
 };
