@@ -105,6 +105,8 @@ protected:
     void Transfer(Byte value, Byte& to);
     void Branch(bool condition);
     void Jump();
+    void RotateLeft(Byte& value, Flag bit);
+    void RotateRight(Byte& value, Flag bit);
 
     void LDA();
     void LDX();
@@ -138,4 +140,14 @@ protected:
     void PLA();
     void PHP();
     void PLP();
+
+    void ASL();
+    void LSR();
+    void ROL();
+    void ROR();
+
+    void ASL_a();
+    void LSR_a();
+    void ROL_a();
+    void ROR_a();
 };

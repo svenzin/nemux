@@ -369,9 +369,14 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
     
     _CurrentCycle.Set(opcode, 0);
     const auto opname{ InstructionSet_6502::LUT::OpcodeNames[opcode] };
+    const auto opmode{ InstructionSet_6502::LUT::OpcodeAddressingModes[opcode] };
     switch (opname) {
         using enum InstructionSet_6502::OpName;
+        using enum InstructionSet_6502::AddressingMode;
+
         #define CASE(OP) case OP: { _Operation = &RP2A03::OP; break; }
+        #define CASE_A(OP) case OP: { _Operation = (opmode == ACC) ? &RP2A03::OP##_a : &RP2A03::OP; break; }
+
         CASE(LDA)   CASE(LDX)   CASE(LDY)
         CASE(STA)   CASE(STX)   CASE(STY)
         CASE(BCC)   CASE(BCS)   CASE(BEQ)   CASE(BMI)
@@ -380,13 +385,17 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
         CASE(JMP)   CASE(JSR)   CASE(RTS)
         CASE(TSX)   CASE(TXS)
         CASE(PHA)   CASE(PLA)   CASE(PHP)   CASE(PLP)
-        #undef CASE
+        CASE_A(ASL) CASE_A(LSR) CASE_A(ROL) CASE_A(ROR)
         default: _Operation = &RP2A03::Cycle_Unreachable; break;
-    }
 
+        #undef CASE_A
+        #undef CASE
+    }
+    
     _CurrentOpcode = opcode;
     _CurrentInstruction = InstructionSet_6502::Decode(opcode);
     _CurrentBegin.Set(opcode, 0);
+
 }
 
 void RP2A03::Cycle_FetchDummy_Operation() {
@@ -677,6 +686,23 @@ void RP2A03::Jump() {
     PC = _WordOperand;
 }
 
+void RP2A03::RotateLeft(Byte& value, Flag bit) {
+    C = Bit<BYTE_MSB_BIT>(value);
+    const auto rotated{ static_cast<Byte>(
+        (value << 1) | Mask<BYTE_LSB_BIT>(bit)
+    )};
+    Transfer(rotated, value);
+}
+
+void RP2A03::RotateRight(Byte& value, Flag bit) {
+    C = Bit<BYTE_LSB_BIT>(value);
+    const auto rotated{ static_cast<Byte>(
+        (value >> 1) | Mask<BYTE_MSB_BIT>(bit)
+    )};
+    Transfer(rotated, value);
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // TODO - Performance
@@ -722,6 +748,16 @@ void RP2A03::PHA() { WriteByteToStack(A); }
 void RP2A03::PLA() { Transfer(ReadByteFromStack(), A); }
 void RP2A03::PHP() { WriteByteToStack(GetStatusByte(1)); }
 void RP2A03::PLP() { SetStatusByte(ReadByteFromStack()); }
+
+void RP2A03::ASL() { RotateLeft(_ByteOperand, 0); }
+void RP2A03::LSR() { RotateRight(_ByteOperand, 0); }
+void RP2A03::ROL() { RotateLeft(_ByteOperand, C); }
+void RP2A03::ROR() { RotateRight(_ByteOperand, C); }
+
+void RP2A03::ASL_a() { RotateLeft(A, 0); }
+void RP2A03::LSR_a() { RotateRight(A, 0); }
+void RP2A03::ROL_a() { RotateLeft(A, C); }
+void RP2A03::ROR_a() { RotateRight(A, C); }
 
 ////////////////////////////////////////////////////////////////////////////////
 
