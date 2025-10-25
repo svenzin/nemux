@@ -393,6 +393,7 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
         CASE(CLC)   CASE(CLD)   CASE(CLI)   CASE(CLV)
         CASE(SEC)   CASE(SED)   CASE(SEI)
         CASE(CPX)   CASE(CPY)   CASE(CMP)   CASE(ADC)   CASE(SBC)
+        CASE(EOR)   CASE(ORA)   CASE(AND)   CASE(BIT)
         default: _Operation = &RP2A03::Cycle_Unreachable; break;
 
         #undef CASE_A
@@ -799,6 +800,16 @@ void RP2A03::CPY() { Compare(Y, _ByteOperand); }
 void RP2A03::CMP() { Compare(A, _ByteOperand); }
 void RP2A03::ADC() { AddWithCarry(_ByteOperand); }
 void RP2A03::SBC() { AddWithCarry(~_ByteOperand); }
+
+void RP2A03::EOR() { Transfer(A ^ _ByteOperand, A); }
+void RP2A03::ORA() { Transfer(A | _ByteOperand, A); }
+void RP2A03::AND() { Transfer(A & _ByteOperand, A); }
+
+void RP2A03::BIT() {
+    Z = ((A & _ByteOperand) == 0) ? 1 : 0;
+    V = Bit<BYTE_OVF_BIT>(_ByteOperand);
+    N = SignBit(_ByteOperand);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 

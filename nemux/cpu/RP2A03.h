@@ -173,4 +173,9 @@ protected:
     void CMP();
     void ADC();
     void SBC();
+
+    void EOR();
+    void ORA();
+    void AND();
+    void BIT();
 };
