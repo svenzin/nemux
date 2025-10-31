@@ -51,6 +51,7 @@ protected:
     CycleT _Operation;
     Byte _ByteOperand;
     Word _WordOperand;
+    Flag _FlagOperand;
     bool _IRQTriggered;
     bool _NMITriggered;
     bool _PreviousLineNMI;
@@ -63,6 +64,7 @@ protected:
     Byte ReadByteFromStack();
     void WriteByteToStack(Byte value);
 
+    // TODO all fetch/read dummys might be replaced by reading the _ByteOperand and not doing anything with it
     void Cycle_Unreachable();
     void Cycle_FetchOpcode_IncrementPC();
     void Cycle_FetchDummy_Operation();
@@ -101,6 +103,10 @@ protected:
     void Cycle_PullPCL_IncrementS();
     void Cycle_PullPCH();
     void Cycle_IncrementPC_Operation();
+    void Cycle_FetchDummy_MaybeIncrementPC_Operation();
+    void Cycle_PushP_DecrementS_SelectVector();
+    void Cycle_ReadPCL();
+    void Cycle_ReadPCH_ClearNMI();
 
     void Transfer(Byte value, Byte& to);
     void Branch(bool condition);
@@ -178,4 +184,9 @@ protected:
     void ORA();
     void AND();
     void BIT();
+
+    void NOP();
+
+    void BRK();
+    void RTI();
 };

@@ -335,6 +335,16 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
                 *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
                 break;
             }
+            case BRK: {
+                *(cycle++) = &RP2A03::Cycle_FetchDummy_MaybeIncrementPC_Operation;
+                *(cycle++) = &RP2A03::Cycle_PushPCH_DecrementS;
+                *(cycle++) = &RP2A03::Cycle_PushPCL_DecrementS;
+                *(cycle++) = &RP2A03::Cycle_PushP_DecrementS_SelectVector;
+                *(cycle++) = &RP2A03::Cycle_ReadPCL;
+                *(cycle++) = &RP2A03::Cycle_ReadPCH_ClearNMI;
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
             default: {
                 FillWithModeCycles(cycle, instr.Mode, type);
                 break;
@@ -367,9 +377,21 @@ void RP2A03::Cycle_Unreachable() {
 }
 
 void RP2A03::Cycle_FetchOpcode_IncrementPC() {
-    const Byte opcode{ ReadByte(PC) };
-    ++PC;
-    
+    Byte opcode{ ReadByte(PC) };
+
+    // Interrupts insert a BRK in the instruction stream
+    // The vector and reset of NMI status is done later, at specific moments
+    if ((_IRQTriggered && (I == 0))
+        || _NMITriggered) {
+        opcode = 0;
+        _FlagOperand = 0;   // B flag is pushed at 0 for HW interrupts
+    } else if (opcode == 0) {
+        _FlagOperand = 1;   // B flag is pushed at 1 for BRK instruction
+        ++PC;
+    } else {
+        ++PC;
+    }
+
     _CurrentCycle.Set(opcode, 0);
     const auto opname{ InstructionSet_6502::LUT::OpcodeNames[opcode] };
     const auto opmode{ InstructionSet_6502::LUT::OpcodeAddressingModes[opcode] };
@@ -394,6 +416,8 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
         CASE(SEC)   CASE(SED)   CASE(SEI)
         CASE(CPX)   CASE(CPY)   CASE(CMP)   CASE(ADC)   CASE(SBC)
         CASE(EOR)   CASE(ORA)   CASE(AND)   CASE(BIT)
+        CASE(NOP)
+        CASE(BRK)   CASE(RTI)
         default: _Operation = &RP2A03::Cycle_Unreachable; break;
 
         #undef CASE_A
@@ -670,6 +694,45 @@ void RP2A03::Cycle_IncrementPC_Operation() {
     ++_CurrentCycle;
 }
 
+void RP2A03::Cycle_FetchDummy_MaybeIncrementPC_Operation() {
+    // TODO be careful when refactoring
+    // This is used only in BRK/interrupt handling
+    ReadByte(PC);
+    // Hardware interrupts suppress PC increment
+    if (_FlagOperand == 1) {
+        ++PC;
+    }
+    (this->*_Operation)();
+    ++_CurrentCycle;
+}
+
+void RP2A03::Cycle_PushP_DecrementS_SelectVector() {
+    WriteByteToStack(GetStatusByte(_FlagOperand));
+    --S;
+
+    // This allows for interrupt hijacking
+    if (_NMITriggered) {
+        _WordOperand = VectorNMI;
+    } else if (_IRQTriggered) {
+        _WordOperand = VectorIRQ;
+    } else {
+        _WordOperand = VectorIRQ;
+    }
+
+    ++_CurrentCycle;
+}
+
+void RP2A03::Cycle_ReadPCL() {
+    SetLO(PC, ReadByte(_WordOperand));
+    ++_CurrentCycle;
+}
+
+void RP2A03::Cycle_ReadPCH_ClearNMI() {
+    SetHI(PC, ReadByte(_WordOperand + 1));
+    _NMITriggered = false;
+    ++_CurrentCycle;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void RP2A03::Transfer(Byte value, Byte& to) {
@@ -811,6 +874,22 @@ void RP2A03::BIT() {
     N = SignBit(_ByteOperand);
 }
 
+void RP2A03::NOP() {}
+
+void RP2A03::BRK() {
+    // BRK is used as the interrupt routine so it will not manage the I flag
+    //
+    // This coincidentally matches BRK's expected behavior as "non maskable"
+    // see https://www.nesdev.org/wiki/Instruction_reference#BRK
+    //
+    // As this is used for all interrupts, the actual interrupt vector will
+    // be stored in _WordOperand and has to be set at a specific point
+    // in time to emulate the interrupt stealing that IRQ and NMI can do
+    I = 1;
+}
+
+void RP2A03::RTI() {}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void RP2A03::PowerUp() {
@@ -824,8 +903,8 @@ void RP2A03::Reset() {
 bool RP2A03::Tick() {
     if (IsStopped()) return false;
 
-    Phi1();
     Phi2();
+    Phi1();
 
     return (_InstructionsCycles[_CurrentCycle.Get()]
         == &RP2A03::Cycle_FetchOpcode_IncrementPC);

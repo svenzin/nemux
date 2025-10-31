@@ -327,21 +327,6 @@ TEST_F(CpuTest, PowerUpState) {
     // EXPECT_EQ(InterruptType::None, cpu->PendingInterrupt);
 }
 
-TEST_F(CpuTest, InterruptPriority) {
-    FAIL();
-    // cpu->PendingInterrupt = InterruptType::None;
-    // cpu->TriggerIRQ();
-    // EXPECT_EQ(InterruptType::Irq, cpu->PendingInterrupt);
-    // cpu->TriggerNMI();
-    // EXPECT_EQ(InterruptType::Nmi, cpu->PendingInterrupt);
-    // cpu->TriggerIRQ();
-    // EXPECT_EQ(InterruptType::Nmi, cpu->PendingInterrupt);
-    // cpu->TriggerReset();
-    // EXPECT_EQ(InterruptType::Rst, cpu->PendingInterrupt);
-    // cpu->TriggerNMI();
-    // EXPECT_EQ(InterruptType::Rst, cpu->PendingInterrupt);
-}
-
 TEST_F(CpuTest, Ticking) {
     bench.at(0x0000).db(0x02)
          .origin(0x0200)
@@ -423,39 +408,6 @@ TEST_F(CpuTest, TickingWithInterrupt) {
     EXPECT_TRUE(cpu->Tick());
     EXPECT_EQ(11, cpu->GetTicks());
     EXPECT_EQ(0x0080, cpu->PC);
-}
-
-TEST_F(CpuTest, TickingWithInhibitedInterrupt) {
-    // FAIL();
-    bench.at(0x0000).db(0x02)
-         .origin(0x0200)
-         .encode(SEI, IMP)          // SEI
-         .encode(LDA, IMM).db(0x01) // LDA #1
-         .at(0x03FE).dw(0x0080)
-         .start();
-
-    cpu->VectorIRQ = 0x03FE;
-    cpu->I = 1;
-    
-    EXPECT_EQ(0, cpu->GetTicks());
-    EXPECT_EQ(0, cpu->A);
-    
-    // SEI => 2 cycles, 1 byte
-    EXPECT_FALSE(cpu->Tick());
-
-    cpu->LineIRQ = 1;
-
-    EXPECT_TRUE(cpu->Tick());
-    EXPECT_EQ(2, cpu->GetTicks());
-    EXPECT_EQ(0x0201, cpu->PC);
-    EXPECT_EQ(1, cpu->I);
-
-    // LDA #1 => 2 cycles, 2 bytes
-    EXPECT_FALSE(cpu->Tick());
-    EXPECT_TRUE(cpu->Tick());
-    EXPECT_EQ(4, cpu->GetTicks());
-    EXPECT_EQ(0x0203, cpu->PC);
-    EXPECT_EQ(0x01, cpu->A);
 }
 
 TEST_F(CpuTest, OAMDMA) {

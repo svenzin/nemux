@@ -1,6 +1,6 @@
 add_subdirectory(cpu)
 
-file(GLOB SOURCES "*.cpp")
+file(GLOB SOURCES CONFIGURE_DEPENDS "*.cpp")
 add_executable(nemux-test ${SOURCES})
 
 enable_testing()

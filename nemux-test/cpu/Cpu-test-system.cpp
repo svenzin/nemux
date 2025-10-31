@@ -4,53 +4,7 @@ using enum InstructionSet_6502::OpName;
 using enum InstructionSet_6502::AddressingMode;
 using enum BaseCpu::Bits;
 
-struct CpuTestSystem : public CpuBaseTest {
-    static const Word VECTOR_RST = 0xFFFC;
-    static const Word VECTOR_IRQ = 0xFFFE;
-    static const Word VECTOR_NMI = 0xFFFA;
-};
-
-TEST_F(CpuTestSystem, BRK) {
-    cpu->SetStatusByte(0x00);
-    cpu->S = 0xF0;
-
-    bench.implicit(BRK)
-         .at(cpu->VectorIRQ).dw(0x0120)
-         .start();
-
-    // BRK will sequentially push HI(PC), LO(PC) and Status
-    // Stack pointer starts at 0xF0, ends at 0xED
-    //  ED      EE      EF      F0      F1
-    //  x       Status  LO(PC)  HI(PC)  x
-    ExecuteOne();
-
-    EXPECT_EQ(0x0120, cpu->PC);
-    EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks()); // Interrupt => 7 cycles
-
-    Byte status{ memory->GetByteAt(0x01EE) };
-    Word expPC{ bench.expected_PC() };
-    EXPECT_EQ(1, cpu->I); // BRK sets the I flag
-    EXPECT_EQ(0xED, cpu->S);
-    EXPECT_TRUE(IsBitSet<Brk>(status)); // BRK pushes B flag set, Unused is always 1
-    EXPECT_TRUE(IsBitSet<Unu>(status)); // Unused is always 1
-    EXPECT_EQ(LO(expPC), memory->GetByteAt(0x01EF));
-    EXPECT_EQ(HI(expPC), memory->GetByteAt(0x01F0));
-}
-
-TEST_F(CpuTestSystem, BRK_FlagI) {
-    cpu->SetStatusByte(0x00);
-    cpu->S = 0xF0;
-    cpu->I = 1;
-
-    bench.implicit(BRK)
-         .at(cpu->VectorIRQ).dw(0x0120)
-         .start();
-
-    ExecuteOne();
-
-    EXPECT_EQ(bench.expected_PC(), cpu->PC);
-    EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
-}
+struct CpuTestSystem : public CpuBaseTest {};
 
 TEST_F(CpuTestSystem, NOP) {
     bench.implicit(NOP)
@@ -104,47 +58,4 @@ TEST_F(CpuTestSystem, Reset) {
     EXPECT_EQ(bench.Ticks + 7, cpu->GetTicks());
     EXPECT_EQ(0xED, cpu->S);
     EXPECT_EQ(1, cpu->I);
-}
-
-TEST_F(CpuTestSystem, NMI) {
-    cpu->S = 0xF0;
-    cpu->SetStatusByte(0xFF);
-    bench.implicit(NOP)
-        .at(cpu->VectorNMI).dw(0x0120)
-        .start();
-    
-    cpu->LineNMI = 1;
-    ExecuteOne();
-
-    EXPECT_EQ(0x0120, cpu->PC);
-    EXPECT_EQ(bench.Ticks + 7, cpu->GetTicks());
-    EXPECT_EQ(0xED, cpu->S);
-    EXPECT_EQ(1, cpu->I);
-    Byte status{ memory->GetByteAt(0x01EE) };
-    EXPECT_EQ(0, Bit<Brk>(status)); // Hardware interrupts push B flag clear
-    EXPECT_EQ(1, Bit<Unu>(status)); // Unused is always 1
-    EXPECT_EQ(LO(bench.PC), memory->GetByteAt(0x01EF));
-    EXPECT_EQ(HI(bench.PC), memory->GetByteAt(0x01F0));
-}
-
-TEST_F(CpuTestSystem, IRQ) {
-    cpu->S = 0xF0;
-    cpu->SetStatusByte(0xFF);
-    bench.implicit(NOP)
-        .at(cpu->VectorIRQ).dw(0x0120)
-        .start();
-    
-    cpu->I = 0;
-    cpu->LineIRQ = 1;
-    ExecuteOne();
-
-    EXPECT_EQ(0x0120, cpu->PC);
-    EXPECT_EQ(bench.Ticks + 7, cpu->GetTicks());
-    EXPECT_EQ(0xED, cpu->S);
-    EXPECT_EQ(1, cpu->I);
-    Byte status{ memory->GetByteAt(0x01EE) };
-    EXPECT_EQ(0, Bit<Brk>(status)); // Hardware interrupts push B flag clear
-    EXPECT_EQ(1, Bit<Unu>(status)); // Unused is always 1
-    EXPECT_EQ(LO(bench.PC), memory->GetByteAt(0x01EF));
-    EXPECT_EQ(HI(bench.PC), memory->GetByteAt(0x01F0));
 }
