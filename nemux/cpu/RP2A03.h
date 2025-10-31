@@ -107,6 +107,7 @@ protected:
     void Cycle_PushP_DecrementS_SelectVector();
     void Cycle_ReadPCL();
     void Cycle_ReadPCH_ClearNMI();
+    void Cycle_PullP_IncrementS();
 
     void Transfer(Byte value, Byte& to);
     void Branch(bool condition);

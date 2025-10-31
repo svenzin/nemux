@@ -345,6 +345,15 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
                 *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
                 break;
             }
+            case RTI: {
+                *(cycle++) = &RP2A03::Cycle_FetchDummy;
+                *(cycle++) = &RP2A03::Cycle_ReadDummyStack_IncrementS;
+                *(cycle++) = &RP2A03::Cycle_PullP_IncrementS;
+                *(cycle++) = &RP2A03::Cycle_PullPCL_IncrementS;
+                *(cycle++) = &RP2A03::Cycle_PullPCH;
+                *(cycle++) = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+                break;
+            }
             default: {
                 FillWithModeCycles(cycle, instr.Mode, type);
                 break;
@@ -730,6 +739,12 @@ void RP2A03::Cycle_ReadPCL() {
 void RP2A03::Cycle_ReadPCH_ClearNMI() {
     SetHI(PC, ReadByte(_WordOperand + 1));
     _NMITriggered = false;
+    ++_CurrentCycle;
+}
+
+void RP2A03::Cycle_PullP_IncrementS() {
+    SetStatusByte(ReadByteFromStack());
+    ++S;
     ++_CurrentCycle;
 }
 
