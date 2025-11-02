@@ -427,6 +427,9 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
         CASE(EOR)   CASE(ORA)   CASE(AND)   CASE(BIT)
         CASE(NOP)
         CASE(BRK)   CASE(RTI)
+
+        CASE(uNOP)
+        
         default: _Operation = &RP2A03::Cycle_Unreachable; break;
 
         #undef CASE_A
@@ -904,6 +907,8 @@ void RP2A03::BRK() {
 }
 
 void RP2A03::RTI() {}
+
+void RP2A03::uNOP() {}
 
 ////////////////////////////////////////////////////////////////////////////////
 

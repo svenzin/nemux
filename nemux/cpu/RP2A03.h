@@ -190,4 +190,6 @@ protected:
 
     void BRK();
     void RTI();
+
+    void uNOP();
 };

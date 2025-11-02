@@ -352,7 +352,32 @@ struct CpuTestUnofficial : public CpuBaseTest {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(CpuTestUnofficial, uNOP) {
-    bench.implicit(uNOP).start();
+    bench.reset().implicit(uNOP).start();
+    ExecuteOne();
+    EXPECT_EQ(bench.expected_PC(), cpu->PC);
+    EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+
+    bench.reset().immediate(uNOP).start();
+    ExecuteOne();
+    EXPECT_EQ(bench.expected_PC(), cpu->PC);
+    EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+
+    bench.reset().zeropage(uNOP).start();
+    ExecuteOne();
+    EXPECT_EQ(bench.expected_PC(), cpu->PC);
+    EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+
+    bench.reset().zeropage_x(uNOP).start();
+    ExecuteOne();
+    EXPECT_EQ(bench.expected_PC(), cpu->PC);
+    EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+
+    bench.reset().absolute(uNOP).start();
+    ExecuteOne();
+    EXPECT_EQ(bench.expected_PC(), cpu->PC);
+    EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
+
+    bench.reset().absolute_x(uNOP).start();
     ExecuteOne();
     EXPECT_EQ(bench.expected_PC(), cpu->PC);
     EXPECT_EQ(bench.expected_ticks(0), cpu->GetTicks());
