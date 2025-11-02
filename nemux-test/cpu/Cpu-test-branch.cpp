@@ -19,7 +19,7 @@ struct CpuTestBranch : public CpuBaseTest {
 
             EXPECT_EQ(expPC, cpu->PC);
             EXPECT_EQ(
-                bench.Ticks + bench.op.Cycles + extra + OFFSET_FROM_PREFETCH_NEXT,
+                bench.expected_ticks(extra + OFFSET_FROM_PREFETCH_NEXT),
                 cpu->GetTicks()
             );
         };

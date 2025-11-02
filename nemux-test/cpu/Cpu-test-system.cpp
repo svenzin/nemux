@@ -17,7 +17,8 @@ TEST_F(CpuTestSystem, NOP) {
 TEST_F(CpuTestSystem, RTI) {
     auto tester = [&] (Byte status, Flag expN, Flag expV, Flag expD, Flag expI, Flag expZ, Flag expC) {
         cpu->S = 0xF0;
-        bench.implicit(RTI)
+        bench.reset()
+            .implicit(RTI)
             .at(0x01F1).db(status)
             .at(0x01F2).db(0x20)
             .at(0x01F3).db(0x01)

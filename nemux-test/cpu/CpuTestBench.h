@@ -5,6 +5,7 @@
 #include "MemoryMap.h"
 
 #include <functional>
+#include <numeric>
 
 using is6502 = InstructionSet_6502;
 using AMode = InstructionSet_6502::AddressingMode;
@@ -20,8 +21,8 @@ public:
     Word PC;
     Byte S;
     size_t Ticks;
-    is6502::Instruction op;
 
+    std::vector<is6502::Instruction> instructions;
     std::optional<Word> target;
     std::function<Byte ()> get_target;
     std::function<void (Byte)> set_target;
@@ -43,7 +44,12 @@ public:
 
     CpuTestBench& origin(Word address) {
         PC = address;
-        return at(address);
+        return reset();
+    }
+
+    CpuTestBench& reset() {
+        instructions.clear();
+        return at(PC);
     }
 
     CpuTestBench& at(Word address) {
@@ -64,7 +70,7 @@ public:
 
     CpuTestBench& encode(is6502::OpName name, is6502::AddressingMode mode) {
         const auto opcode{ is6502::Encode(name, mode) };
-        op = is6502::Decode(opcode);
+        instructions.push_back(is6502::Decode(opcode));
         return db(opcode);
     }
 
@@ -228,6 +234,23 @@ public:
     }
 
     // expectations
-    Word expected_PC() const { return PC + op.Bytes; }
-    size_t expected_ticks(int extra) const { return Ticks + op.Cycles + extra; }
+    Word expected_PC() const {
+        auto bytes = std::accumulate(
+            instructions.cbegin(),
+            instructions.cend(),
+            0,
+            [] (auto acc, auto op) { return acc + op.Bytes; }
+        );
+        return PC + bytes;
+    }
+    
+    size_t expected_ticks(int extra) const {
+        auto cycles = std::accumulate(
+            instructions.cbegin(),
+            instructions.cend(),
+            0,
+            [] (auto acc, auto op) { return acc + op.Cycles; }
+        );
+        return Ticks + cycles + extra;
+    }
 };
