@@ -192,4 +192,24 @@ protected:
     void RTI();
 
     void uNOP();
+    void uSTP();
+    void uSLO();
+    void uANC();
+    void uRLA();
+    void uSRE();
+    void uALR();
+    void uRRA();
+    void uARR();
+    void uSAX();
+    void uXAA();
+    void uAHX();
+    void uTAS();
+    void uSHY();
+    void uSHX();
+    void uLAX();
+    void uLAS();
+    void uDCP();
+    void uAXS();
+    void uISC();
+    void uSBC();
 };

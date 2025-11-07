@@ -428,8 +428,12 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
         CASE(NOP)
         CASE(BRK)   CASE(RTI)
 
-        CASE(uNOP)
-        
+        CASE(uNOP)  CASE(uSTP)
+        CASE(uSLO)  CASE(uANC)  CASE(uRLA)  CASE(uSRE)  CASE(uALR)
+        CASE(uRRA)  CASE(uARR)  CASE(uSAX)  CASE(uXAA)  CASE(uAHX)
+        CASE(uTAS)  CASE(uSHY)  CASE(uSHX)  CASE(uLAX)  CASE(uLAS)
+        CASE(uDCP)  CASE(uAXS)  CASE(uISC)  CASE(uSBC)
+
         default: _Operation = &RP2A03::Cycle_Unreachable; break;
 
         #undef CASE_A
@@ -909,6 +913,38 @@ void RP2A03::BRK() {
 void RP2A03::RTI() {}
 
 void RP2A03::uNOP() {}
+void RP2A03::uSTP() { _isStopped = true; }
+void RP2A03::uSLO() { ASL(); ORA(); }
+void RP2A03::uANC() { AND(); C = N; }
+void RP2A03::uRLA() { ROL(); AND(); }
+void RP2A03::uSRE() { LSR(); EOR(); }
+void RP2A03::uALR() { AND(); LSR_a(); }
+void RP2A03::uRRA() { ROR(); ADC(); }
+void RP2A03::uARR() { AND(); ROR_a(); C = Bit<BYTE_OVF_BIT>(A); V = (C ^ Bit<5>(A)); }
+void RP2A03::uSAX() { WriteByte(_WordOperand, A & X); }
+void RP2A03::uXAA() {} // ORA(); AND(); }
+void RP2A03::uAHX() { WriteByte(_WordOperand, A & X & HI(_WordOperand)); }
+void RP2A03::uTAS() { S = A & X; uAHX(); }
+void RP2A03::uSHY() {
+    const auto value{ static_cast<Byte>(Y & (HI(_WordOperand) + 1)) };
+    if (LO(_WordOperand) < X) {
+        SetHI(_WordOperand, value);
+    }
+    WriteByte(_WordOperand, value);
+}
+void RP2A03::uSHX() {
+    const auto value{ static_cast<Byte>(X & (HI(_WordOperand) + 1)) };
+    if (LO(_WordOperand) < Y) {
+        SetHI(_WordOperand, value);
+    }
+    WriteByte(_WordOperand, value);
+}    
+void RP2A03::uLAX() { LDA(); TAX(); } // Transfer(_ByteOperand, A); Transfer(A, X); }
+void RP2A03::uLAS() { Transfer(_ByteOperand & S, S); Transfer(S, A); TSX(); }
+void RP2A03::uDCP() { DEC(); CMP(); }
+void RP2A03::uAXS() { X = (A & X); CPX(); X = X - _ByteOperand; }
+void RP2A03::uISC() { INC(); SBC(); }
+void RP2A03::uSBC() { SBC(); }
 
 ////////////////////////////////////////////////////////////////////////////////
 
