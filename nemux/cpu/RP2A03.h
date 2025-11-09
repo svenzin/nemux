@@ -49,12 +49,14 @@ protected:
     std::array<CycleT, MAX_CYCLE_COUNT> _InstructionsCycles;
     CycleCounter _CurrentCycle;
     CycleT _Operation;
-    Byte _ByteOperand;
+    int _SuspendCount;
     Word _WordOperand;
+    Byte _ByteOperand;
     Flag _FlagOperand;
     bool _IRQTriggered;
     bool _NMITriggered;
     bool _PreviousLineNMI;
+    bool _DMAIsGetCycle;
 
     // TODO for debugging, remove
     InstructionSet_6502::Instruction _CurrentInstruction;

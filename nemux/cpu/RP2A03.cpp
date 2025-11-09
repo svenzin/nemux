@@ -28,7 +28,8 @@ namespace {
 ////////////////////////////////////////////////////////////////////////////////
 
 RP2A03::RP2A03(const std::string& name, MemoryMap* map)
-    : BaseCpu{}
+    : _SuspendCount{ 0 }
+    , BaseCpu{}
 {
     Name = name;
     Map = map;
@@ -367,6 +368,8 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
     _IRQTriggered = false;
     _NMITriggered = false;
     _PreviousLineNMI = LineNMI;
+
+    
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -960,6 +963,7 @@ bool RP2A03::Tick() {
     if (IsStopped()) return false;
 
     Phi2();
+    _DMAIsGetCycle = !_DMAIsGetCycle;
     Phi1();
 
     return (_InstructionsCycles[_CurrentCycle.Get()]
