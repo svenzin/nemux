@@ -18,11 +18,8 @@ TEST_F(CpuTestSystem, RTI) {
     auto tester = [&] (Byte status, Flag expN, Flag expV, Flag expD, Flag expI, Flag expZ, Flag expC) {
         cpu->S = 0xF0;
         bench.reset()
-            .implicit(RTI)
-            .at(0x01F1).db(status)
-            .at(0x01F2).db(0x20)
-            .at(0x01F3).db(0x01)
-            .start();
+             .RTI(status, 0x0120, cpu->S)
+             .start();
 
         // RTI will sequentially pop Status, LO(PC) and HI(PC)
         // Stack pointer starts at 0xF0, ends at 0xF3
@@ -49,8 +46,8 @@ TEST_F(CpuTestSystem, Reset) {
     cpu->S = 0xF0;
     cpu->SetStatusByte(0xFF);
     bench.implicit(NOP)
-        .at(cpu->VectorRST).dw(0x0120)
-        .start();
+         .prepare_interrupt(cpu->VectorRST, 0x0120, cpu->S)
+         .start();
     
     cpu->Reset();
     ExecuteOne();

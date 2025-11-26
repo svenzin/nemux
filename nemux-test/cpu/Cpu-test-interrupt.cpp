@@ -13,9 +13,9 @@ struct CpuTestInterrupt : public CpuBaseTest {
         cpu->S = 0xF0;
         cpu->I = 0;
         bench.implicit(op)
-             .at(cpu->VectorIRQ).dw(TargetIRQ)
-             .at(cpu->VectorNMI).dw(TargetNMI)
-             .at(cpu->VectorRST).dw(TargetRST)
+             .prepare_interrupt(cpu->VectorIRQ, TargetIRQ, cpu->S)
+             .prepare_interrupt(cpu->VectorNMI, TargetNMI, cpu->S)
+             .prepare_interrupt(cpu->VectorRST, TargetRST, cpu->S)
              .start();
     }
 

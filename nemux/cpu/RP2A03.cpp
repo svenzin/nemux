@@ -88,7 +88,7 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
 
                 case ZPX: {
                     *(cycle++) = &RP2A03::Cycle_FetchAddress_IncrementPC;
-                    *(cycle++) = &RP2A03::Cycle_ReadOperand_IndexX;
+                    *(cycle++) = &RP2A03::Cycle_ReadDummy_IndexX;
                     switch (type) {
                         case Read: {
                             *(cycle++) = &RP2A03::Cycle_ReadOperand_Operation;
@@ -112,7 +112,7 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
 
                 case ZPY: {
                     *(cycle++) = &RP2A03::Cycle_FetchAddress_IncrementPC;
-                    *(cycle++) = &RP2A03::Cycle_ReadOperand_IndexY;
+                    *(cycle++) = &RP2A03::Cycle_ReadDummy_IndexY;
                     switch (type) {
                         case Read: {
                             *(cycle++) = &RP2A03::Cycle_ReadOperand_Operation;
@@ -168,12 +168,12 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
                             break;
                         }
                         case Write: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexX;
+                            *(cycle++) = &RP2A03::Cycle_ReadDummy_FixHI_IndexX;
                             *(cycle++) = &RP2A03::Cycle_Operation;
                             break;
                         }
                         case ReadModifyWrite: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexX;
+                            *(cycle++) = &RP2A03::Cycle_ReadDummy_FixHI_IndexX;
                             *(cycle++) = &RP2A03::Cycle_ReadOperand;
                             *(cycle++) = &RP2A03::Cycle_WriteOperand_Operation;
                             *(cycle++) = &RP2A03::Cycle_WriteOperand;
@@ -195,12 +195,12 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
                             break;
                         }
                         case Write: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY;
+                            *(cycle++) = &RP2A03::Cycle_ReadDummy_FixHI_IndexY;
                             *(cycle++) = &RP2A03::Cycle_Operation;
                             break;
                         }
                         case ReadModifyWrite: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY;
+                            *(cycle++) = &RP2A03::Cycle_ReadDummy_FixHI_IndexY;
                             *(cycle++) = &RP2A03::Cycle_ReadOperand;
                             *(cycle++) = &RP2A03::Cycle_WriteOperand_Operation;
                             *(cycle++) = &RP2A03::Cycle_WriteOperand;
@@ -222,7 +222,7 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
 
                 case IDX: {
                     *(cycle++) = &RP2A03::Cycle_FetchAddress_IncrementPC;
-                    *(cycle++) = &RP2A03::Cycle_ReadOperand_IndexX;
+                    *(cycle++) = &RP2A03::Cycle_ReadDummy_IndexX;
                     *(cycle++) = &RP2A03::Cycle_ReadAddressLO;
                     *(cycle++) = &RP2A03::Cycle_ReadAddressHI;
                     switch (type) {
@@ -257,12 +257,12 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
                             break;
                         }
                         case Write: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY;
+                            *(cycle++) = &RP2A03::Cycle_ReadDummy_FixHI_IndexY;
                             *(cycle++) = &RP2A03::Cycle_Operation;
                             break;
                         }
                         case ReadModifyWrite: {
-                            *(cycle++) = &RP2A03::Cycle_ReadOperand_FixHI_IndexY;
+                            *(cycle++) = &RP2A03::Cycle_ReadDummy_FixHI_IndexY;
                             *(cycle++) = &RP2A03::Cycle_ReadOperand;
                             *(cycle++) = &RP2A03::Cycle_WriteOperand_Operation;
                             *(cycle++) = &RP2A03::Cycle_WriteOperand;
@@ -279,7 +279,7 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
             }
         };
 
-        auto counter{ CycleCounter::ValueFrom(opcode, 0) };
+        auto counter{ static_cast<CycleCounter>(MAX_CYCLES_PER_INSTRUCTION * opcode) };
         auto* cycle{ _InstructionsCycles.begin() + counter };
         switch (instr.Name) {
             using enum InstructionSet_6502::OpName;
@@ -362,7 +362,9 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
         }
     }
 
-    _CurrentCycle.Set(0xEA, 1);
+    _InstructionsCycles.back() = &RP2A03::Cycle_FetchOpcode_IncrementPC;
+    _CurrentCycle = _InstructionsCycles.size() - 1; // last cycle is the initial state
+    
     _Operation = &RP2A03::Cycle_Unreachable;
 
     _IRQTriggered = false;
@@ -404,7 +406,8 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
         ++PC;
     }
 
-    _CurrentCycle.Set(opcode, 0);
+    _CurrentCycle = MAX_CYCLES_PER_INSTRUCTION * opcode;
+
     const auto opname{ InstructionSet_6502::LUT::OpcodeNames[opcode] };
     const auto opmode{ InstructionSet_6502::LUT::OpcodeAddressingModes[opcode] };
     switch (opname) {
@@ -445,141 +448,141 @@ void RP2A03::Cycle_FetchOpcode_IncrementPC() {
     
     _CurrentOpcode = opcode;
     _CurrentInstruction = InstructionSet_6502::Decode(opcode);
-    _CurrentBegin.Set(opcode, 0);
+    _CurrentBegin = _CurrentCycle;
 
 }
 
 void RP2A03::Cycle_FetchDummy_Operation() {
+    ++_CurrentCycle;
     ReadByte(PC);
     (this->*_Operation)();
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_FetchOperand_IncrementPC() {
+    ++_CurrentCycle;
     _ByteOperand = ReadByte(PC);
     ++PC;
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_FetchOperand_IncrementPC_Operation() {
+    ++_CurrentCycle;
     _ByteOperand = ReadByte(PC);
     ++PC;
     (this->*_Operation)();
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_FetchAddress_IncrementPC() {
     // TODO might be replaced by Cycle_FetchOperand_IncrementPC and using _ByteOperand as address
+    ++_CurrentCycle;
     _WordOperand = ReadByte(PC);
     ++PC;
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_FetchAddressLO_IncrementPC() {
     // TODO might be replaced by Cycle_FetchOperand_IncrementPC and using _ByteOperand as address
+    ++_CurrentCycle;
     SetLO(_WordOperand, ReadByte(PC));
     ++PC;
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_FetchAddressHI_IncrementPC() {
+    ++_CurrentCycle;
     SetHI(_WordOperand, ReadByte(PC));
     ++PC;
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_FetchAddressHI_IndexX_IncrementPC() {
+    ++_CurrentCycle;
     _WordOperand = MakeWord(LO(_WordOperand) + X, ReadByte(PC));
     ++PC;
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_FetchAddressHI_IndexY_IncrementPC() {
+    ++_CurrentCycle;
     _WordOperand = MakeWord(LO(_WordOperand) + Y, ReadByte(PC));
     ++PC;
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_ReadOperand_Operation() {
+    ++_CurrentCycle;
     _ByteOperand = ReadByte(_WordOperand);
     (this->*_Operation)();
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_ReadOperand() {
-    _ByteOperand = ReadByte(_WordOperand);
     ++_CurrentCycle;
+    _ByteOperand = ReadByte(_WordOperand);
 }
 
 void RP2A03::Cycle_WriteOperand_Operation() {
+    ++_CurrentCycle;
     WriteByte(_WordOperand, _ByteOperand);
     (this->*_Operation)();
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_WriteOperand() {
+    ++_CurrentCycle;
     WriteByte(_WordOperand, _ByteOperand);
-    ++_CurrentCycle;
 }
 
-void RP2A03::Cycle_ReadOperand_IndexX() {
-    _ByteOperand = ReadByte(_WordOperand);
+void RP2A03::Cycle_ReadDummy_IndexX() {
+    ++_CurrentCycle;
+    ReadByte(_WordOperand);
     SetLO(_WordOperand, LO(_WordOperand) + X);
-    ++_CurrentCycle;
 }
 
-void RP2A03::Cycle_ReadOperand_IndexY() {
-    _ByteOperand = ReadByte(_WordOperand);
+void RP2A03::Cycle_ReadDummy_IndexY() {
+    ++_CurrentCycle;
+    ReadByte(_WordOperand);
     SetLO(_WordOperand, LO(_WordOperand) + Y);
-    ++_CurrentCycle;
 }
 
-void RP2A03::Cycle_ReadOperand_FixHI_IndexX() {
-    _ByteOperand = ReadByte(_WordOperand);
+void RP2A03::Cycle_ReadDummy_FixHI_IndexX() {
+    ++_CurrentCycle;
+    ReadByte(_WordOperand);
     if (LO(_WordOperand) < X) {
         _WordOperand += Word{ 0x0100 };
     }
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_ReadOperand_FixHI_IndexX_TryOperation() {
+    ++_CurrentCycle;
     _ByteOperand = ReadByte(_WordOperand);
     if (LO(_WordOperand) < X) {
         _WordOperand += Word{ 0x0100 };
     } else {
-        (this->*_Operation)();
         ++_CurrentCycle; // skip the extra cycle
+        (this->*_Operation)();
     }
-    ++_CurrentCycle;
 }
 
-void RP2A03::Cycle_ReadOperand_FixHI_IndexY() {
-    _ByteOperand = ReadByte(_WordOperand);
+void RP2A03::Cycle_ReadDummy_FixHI_IndexY() {
+    ++_CurrentCycle;
+    ReadByte(_WordOperand);
     if (LO(_WordOperand) < Y) {
         _WordOperand += Word{ 0x0100 };
     }
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_ReadOperand_FixHI_IndexY_TryOperation() {
+    ++_CurrentCycle;
     _ByteOperand = ReadByte(_WordOperand);
     if (LO(_WordOperand) < Y) {
         _WordOperand += Word{ 0x0100 };
     } else {
-        (this->*_Operation)();
         ++_CurrentCycle; // skip the extra cycle
+        (this->*_Operation)();
     }
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_Operation() {
-    (this->*_Operation)();
     ++_CurrentCycle;
+    (this->*_Operation)();
 }
 
 void RP2A03::Cycle_ReadAddressLO() {
-    _ByteOperand = ReadByte(_WordOperand);
     ++_CurrentCycle;
+    _ByteOperand = ReadByte(_WordOperand);
 }
 
 void RP2A03::Cycle_ReadAddressHI() {
@@ -590,20 +593,21 @@ void RP2A03::Cycle_ReadAddressHI() {
     // The same "logic" of reading "address HI" is also used in Indirect (JMP)
     // which might read from any memory page. So for the sake of making refactoring
     // easier, we handle any memory page.
+    ++_CurrentCycle;
     SetLO(_WordOperand, _WordOperand + 1);
     _WordOperand = MakeWord(_ByteOperand, ReadByte(_WordOperand));
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_ReadAddressHI_IndexY() {
     // Same remark as for Cycle_ReadAddressHI()
     // const auto hi{ ReadByte(LO(_WordOperand + 1)) };
+    ++_CurrentCycle;
     SetLO(_WordOperand, _WordOperand + 1);
     _WordOperand = MakeWord(_ByteOperand + Y, ReadByte(_WordOperand));
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_FetchOperand_IncrementPC_Branch() {
+    ++_CurrentCycle;
     _ByteOperand = ReadByte(PC);
     ++PC;
     (this->*_Operation)();
@@ -611,10 +615,10 @@ void RP2A03::Cycle_FetchOperand_IncrementPC_Branch() {
         ++_CurrentCycle;    // branch is not taken
         ++_CurrentCycle;    // skip both branching cycles
     }
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_FetchDummy_TakeBranch() {
+    ++_CurrentCycle;
     ReadByte(PC);
     SetLO(PC, PC + _ByteOperand);
     if constexpr (BRANCH_USING_WORDOPERAND) {
@@ -632,10 +636,10 @@ void RP2A03::Cycle_FetchDummy_TakeBranch() {
             }
         }
     }
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_FetchDummy_FixBranch() {
+    ++_CurrentCycle;
     ReadByte(PC);
     if constexpr (BRANCH_USING_WORDOPERAND) {
         PC = _WordOperand;
@@ -646,86 +650,87 @@ void RP2A03::Cycle_FetchDummy_FixBranch() {
             PC -= Word{ 0x0100 };
         }
     }
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_FetchAddressHI_Operation() {
+    ++_CurrentCycle;
     SetHI(_WordOperand, ReadByte(PC));
     (this->*_Operation)();
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_ReadAddressHI_Operation() {
+    ++_CurrentCycle;
     SetLO(_WordOperand, _WordOperand + 1);
     _WordOperand = MakeWord(_ByteOperand, ReadByte(_WordOperand));
     (this->*_Operation)();
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_Operation_DecrementS() {
+    ++_CurrentCycle;
     (this->*_Operation)();
     --S;
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_PushPCL_DecrementS() {
+    ++_CurrentCycle;
     WriteByteToStack(LO(PC));
     --S;
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_PushPCH_DecrementS() {
+    ++_CurrentCycle;
     WriteByteToStack(HI(PC));
     --S;
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_ReadDummyStack() {
-    ReadByte(StackPage + S);
     ++_CurrentCycle;
+    ReadByte(StackPage + S);
 }
 
 void RP2A03::Cycle_FetchDummy() {
-    ReadByte(PC);
     ++_CurrentCycle;
+    ReadByte(PC);
 }
 
 void RP2A03::Cycle_ReadDummyStack_IncrementS() {
+    ++_CurrentCycle;
     ReadByte(StackPage + S);
     ++S;
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_PullPCL_IncrementS() {
+    ++_CurrentCycle;
     SetLO(PC, ReadByteFromStack());
     ++S;
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_PullPCH() {
-    SetHI(PC, ReadByteFromStack());
     ++_CurrentCycle;
+    SetHI(PC, ReadByteFromStack());
 }
 
 void RP2A03::Cycle_IncrementPC_Operation() {
+    ++_CurrentCycle;
     ++PC;
     (this->*_Operation)();
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_FetchDummy_MaybeIncrementPC_Operation() {
     // TODO be careful when refactoring
     // This is used only in BRK/interrupt handling
+    ++_CurrentCycle;
     ReadByte(PC);
     // Hardware interrupts suppress PC increment
     if (_FlagOperand == 1) {
         ++PC;
     }
     (this->*_Operation)();
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_PushP_DecrementS_SelectVector() {
+    ++_CurrentCycle;
+
     WriteByteToStack(GetStatusByte(_FlagOperand));
     --S;
 
@@ -737,25 +742,23 @@ void RP2A03::Cycle_PushP_DecrementS_SelectVector() {
     } else {
         _WordOperand = VectorIRQ;
     }
-
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_ReadPCL() {
-    SetLO(PC, ReadByte(_WordOperand));
     ++_CurrentCycle;
+    SetLO(PC, ReadByte(_WordOperand));
 }
 
 void RP2A03::Cycle_ReadPCH_ClearNMI() {
+    ++_CurrentCycle;
     SetHI(PC, ReadByte(_WordOperand + 1));
     _NMITriggered = false;
-    ++_CurrentCycle;
 }
 
 void RP2A03::Cycle_PullP_IncrementS() {
+    ++_CurrentCycle;
     SetStatusByte(ReadByteFromStack());
     ++S;
-    ++_CurrentCycle;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -963,10 +966,10 @@ bool RP2A03::Tick() {
     if (IsStopped()) return false;
 
     Phi2();
-    _DMAIsGetCycle = !_DMAIsGetCycle;
+    _DMAType = Flip(_DMAType);
     Phi1();
 
-    return (_InstructionsCycles[_CurrentCycle.Get()]
+    return (_InstructionsCycles[_CurrentCycle]
         == &RP2A03::Cycle_FetchOpcode_IncrementPC);
 }
 
@@ -976,7 +979,7 @@ void RP2A03::DMA(Byte page, Byte* target, Byte offset) {
 
 void RP2A03::Phi1() {
     ++Ticks;
-    (this->*_InstructionsCycles[_CurrentCycle.Get()])();
+    (this->*_InstructionsCycles[_CurrentCycle])();
 }
 
 void RP2A03::Phi2() {

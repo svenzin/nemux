@@ -8,6 +8,7 @@
 #include "Apu.h"
 
 #include <array>
+#include <functional>
 
 struct MemoryMap {
     virtual ~MemoryMap() {}
@@ -16,7 +17,7 @@ struct MemoryMap {
     virtual void SetByteAt(const Word address, const Byte value) = 0;
 };
 
-template <std::size_t Size>
+template <size_t Size>
 class MemoryBlock : public MemoryMap {
     std::array<Byte, Size> Data;
 
@@ -29,6 +30,49 @@ public:
 
     void SetByteAt(const Word address, const Byte value) override {
         Data[address] = value;
+    }
+};
+
+template <size_t Size>
+class MemoryCallbacks : public MemoryMap {
+public:
+    using GetterT = std::function<Byte()>;
+    using SetterT = std::function<void(Byte)>;
+
+protected:
+    std::array<GetterT, Size> _getters;
+    std::array<SetterT, Size> _setters;
+
+public:
+    explicit MemoryCallbacks()
+    : MemoryCallbacks(nullptr, nullptr)
+    {}
+
+    explicit MemoryCallbacks(GetterT defaultGetter,
+                             SetterT defaultSetter)
+    {
+        Fill(defaultGetter, defaultSetter);
+    }
+
+    void Fill(GetterT getter, SetterT setter) {
+        _getters.fill(getter);
+        _setters.fill(setter);
+    }
+
+    void SetGetterAt(Word address, GetterT getter) {
+        _getters[address] = getter;
+    }
+
+    void SetSetterAt(Word address, SetterT setter) {
+        _setters[address] = setter;
+    }
+
+    Byte GetByteAt(const Word address) const override {
+        return _getters[address]();
+    }
+
+    void SetByteAt(const Word address, const Byte value) override {
+        _setters[address](value);
     }
 };
 

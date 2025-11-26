@@ -141,7 +141,7 @@ struct CpuTestUnofficial : public CpuBaseTest {
 
         cpu->A = 0x3F;
         cpu->X = 0xF5;
-        const Byte H{ HI(bench.target.value()) };
+        const Byte H{ HI(bench.target_address.value()) };
         const auto expM{ static_cast<Byte>(cpu->A & cpu->X & H) };
 
         ExecuteOne();
@@ -157,7 +157,7 @@ struct CpuTestUnofficial : public CpuBaseTest {
 
         cpu->A = 0x3F;
         cpu->X = 0xF5;
-        const Byte H{ HI(bench.target.value()) };
+        const Byte H{ HI(bench.target_address.value()) };
         const auto expS{ static_cast<Byte>(cpu->A & cpu->X) };
         const auto expM{ static_cast<Byte>(cpu->A & cpu->X & H) };
 
@@ -172,7 +172,7 @@ struct CpuTestUnofficial : public CpuBaseTest {
     void Test_SHY(CpuTestBench::addressing_mode_setup addressingMode) {
         (bench.*addressingMode)(uSHY).start();
 
-        const Word address{ bench.target.value() };
+        const Word address{ bench.target_address.value() };
 
         cpu->Y = 0xF5;
         const Byte H{ HI(address) };
@@ -200,7 +200,7 @@ struct CpuTestUnofficial : public CpuBaseTest {
     void Test_SHX(CpuTestBench::addressing_mode_setup addressingMode) {
         (bench.*addressingMode)(uSHX).start();
 
-        const Word address{ bench.target.value() };
+        const Word address{ bench.target_address.value() };
 
         cpu->X = 0xF5;
         const Byte H{ HI(address) };

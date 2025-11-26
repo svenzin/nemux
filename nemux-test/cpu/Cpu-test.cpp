@@ -328,11 +328,11 @@ TEST_F(CpuTest, PowerUpState) {
 }
 
 TEST_F(CpuTest, Ticking) {
-    bench.at(0x0000).db(0x02)
-         .origin(0x0200)
+    bench.origin(0x0200)
          .encode(LDA, IMM).db(0x01) // LDA #1
          .encode(ADC, ZPG).db(0x00) // ADC $00
          .encode(INC, ZPG).db(0x00) // INC $00
+         .at(0x0000).db_rw(0x02)
          .start();
 
     EXPECT_EQ(0, cpu->GetTicks());
@@ -366,18 +366,19 @@ TEST_F(CpuTest, Ticking) {
 
 TEST_F(CpuTest, TickingWithInterrupt) {
     // FAIL();
-    bench.at(0x0000).db(0x02)
-         .origin(0x0200)
+    cpu->VectorIRQ = 0x03FE;
+    cpu->S = 0xF0;
+    cpu->I = 0;
+
+    bench.origin(0x0200)
          .encode(CLI, IMP)          // CLI
          .encode(LDA, IMM).db(0x01) // LDA #1
          .encode(ADC, ZPG).db(0x00) // ADC $00
          .encode(INC, ZPG).db(0x00) // INC $00
-         .at(0x03FE).dw(0x0080)
+         .at(0x0000).db_rw(0x02)
+         .prepare_interrupt(cpu->VectorIRQ, 0x0080, cpu->S)
          .start();
 
-    cpu->VectorIRQ = 0x03FE;
-    cpu->I = 0;
-    
     EXPECT_EQ(0, cpu->GetTicks());
     EXPECT_EQ(0, cpu->A);
 

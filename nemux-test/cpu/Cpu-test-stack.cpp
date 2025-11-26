@@ -45,9 +45,12 @@ TEST_F(CpuTestStack, TXS) {
 }
 
 TEST_F(CpuTestStack, PHA) {
-    bench.implicit(PHA).start();
     cpu->A = 0x20;
     cpu->S = 0xF0;
+    bench.implicit(PHA)
+        //  .at(0x01F0).db_rw(0xFF) // simple write, read while checking expectations
+         .stack_at(cpu->S).will_push(1)
+         .start();
     ExecuteOne();
 
     EXPECT_EQ(bench.expected_PC(), cpu->PC);
@@ -59,10 +62,13 @@ TEST_F(CpuTestStack, PHA) {
 
 TEST_F(CpuTestStack, PLA) {
     auto tester = [&] (Byte m, Flag expZ, Flag expN) {
-        bench.start();
-
         cpu->S = 0xEF;
-        memory->SetByteAt(0x01F0, m);
+        bench.reset()
+             .implicit(PLA)
+            //  .at(0x01F0).db(m)
+            //  .at(0x01EF).db(0xFF) // dummy read before S increment
+             .stack_at(cpu->S).will_pull({ m })
+             .start();
         ExecuteOne();
 
         EXPECT_EQ(bench.expected_PC(), cpu->PC);
@@ -81,10 +87,13 @@ TEST_F(CpuTestStack, PLA) {
 
 TEST_F(CpuTestStack, PLP) {
     auto tester = [&] (Byte m, Flag expN, Flag expV, Flag expD, Flag expI, Flag expZ, Flag expC) {
-        bench.start();
-
         cpu->S = 0xEF;
-        memory->SetByteAt(0x01F0, m);
+        bench.reset()
+             .implicit(PLP)
+            //  .at(0x01F0).db(m)
+            //  .at(0x01EF).db(0xFF) // dummy read before S increment
+             .stack_at(cpu->S).will_pull({ m })
+             .start();
         ExecuteOne();
 
         EXPECT_EQ(bench.expected_PC(), cpu->PC);
@@ -98,15 +107,12 @@ TEST_F(CpuTestStack, PLP) {
         EXPECT_EQ(expC, cpu->C);
     };
 
-    bench.implicit(PLP);
     tester(0xB5, 1, 0, 0, 1, 0, 1); // Status 10xx0101b
     tester(0x6A, 0, 1, 1, 0, 1, 0); // Status 01xx1010b
 }
 
 TEST_F(CpuTestStack, PHP) {
     auto tester = [&] (Flag n, Flag v, Flag d, Flag i, Flag z, Flag c) {
-        bench.start();
-
         cpu->N = n;
         cpu->V = v;
         cpu->D = d;
@@ -114,6 +120,12 @@ TEST_F(CpuTestStack, PHP) {
         cpu->Z = z;
         cpu->C = c;
         cpu->S = 0xF0;
+
+        bench.reset()
+             .implicit(PHP)
+            //  .at(0x01F0).db_rw(0xFF) // simple write, read while checking expectations
+             .stack_at(cpu->S).will_push(1)
+             .start();
         ExecuteOne();
 
         EXPECT_EQ(bench.expected_PC(), cpu->PC);
@@ -132,7 +144,6 @@ TEST_F(CpuTestStack, PHP) {
         EXPECT_EQ(c, Bit<Car>(status));
     };
 
-    bench.implicit(PHP);
     tester(0, 1, 1, 0, 1, 0);
     tester(1, 0, 0, 1, 0, 1);
 }

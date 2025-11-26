@@ -42,8 +42,9 @@ TEST_F(CpuTestJumpCall, JMP_Indirect_Bug) {
 TEST_F(CpuTestJumpCall, JSR) {
     cpu->S = 0xF0;
     bench.encode(JSR, ABS)
-        .dw(0x0120)
-        .start();
+         .dw(0x0120)
+         .stack_at(cpu->S).will_push(2)
+         .start();
     ExecuteOne();
 
     EXPECT_EQ(0x0120, cpu->PC);
@@ -55,10 +56,9 @@ TEST_F(CpuTestJumpCall, JSR) {
 
 TEST_F(CpuTestJumpCall, RTS) {
     cpu->S = 0xF0;
-    bench.encode(RTS, IMP)
-        .at(0x01F1).db(0x20)
-        .at(0x01F2).db(0x01)
-        .start();
+    bench.implicit(RTS)
+         .stack_at(cpu->S).will_pull({ 0x20, 0x01 })
+         .start();
     ExecuteOne();
 
     EXPECT_EQ(0x0121, cpu->PC);

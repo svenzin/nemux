@@ -5,6 +5,7 @@
 #include "cpu/InstructionSet_6502.h"
 
 #include <array>
+#include <limits>
 
 
 class RP2A03 : public BaseCpu {
@@ -17,34 +18,21 @@ public:
     [[nodiscard]] bool Tick() override;
     void DMA(Byte page, Byte* target, Byte offset) override;
 
+    void TriggerDMA(Word from, size_t count, Word to);
+
 protected:
     void Phi1();
     void Phi2();
 
     using CycleT = void(RP2A03::*)();
+    using CycleCounter = uint16_t;
 
     static constexpr size_t MAX_CYCLES_PER_INSTRUCTION{ 8 };
     static constexpr size_t MAX_CYCLE_COUNT{
         InstructionSet_6502::INSTRUCTION_COUNT * MAX_CYCLES_PER_INSTRUCTION
+        + 1 // initial state
     };
-
-    // TODO optimize this, probably with MAX_CYCLES_PER_INSTRUCTION as a power of two
-    struct CycleCounter {
-        static uint16_t ValueFrom(Byte opcode, Byte step) { return opcode * MAX_CYCLES_PER_INSTRUCTION + step; }
-
-        uint16_t _Value;
-
-        auto Get() const { return _Value; }
-        void Set(Byte opcode, Byte step) { _Value = ValueFrom(opcode, step); }
-
-        Byte GetOpcode() const { return _Value / MAX_CYCLES_PER_INSTRUCTION; }
-        void SetOpcode(Byte opcode) { Set(opcode, GetStep()); }
-
-        Byte GetStep() const { return _Value % MAX_CYCLES_PER_INSTRUCTION; }
-        void SetStep(Byte step) { Set(GetOpcode(), step); }
-
-        CycleCounter& operator++() { ++_Value; return *this; }
-    };
+    static_assert(MAX_CYCLE_COUNT < std::numeric_limits<CycleCounter>::max());
 
     std::array<CycleT, MAX_CYCLE_COUNT> _InstructionsCycles;
     CycleCounter _CurrentCycle;
@@ -56,7 +44,13 @@ protected:
     bool _IRQTriggered;
     bool _NMITriggered;
     bool _PreviousLineNMI;
-    bool _DMAIsGetCycle;
+
+    enum class DMACycleType : bool {
+        Get = true,
+        Put = false,
+    };
+    static DMACycleType Flip(DMACycleType value) { return DMACycleType{ !std::to_underlying(value) }; }
+    DMACycleType _DMAType;
 
     // TODO for debugging, remove
     InstructionSet_6502::Instruction _CurrentInstruction;
@@ -81,13 +75,13 @@ protected:
     void Cycle_ReadOperand();               // read-modify-write step 1
     void Cycle_WriteOperand_Operation();    // read-modify-write step 2
     void Cycle_WriteOperand();              // read-modify-write step 3
-    void Cycle_ReadOperand_FixHI_IndexX();
+    void Cycle_ReadDummy_FixHI_IndexX();
     void Cycle_ReadOperand_FixHI_IndexX_TryOperation();
-    void Cycle_ReadOperand_FixHI_IndexY();
+    void Cycle_ReadDummy_FixHI_IndexY();
     void Cycle_ReadOperand_FixHI_IndexY_TryOperation();
     void Cycle_Operation();
-    void Cycle_ReadOperand_IndexX();
-    void Cycle_ReadOperand_IndexY();
+    void Cycle_ReadDummy_IndexX();
+    void Cycle_ReadDummy_IndexY();
     void Cycle_ReadAddressLO();
     void Cycle_ReadAddressHI();
     void Cycle_ReadAddressHI_IndexY();

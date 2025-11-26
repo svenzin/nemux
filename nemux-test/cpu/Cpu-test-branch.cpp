@@ -9,10 +9,10 @@ static constexpr size_t OFFSET_FROM_PREFETCH_NEXT{ 0 };
 struct CpuTestBranch : public CpuBaseTest {
     void Test_Branch(Byte& flag, Flag success, Flag failure, OpName opname) {
         auto tester = [&] (Word pc, Byte offset, Flag c, Word expPC, int extra) {
+            const Word unfixedPC{ MakeWord(LO(pc + offset + 2), HI(pc)) };
             bench.origin(pc)
-                .encode(opname, REL)
-                .db(offset)
-                .start();
+                 .relative(opname, offset)
+                 .start();
             
             flag = c;
             ExecuteOne();

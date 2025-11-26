@@ -229,13 +229,14 @@ TEST_F(CpuTestLogical, AND_IndirectIndexed_BaseFromZeroPage) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(CpuTestLogical, BIT_ZeroPage) {
+    FAIL();
     for (auto a = 0; a < 0x100; ++a) {
         for (auto m = 0; m < 0x100; ++m) {
             bench.origin(0x0200)
-                .encode(BIT, ZPG)
-                .db(m)
-                .at(m).db(m)
-                .start();
+                 .encode(BIT, ZPG)
+                 .db(m)
+                 .at(m).db(m)
+                 .start();
             
             cpu->A = a;
             ExecuteOne();
@@ -250,13 +251,14 @@ TEST_F(CpuTestLogical, BIT_ZeroPage) {
 }
 
 TEST_F(CpuTestLogical, BIT_Absolute) {
+    FAIL();
     for (auto a = 0; a < 0x100; ++a) {
         for (auto m = 0; m < 0x100; ++m) {
             bench.origin(0x0200)
-                .encode(BIT, ABS)
-                .dw(0x0100 + m)
-                .at(0x0100 + m).db(m)
-                .start();
+                 .encode(BIT, ABS)
+                 .dw(0x0100 + m)
+                 .at(0x0100 + m).db(m)
+                 .start();
             
             cpu->A = a;
             ExecuteOne();

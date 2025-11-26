@@ -7,7 +7,7 @@ struct CpuTestStatusChange : public CpuBaseTest {
     template <InstructionSet_6502::OpName OP>
     void TesterFlag(Flag &f, Flag initial, Flag expected) {
         f = initial;
-        bench.encode(OP, IMP).start();
+        bench.implicit(OP).start();
         ExecuteOne();
 
         EXPECT_EQ(bench.expected_PC(), cpu->PC);
