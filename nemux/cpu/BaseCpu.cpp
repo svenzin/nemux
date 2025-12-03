@@ -3,6 +3,7 @@
 
 #include "MemoryMap.h"
 
+#include <sstream>
 #include <iomanip>
 
 

@@ -7,7 +7,7 @@
 #include <string>
 
 
-class MemoryMap;
+struct MemoryMap;
 
 
 namespace Addresses {

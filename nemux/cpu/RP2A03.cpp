@@ -279,7 +279,7 @@ RP2A03::RP2A03(const std::string& name, MemoryMap* map)
         };
 
         auto counter{ CycleCounter::ValueFrom(opcode, 0) };
-        auto* cycle{ _InstructionsCycles.begin() + counter };
+        auto* cycle{ _InstructionsCycles.data() + counter };
         switch (instr.Name) {
             using enum InstructionSet_6502::OpName;
             case JMP: {
